@@ -6,9 +6,19 @@ void main() {
     const config = AppConfig(
       environment: AppEnvironment.development,
       supabaseUrl: null,
-      supabaseAnonKey: null,
+      supabasePublishableKey: null,
     );
 
     expect(config.hasSupabaseConfig, isFalse);
+  });
+
+  test('detects complete Supabase publishable-key configuration', () {
+    const config = AppConfig(
+      environment: AppEnvironment.staging,
+      supabaseUrl: 'https://example.supabase.co',
+      supabasePublishableKey: 'sb_publishable_fake',
+    );
+
+    expect(config.hasSupabaseConfig, isTrue);
   });
 }

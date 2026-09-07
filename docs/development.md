@@ -30,7 +30,17 @@ flutter run
 Run with Supabase public config:
 
 ```powershell
-flutter run --dart-define=APP_ENVIRONMENT=development --dart-define=SUPABASE_URL=https://your-project.supabase.co --dart-define=SUPABASE_ANON_KEY=your-anon-key
+flutter run -d edge `
+  --dart-define=APP_ENVIRONMENT=development `
+  --dart-define=SUPABASE_URL="https://exdaagbftotnnoyetcpg.supabase.co" `
+  --dart-define=SUPABASE_PUBLISHABLE_KEY="your-publishable-key"
 ```
 
-Supabase CLI can be installed later and used to apply migrations locally or remotely. Do not link or push to a production Supabase project without explicit credentials and approval.
+Supabase CLI is installed as a local dev dependency:
+
+```powershell
+npx supabase --version
+npx supabase link --project-ref exdaagbftotnnoyetcpg
+```
+
+Remote `db push` mutates the linked database and should only run with explicit approval after reviewing the migration. The Sprint 1 foundation migration and seed were applied to `exdaagbftotnnoyetcpg` on 2026-09-07.

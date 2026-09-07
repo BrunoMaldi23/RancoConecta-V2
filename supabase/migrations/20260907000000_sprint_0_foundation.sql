@@ -17,6 +17,7 @@ create type message_type as enum ('text', 'image', 'system', 'quote', 'location'
 create or replace function set_updated_at()
 returns trigger
 language plpgsql
+set search_path = public
 as $$
 begin
   new.updated_at = now();
@@ -29,6 +30,7 @@ create sequence service_request_public_code_seq;
 create or replace function generate_service_request_public_code()
 returns text
 language plpgsql
+set search_path = public
 as $$
 begin
   return 'RC-' || to_char(now(), 'YYYY') || '-' || lpad(nextval('service_request_public_code_seq')::text, 6, '0');
@@ -38,11 +40,32 @@ $$;
 create or replace function protect_profile_privileged_fields()
 returns trigger
 language plpgsql
+set search_path = public, auth
 as $$
 begin
   if auth.role() <> 'service_role' and (new.role <> old.role or new.account_status <> old.account_status) then
     raise exception 'profile role and account status require a privileged server-side operation';
   end if;
+
+  return new;
+end;
+$$;
+
+create or replace function handle_new_auth_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+begin
+  insert into public.profiles (id, full_name, role, account_status)
+  values (
+    new.id,
+    nullif(trim(coalesce(new.raw_user_meta_data ->> 'full_name', '')), ''),
+    'customer',
+    'active'
+  )
+  on conflict (id) do nothing;
 
   return new;
 end;
@@ -334,6 +357,13 @@ create table messages (
   constraint messages_content_present check (text is not null or attachment_path is not null or message_type in ('system', 'quote', 'location'))
 );
 
+insert into storage.buckets (id, name, public)
+values
+  ('business-media', 'business-media', true),
+  ('request-attachments', 'request-attachments', false),
+  ('avatars', 'avatars', true)
+on conflict (id) do nothing;
+
 create index businesses_owner_idx on businesses(owner_id);
 create index businesses_type_status_idx on businesses(business_type, publication_status);
 create index businesses_created_at_idx on businesses(created_at desc);
@@ -349,6 +379,7 @@ create index messages_conversation_created_idx on messages(conversation_id, crea
 
 create trigger profiles_updated_at before update on profiles for each row execute function set_updated_at();
 create trigger profiles_protect_privileged_fields before update on profiles for each row execute function protect_profile_privileged_fields();
+create trigger auth_users_create_profile after insert on auth.users for each row execute function handle_new_auth_user();
 create trigger regions_updated_at before update on regions for each row execute function set_updated_at();
 create trigger communes_updated_at before update on communes for each row execute function set_updated_at();
 create trigger locations_updated_at before update on locations for each row execute function set_updated_at();
@@ -388,7 +419,7 @@ alter table conversations enable row level security;
 alter table messages enable row level security;
 
 create policy "profiles select own" on profiles for select using (auth.uid() = id);
-create policy "profiles update own basic fields" on profiles for update using (auth.uid() = id) with check (auth.uid() = id and role in ('customer', 'provider'));
+create policy "profiles update own basic fields" on profiles for update using (auth.uid() = id) with check (auth.uid() = id);
 
 create policy "public read active regions" on regions for select using (active);
 create policy "public read active communes" on communes for select using (active);
@@ -465,10 +496,6 @@ create policy "customers create own reviews" on reviews for insert with check (
     select 1 from service_requests sr where sr.id = request_id and sr.customer_id = auth.uid() and sr.business_id = reviews.business_id and sr.status in ('completed', 'confirmed', 'reviewed')
   )
 );
-create policy "providers update reply" on reviews for update using (
-  exists (select 1 from businesses b where b.id = business_id and b.owner_id = auth.uid())
-);
-
 create policy "public read active membership plans" on membership_plans for select using (active);
 create policy "owners read own memberships" on memberships for select using (
   exists (select 1 from businesses b where b.id = business_id and b.owner_id = auth.uid())

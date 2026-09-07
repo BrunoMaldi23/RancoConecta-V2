@@ -24,7 +24,10 @@ flutter pub get
 Optional Supabase values are passed as Dart defines:
 
 ```powershell
-flutter run --dart-define=APP_ENVIRONMENT=development --dart-define=SUPABASE_URL=https://your-project.supabase.co --dart-define=SUPABASE_ANON_KEY=your-anon-key
+flutter run -d edge `
+  --dart-define=APP_ENVIRONMENT=development `
+  --dart-define=SUPABASE_URL="https://exdaagbftotnnoyetcpg.supabase.co" `
+  --dart-define=SUPABASE_PUBLISHABLE_KEY="your-publishable-key"
 ```
 
 Without Supabase config, the app starts in safe development mode.
@@ -49,6 +52,10 @@ flutter test
 - `lib/shared`: shared domain-style models
 - `supabase`: migrations, seed, Edge Function workspace
 - `docs`: architecture, security, business, and operational notes
+
+## Sprint 1 Slice
+
+The app now includes real Supabase-backed foundations for sign up, sign in, password recovery, profile read/update, categories, locations, published businesses, business detail, favorites, direct service requests, and request history/detail.
 
 ## Supabase
 

@@ -9,18 +9,18 @@ class AppShell extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
 
   static const _destinations = [
-    _Destination('Inicio', Icons.home_outlined, Icons.home),
-    _Destination('Explorar', Icons.search_outlined, Icons.search),
-    _Destination('Solicitudes', Icons.assignment_outlined, Icons.assignment),
-    _Destination('Guardados', Icons.bookmark_border, Icons.bookmark),
-    _Destination('Cuenta', Icons.person_outline, Icons.person),
+    _Destination('Inicio', Icons.home_outlined, Icons.home_rounded),
+    _Destination('Explorar', Icons.search_rounded, Icons.search_rounded),
+    _Destination('Solicitudes', Icons.assignment_outlined, Icons.assignment_rounded),
+    _Destination('Guardados', Icons.bookmark_border_rounded, Icons.bookmark_rounded),
+    _Destination('Cuenta', Icons.person_outline_rounded, Icons.person_rounded),
   ];
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final useRail = constraints.maxWidth >= RancoBreakpoints.medium;
+        final useRail = constraints.maxWidth >= RancoBreakpoints.expanded;
         return Scaffold(
           body: Row(
             children: [
@@ -29,6 +29,7 @@ class AppShell extends StatelessWidget {
                   selectedIndex: navigationShell.currentIndex,
                   onDestinationSelected: _goBranch,
                   labelType: NavigationRailLabelType.all,
+                  groupAlignment: -0.72,
                   destinations: [
                     for (final destination in _destinations)
                       NavigationRailDestination(
@@ -43,17 +44,20 @@ class AppShell extends StatelessWidget {
           ),
           bottomNavigationBar: useRail
               ? null
-              : NavigationBar(
-                  selectedIndex: navigationShell.currentIndex,
-                  onDestinationSelected: _goBranch,
-                  destinations: [
-                    for (final destination in _destinations)
-                      NavigationDestination(
-                        icon: Icon(destination.icon),
-                        selectedIcon: Icon(destination.selectedIcon),
-                        label: destination.label,
-                      ),
-                  ],
+              : SafeArea(
+                  top: false,
+                  child: NavigationBar(
+                    selectedIndex: navigationShell.currentIndex,
+                    onDestinationSelected: _goBranch,
+                    destinations: [
+                      for (final destination in _destinations)
+                        NavigationDestination(
+                          icon: Icon(destination.icon),
+                          selectedIcon: Icon(destination.selectedIcon),
+                          label: destination.label,
+                        ),
+                    ],
+                  ),
                 ),
         );
       },

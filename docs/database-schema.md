@@ -4,6 +4,8 @@ The source of truth is `supabase/migrations/20260907000000_sprint_0_foundation.s
 
 Sprint 0 creates catalog, marketplace, request, quote, membership, payment, notification, audit, and chat-preparation tables. UUIDs are used for user-owned and transactional records. Stable PostgreSQL enums store internal states in English.
 
+Sprint 1 audited the same migration before remote application and added automatic profile creation from `auth.users`, function `search_path` hardening, explicit role/status protection, and prepared Storage buckets.
+
 Key tables:
 
 - `profiles`

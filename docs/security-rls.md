@@ -21,6 +21,7 @@ Known limitations:
 - admin and super admin policies are intentionally deferred until secure server-side role management exists;
 - payment and membership mutation from Flutter is not allowed;
 - open service requests need a privacy-preserving provider discovery design before broader provider visibility is added;
-- provider review replies currently permit updating a review row and should be narrowed through a secure RPC or column-level strategy later.
+- provider review replies are deferred until a secure RPC or column-level strategy exists.
+- Storage buckets are created, but object-level write policies are deferred until avatar/business-media upload flows are designed.
 
 Service role keys must only live in backend environments such as Supabase Edge Functions.

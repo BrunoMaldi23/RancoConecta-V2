@@ -17,7 +17,7 @@ void main() {
             const AppConfig(
               environment: AppEnvironment.development,
               supabaseUrl: null,
-              supabaseAnonKey: null,
+              supabasePublishableKey: null,
             ),
           ),
         ],
@@ -25,8 +25,8 @@ void main() {
       ),
     );
 
-    expect(find.text('Lago Ranco y Futrono'), findsOneWidget);
+    expect(find.text('Ranco Conecta'), findsOneWidget);
     expect(find.byType(NavigationBar), findsOneWidget);
-    expect(find.textContaining('Supabase no está configurado'), findsOneWidget);
+    expect(find.textContaining('SUPABASE_PUBLISHABLE_KEY'), findsOneWidget);
   });
 }

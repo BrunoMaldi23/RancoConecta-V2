@@ -31,26 +31,37 @@ join (values
 on conflict (slug) do nothing;
 
 insert into categories (name, slug, icon_key, theme_key, sort_order) values
-  ('Servicios hogar', 'home-services', 'tools', 'forest', 1),
-  ('Comercios', 'commerce', 'store', 'lake', 2),
-  ('Gastronomía', 'gastronomy', 'restaurant', 'clay', 3),
-  ('Alojamientos', 'lodging', 'bed', 'moss', 4)
+  ('Hogar y mantención', 'home-maintenance', 'tools', 'forest', 1),
+  ('Fletes y transporte', 'transport', 'truck', 'lake', 2),
+  ('Comercios', 'commerce', 'store', 'moss', 3),
+  ('Gastronomía', 'gastronomy', 'restaurant', 'clay', 4),
+  ('Alojamientos', 'lodging', 'bed', 'lake', 5),
+  ('Emergencias', 'emergencies', 'alert', 'clay', 6)
 on conflict (slug) do nothing;
 
 insert into subcategories (category_id, name, slug, description, icon_key, sort_order)
 select c.id, item.name, item.slug, item.description, item.icon_key, item.sort_order
 from categories c
 join (values
-  ('home-services', 'Gasfitería', 'plumbing', 'Instalación y reparación de agua, cañerías y artefactos.', 'plumbing', 1),
-  ('home-services', 'Electricidad', 'electricity', 'Servicios eléctricos domiciliarios y comerciales.', 'electricity', 2),
-  ('home-services', 'Calefacción', 'heating', 'Mantención e instalación de calefacción.', 'heating', 3),
-  ('home-services', 'Transporte', 'transport', 'Traslados, fletes y logística local.', 'transport', 4),
+  ('home-maintenance', 'Gasfitería', 'plumbing', 'Instalación y reparación de agua, cañerías y artefactos.', 'plumbing', 1),
+  ('home-maintenance', 'Electricidad', 'electricity', 'Servicios eléctricos domiciliarios y comerciales.', 'electricity', 2),
+  ('home-maintenance', 'Carpintería', 'carpentry', 'Muebles, reparaciones y trabajos en madera.', 'carpentry', 3),
+  ('home-maintenance', 'Pintura', 'painting', 'Pintura interior, exterior y terminaciones.', 'painting', 4),
+  ('home-maintenance', 'Construcción', 'construction', 'Obras menores, ampliaciones y reparaciones.', 'construction', 5),
+  ('home-maintenance', 'Calefacción', 'heating', 'Mantención e instalación de calefacción.', 'heating', 6),
+  ('home-maintenance', 'Cerrajería', 'locksmith', 'Aperturas, chapas y seguridad domiciliaria.', 'locksmith', 7),
+  ('home-maintenance', 'Jardinería', 'gardening', 'Mantención de jardines y áreas verdes.', 'gardening', 8),
+  ('home-maintenance', 'Aseo', 'cleaning', 'Limpieza residencial, comercial y post obra.', 'cleaning', 9),
+  ('transport', 'Fletes locales', 'local-freight', 'Traslados, fletes y logística local.', 'transport', 1),
+  ('transport', 'Mecánica', 'mechanics', 'Mantención y reparación de vehículos.', 'mechanics', 2),
+  ('transport', 'Computación', 'computing', 'Soporte técnico, redes y equipos.', 'computing', 3),
   ('commerce', 'Almacenes', 'local-stores', 'Comercio de abarrotes y productos diarios.', 'store', 1),
   ('commerce', 'Ferretería', 'hardware', 'Materiales, herramientas e insumos.', 'hardware', 2),
   ('gastronomy', 'Restaurantes', 'restaurants', 'Comida preparada y atención en local.', 'restaurant', 1),
   ('gastronomy', 'Cafeterías', 'coffee', 'Café, repostería y espacios de encuentro.', 'coffee', 2),
   ('lodging', 'Cabañas', 'cabins', 'Cabañas y alojamientos familiares.', 'cabin', 1),
-  ('lodging', 'Hospedajes', 'guesthouses', 'Hospedajes y habitaciones locales.', 'lodging', 2)
+  ('lodging', 'Hospedajes', 'guesthouses', 'Hospedajes y habitaciones locales.', 'lodging', 2),
+  ('emergencies', 'Urgencias hogar', 'home-emergencies', 'Servicios urgentes para incidentes domiciliarios.', 'emergency', 1)
 ) as item(category_slug, name, slug, description, icon_key, sort_order) on item.category_slug = c.slug
 on conflict (slug) do nothing;
 

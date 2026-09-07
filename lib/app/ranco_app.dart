@@ -17,6 +17,7 @@ class RancoApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: RancoTheme.light(),
       darkTheme: RancoTheme.dark(),
+      themeMode: ThemeMode.light,
       routerConfig: router,
       locale: const Locale('es'),
       supportedLocales: const [Locale('es'), Locale('en')],

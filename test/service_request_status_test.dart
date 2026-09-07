@@ -8,4 +8,22 @@ void main() {
     expect(ServiceRequestStatus.draft.canReceiveQuote, isFalse);
     expect(ServiceRequestStatus.completed.canReceiveQuote, isFalse);
   });
+
+  test('allows only known early customer-safe transitions', () {
+    expect(
+      ServiceRequestStatus.draft
+          .canTransitionTo(ServiceRequestStatus.submitted),
+      isTrue,
+    );
+    expect(
+      ServiceRequestStatus.submitted
+          .canTransitionTo(ServiceRequestStatus.accepted),
+      isFalse,
+    );
+    expect(
+      ServiceRequestStatus.completed
+          .canTransitionTo(ServiceRequestStatus.reviewed),
+      isFalse,
+    );
+  });
 }

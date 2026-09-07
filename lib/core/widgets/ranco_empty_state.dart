@@ -5,12 +5,14 @@ class RancoEmptyState extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.message,
+    this.compact = false,
     super.key,
   });
 
   final IconData icon;
   final String title;
   final String message;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -21,17 +23,38 @@ class RancoEmptyState extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(compact ? 12 : 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 42, color: colorScheme.primary),
-              const SizedBox(height: 16),
-              Text(title,
-                  style: textTheme.titleLarge, textAlign: TextAlign.center),
-              const SizedBox(height: 8),
-              Text(message,
-                  style: textTheme.bodyMedium, textAlign: TextAlign.center),
+              Container(
+                width: compact ? 46 : 56,
+                height: compact ? 46 : 56,
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer.withValues(alpha: .72),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  icon,
+                  size: compact ? 24 : 28,
+                  color: colorScheme.primary,
+                ),
+              ),
+              SizedBox(height: compact ? 10 : 14),
+              Text(
+                title,
+                style: textTheme.titleLarge,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                message,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ],
           ),
         ),

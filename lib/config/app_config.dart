@@ -17,7 +17,7 @@ class AppConfig {
   const AppConfig({
     required this.environment,
     required this.supabaseUrl,
-    required this.supabaseAnonKey,
+    required this.supabasePublishableKey,
   });
 
   factory AppConfig.fromEnvironment() {
@@ -26,20 +26,24 @@ class AppConfig {
       defaultValue: 'development',
     );
     const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
-    const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+    const supabasePublishableKey = String.fromEnvironment(
+      'SUPABASE_PUBLISHABLE_KEY',
+    );
 
     return AppConfig(
       environment: AppEnvironment.parse(environment),
       supabaseUrl: supabaseUrl.isEmpty ? null : supabaseUrl,
-      supabaseAnonKey: supabaseAnonKey.isEmpty ? null : supabaseAnonKey,
+      supabasePublishableKey:
+          supabasePublishableKey.isEmpty ? null : supabasePublishableKey,
     );
   }
 
   final AppEnvironment environment;
   final String? supabaseUrl;
-  final String? supabaseAnonKey;
+  final String? supabasePublishableKey;
 
-  bool get hasSupabaseConfig => supabaseUrl != null && supabaseAnonKey != null;
+  bool get hasSupabaseConfig =>
+      supabaseUrl != null && supabasePublishableKey != null;
 }
 
 final appConfigProvider =

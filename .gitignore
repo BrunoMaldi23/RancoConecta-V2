@@ -31,3 +31,6 @@ macos/Flutter/ephemeral/
 
 # Logs
 *.log
+
+# Node tooling
+node_modules/
