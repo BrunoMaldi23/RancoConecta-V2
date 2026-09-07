@@ -22,16 +22,12 @@ class LocationSelector extends ConsumerWidget {
 
     return locations.when(
       data: (items) {
-        final effectiveSelected =
-            selected ?? _defaultLocation(items);
+        final effectiveSelected = selected;
 
-        final selectedLabel =
-            effectiveSelected?.name ?? 'Todas las localidades';
+        final selectedLabel = selected?.name ?? 'Todas las localidades';
 
         return Material(
-          color: compact
-              ? const Color(0xFFF4F8F6)
-              : Colors.white,
+          color: compact ? const Color(0xFFF4F8F6) : Colors.white,
           borderRadius: BorderRadius.circular(
             compact ? 16 : 18,
           ),
@@ -44,7 +40,7 @@ class LocationSelector extends ConsumerWidget {
                 context: context,
                 ref: ref,
                 items: items,
-                selected: effectiveSelected,
+                selected: selected,
               );
             },
             child: Container(
@@ -87,10 +83,8 @@ class LocationSelector extends ConsumerWidget {
                   ),
                   Expanded(
                     child: Column(
-                      mainAxisAlignment:
-                          MainAxisAlignment.center,
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (!compact) ...[
                           Text(
@@ -99,10 +93,8 @@ class LocationSelector extends ConsumerWidget {
                                 .textTheme
                                 .labelSmall
                                 ?.copyWith(
-                                  color:
-                                      const Color(0xFF73847C),
-                                  fontWeight:
-                                      FontWeight.w600,
+                                  color: const Color(0xFF73847C),
+                                  fontWeight: FontWeight.w600,
                                 ),
                           ),
                           const SizedBox(height: 2),
@@ -137,9 +129,7 @@ class LocationSelector extends ConsumerWidget {
         height: compact ? 52 : 58,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: compact
-              ? const Color(0xFFF4F8F6)
-              : Colors.white,
+          color: compact ? const Color(0xFFF4F8F6) : Colors.white,
           borderRadius: BorderRadius.circular(
             compact ? 16 : 18,
           ),
@@ -181,8 +171,7 @@ class LocationSelector extends ConsumerWidget {
     }
 
     return locations.firstWhere(
-      (location) =>
-          location.slug == 'lago-ranco',
+      (location) => location.slug == 'lago-ranco',
       orElse: () => locations.first,
     );
   }
@@ -217,8 +206,7 @@ class LocationSelector extends ConsumerWidget {
   }
 }
 
-class _LocationBottomSheet
-    extends StatefulWidget {
+class _LocationBottomSheet extends StatefulWidget {
   const _LocationBottomSheet({
     required this.items,
     required this.selected,
@@ -230,14 +218,11 @@ class _LocationBottomSheet
   final ValueChanged<Location?> onSelected;
 
   @override
-  State<_LocationBottomSheet> createState() =>
-      _LocationBottomSheetState();
+  State<_LocationBottomSheet> createState() => _LocationBottomSheetState();
 }
 
-class _LocationBottomSheetState
-    extends State<_LocationBottomSheet> {
-  final _searchController =
-      TextEditingController();
+class _LocationBottomSheetState extends State<_LocationBottomSheet> {
+  final _searchController = TextEditingController();
 
   String _query = '';
 
@@ -249,8 +234,7 @@ class _LocationBottomSheetState
 
   @override
   Widget build(BuildContext context) {
-    final query =
-        _query.trim().toLowerCase();
+    final query = _query.trim().toLowerCase();
 
     final filtered = widget.items.where(
       (location) {
@@ -258,24 +242,17 @@ class _LocationBottomSheetState
           return true;
         }
 
-        final name =
-            location.name.toLowerCase();
+        final name = location.name.toLowerCase();
 
-        final commune =
-            location.communeName
-                    ?.toLowerCase() ??
-                '';
+        final commune = location.communeName?.toLowerCase() ?? '';
 
-        return name.contains(query) ||
-            commune.contains(query);
+        return name.contains(query) || commune.contains(query);
       },
     ).toList();
 
-    final screenHeight =
-        MediaQuery.sizeOf(context).height;
+    final screenHeight = MediaQuery.sizeOf(context).height;
 
-    final sheetHeight =
-        screenHeight * 0.82;
+    final sheetHeight = screenHeight * 0.82;
 
     return Align(
       alignment: Alignment.bottomCenter,
@@ -293,58 +270,46 @@ class _LocationBottomSheetState
         child: Column(
           children: [
             const SizedBox(height: 10),
-
             Container(
               width: 42,
               height: 4,
               decoration: BoxDecoration(
-                color:
-                    const Color(0xFFD7E2DE),
-                borderRadius:
-                    BorderRadius.circular(20),
+                color: const Color(0xFFD7E2DE),
+                borderRadius: BorderRadius.circular(20),
               ),
             ),
-
             Padding(
-              padding:
-                  const EdgeInsets.fromLTRB(
+              padding: const EdgeInsets.fromLTRB(
                 20,
                 18,
                 12,
                 12,
               ),
               child: Row(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
                           'Elige una localidad',
                           style: TextStyle(
-                            color:
-                                RancoColors.forest,
+                            color: RancoColors.forest,
                             fontSize: 24,
-                            fontWeight:
-                                FontWeight.w900,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           'Mostraremos los servicios disponibles en ese sector.',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(
-                                color:
-                                    const Color(
-                                  0xFF71827A,
-                                ),
-                                height: 1.35,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: const Color(
+                                      0xFF71827A,
+                                    ),
+                                    height: 1.35,
+                                  ),
                         ),
                       ],
                     ),
@@ -358,12 +323,10 @@ class _LocationBottomSheetState
                       Icons.close_rounded,
                     ),
                     style: IconButton.styleFrom(
-                      backgroundColor:
-                          const Color(
+                      backgroundColor: const Color(
                         0xFFEAF3EF,
                       ),
-                      foregroundColor:
-                          const Color(
+                      foregroundColor: const Color(
                         0xFF30443B,
                       ),
                     ),
@@ -371,100 +334,78 @@ class _LocationBottomSheetState
                 ],
               ),
             ),
-
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(
+              padding: const EdgeInsets.symmetric(
                 horizontal: 20,
               ),
               child: TextField(
-                controller:
-                    _searchController,
+                controller: _searchController,
                 onChanged: (value) {
                   setState(() {
                     _query = value;
                   });
                 },
                 decoration: InputDecoration(
-                  hintText:
-                      'Buscar localidad',
+                  hintText: 'Buscar localidad',
                   prefixIcon: const Icon(
                     Icons.search_rounded,
                   ),
-                  suffixIcon:
-                      _query.isNotEmpty
-                          ? IconButton(
-                              onPressed: () {
-                                _searchController
-                                    .clear();
+                  suffixIcon: _query.isNotEmpty
+                      ? IconButton(
+                          onPressed: () {
+                            _searchController.clear();
 
-                                setState(() {
-                                  _query = '';
-                                });
-                              },
-                              icon: const Icon(
-                                Icons
-                                    .close_rounded,
-                              ),
-                            )
-                          : null,
+                            setState(() {
+                              _query = '';
+                            });
+                          },
+                          icon: const Icon(
+                            Icons.close_rounded,
+                          ),
+                        )
+                      : null,
                   filled: true,
                   fillColor: Colors.white,
-                  contentPadding:
-                      const EdgeInsets.symmetric(
+                  contentPadding: const EdgeInsets.symmetric(
                     horizontal: 14,
                     vertical: 14,
                   ),
                   border: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(
+                    borderRadius: BorderRadius.circular(
                       18,
                     ),
-                    borderSide:
-                        const BorderSide(
-                      color:
-                          Color(
+                    borderSide: const BorderSide(
+                      color: Color(
                         0xFFD6E3DD,
                       ),
                     ),
                   ),
-                  enabledBorder:
-                      OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(
                       18,
                     ),
-                    borderSide:
-                        const BorderSide(
-                      color:
-                          Color(
+                    borderSide: const BorderSide(
+                      color: Color(
                         0xFFD6E3DD,
                       ),
                     ),
                   ),
-                  focusedBorder:
-                      OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(
                       18,
                     ),
-                    borderSide:
-                        const BorderSide(
-                      color:
-                          RancoColors.forest,
+                    borderSide: const BorderSide(
+                      color: RancoColors.forest,
                       width: 1.4,
                     ),
                   ),
                 ),
               ),
             ),
-
             const SizedBox(height: 14),
-
             Expanded(
               child: ListView(
-                padding:
-                    const EdgeInsets.fromLTRB(
+                padding: const EdgeInsets.fromLTRB(
                   20,
                   0,
                   20,
@@ -472,32 +413,22 @@ class _LocationBottomSheetState
                 ),
                 children: [
                   _LocationTile(
-                    title:
-                        'Todas las localidades',
-                    subtitle:
-                        'Ver servicios de todas las zonas',
-                    selected:
-                        widget.selected == null,
+                    title: 'Todas las localidades',
+                    subtitle: 'Ver servicios de todas las zonas',
+                    selected: widget.selected == null,
                     emphasized: true,
                     onTap: () {
-                      widget
-                          .onSelected(null);
+                      widget.onSelected(null);
                     },
                   ),
-
                   const SizedBox(height: 10),
-
-                  for (final location
-                      in filtered) ...[
+                  for (final location in filtered) ...[
                     _LocationTile(
                       title: location.name,
-                      subtitle:
-                          _locationSubtitle(
+                      subtitle: _locationSubtitle(
                         location,
                       ),
-                      selected:
-                          widget.selected?.id ==
-                              location.id,
+                      selected: widget.selected?.id == location.id,
                       onTap: () {
                         widget.onSelected(
                           location,
@@ -506,9 +437,7 @@ class _LocationBottomSheetState
                     ),
                     const SizedBox(height: 10),
                   ],
-
-                  if (filtered.isEmpty)
-                    const _EmptySearch(),
+                  if (filtered.isEmpty) const _EmptySearch(),
                 ],
               ),
             ),
@@ -521,28 +450,19 @@ class _LocationBottomSheetState
   String _locationSubtitle(
     Location location,
   ) {
-    final commune =
-        location.communeName
-                    ?.trim()
-                    .isNotEmpty ==
-                true
-            ? location.communeName!
-            : location.name;
+    final commune = location.communeName?.trim().isNotEmpty == true
+        ? location.communeName!
+        : location.name;
 
-    final count =
-        location.providerCount;
+    final count = location.providerCount;
 
-    final providerText =
-        count == 1
-            ? '1 prestador'
-            : '$count prestadores';
+    final providerText = count == 1 ? '1 prestador' : '$count prestadores';
 
-    return '$commune · $providerText';
+    return '$commune \u00B7 $providerText';
   }
 }
 
-class _LocationTile
-    extends StatelessWidget {
+class _LocationTile extends StatelessWidget {
   const _LocationTile({
     required this.title,
     required this.subtitle,
@@ -560,21 +480,15 @@ class _LocationTile
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected
-          ? const Color(0xFFE3F1EA)
-          : Colors.white,
-      borderRadius:
-          BorderRadius.circular(18),
+      color: selected ? const Color(0xFFE3F1EA) : Colors.white,
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
-        borderRadius:
-            BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(18),
         child: Container(
-          padding:
-              const EdgeInsets.all(13),
+          padding: const EdgeInsets.all(13),
           decoration: BoxDecoration(
-            borderRadius:
-                BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: selected
                   ? const Color(
@@ -596,56 +510,41 @@ class _LocationTile
                       : const Color(
                           0xFFE6F1EC,
                         ),
-                  borderRadius:
-                      BorderRadius.circular(
+                  borderRadius: BorderRadius.circular(
                     14,
                   ),
                 ),
                 child: Icon(
-                  Icons
-                      .location_on_outlined,
-                  color: selected
-                      ? Colors.white
-                      : RancoColors.forest,
+                  Icons.location_on_outlined,
+                  color: selected ? Colors.white : RancoColors.forest,
                 ),
               ),
-
               const SizedBox(width: 13),
-
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
                       maxLines: 1,
-                      overflow:
-                          TextOverflow.ellipsis,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: selected ||
-                                emphasized
-                            ? RancoColors
-                                .forest
+                        color: selected || emphasized
+                            ? RancoColors.forest
                             : const Color(
                                 0xFF34453D,
                               ),
                         fontSize: 15,
-                        fontWeight:
-                            FontWeight.w800,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-
                     const SizedBox(height: 3),
-
                     Text(
                       subtitle,
                       maxLines: 1,
-                      overflow:
-                          TextOverflow.ellipsis,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color:
-                            Color(
+                        color: Color(
                           0xFF74857D,
                         ),
                         fontSize: 12,
@@ -654,17 +553,13 @@ class _LocationTile
                   ],
                 ),
               ),
-
               const SizedBox(width: 8),
-
               if (selected)
                 Container(
                   width: 26,
                   height: 26,
-                  decoration:
-                      const BoxDecoration(
-                    color:
-                        RancoColors.forest,
+                  decoration: const BoxDecoration(
+                    color: RancoColors.forest,
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -675,10 +570,8 @@ class _LocationTile
                 )
               else
                 const Icon(
-                  Icons
-                      .chevron_right_rounded,
-                  color:
-                      Color(
+                  Icons.chevron_right_rounded,
+                  color: Color(
                     0xFF9DAAA4,
                   ),
                 ),
@@ -690,15 +583,13 @@ class _LocationTile
   }
 }
 
-class _EmptySearch
-    extends StatelessWidget {
+class _EmptySearch extends StatelessWidget {
   const _EmptySearch();
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding:
-          const EdgeInsets.symmetric(
+      padding: const EdgeInsets.symmetric(
         vertical: 42,
       ),
       child: Column(
@@ -707,43 +598,32 @@ class _EmptySearch
             width: 58,
             height: 58,
             decoration: BoxDecoration(
-              color:
-                  const Color(
+              color: const Color(
                 0xFFE7F2ED,
               ),
-              borderRadius:
-                  BorderRadius.circular(
+              borderRadius: BorderRadius.circular(
                 18,
               ),
             ),
             child: const Icon(
               Icons.location_off_outlined,
-              color:
-                  RancoColors.forest,
+              color: RancoColors.forest,
             ),
           ),
-
           const SizedBox(height: 14),
-
           const Text(
             'No encontramos esa localidad',
             style: TextStyle(
-              color:
-                  Color(0xFF34453D),
-              fontWeight:
-                  FontWeight.w800,
+              color: Color(0xFF34453D),
+              fontWeight: FontWeight.w800,
             ),
           ),
-
           const SizedBox(height: 5),
-
           const Text(
             'Prueba escribiendo otro nombre.',
-            textAlign:
-                TextAlign.center,
+            textAlign: TextAlign.center,
             style: TextStyle(
-              color:
-                  Color(0xFF74857D),
+              color: Color(0xFF74857D),
               fontSize: 12,
             ),
           ),

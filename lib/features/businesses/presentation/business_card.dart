@@ -17,7 +17,7 @@ class BusinessCard extends StatelessWidget {
     final coverage = business.coverage
         .map((location) => location.name)
         .take(2)
-        .join(' Ã‚Â· ');
+        .join(' Ãƒâ€š\u00B7 ');
 
     final serviceName = business.services.isNotEmpty
         ? business.services.first.subcategory.name
@@ -110,7 +110,7 @@ class BusinessCard extends StatelessWidget {
               ),
 
               // ======================================================
-              // INFORMACIÃƒâ€œN
+              // INFORMACIÃƒÆ’Ã¢â‚¬Å“N
               // ======================================================
 
               Padding(
