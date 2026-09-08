@@ -320,8 +320,8 @@ class _BookingCard extends StatelessWidget {
                 width: 42,
                 height: 42,
                 alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: const Color(
+                decoration: const BoxDecoration(
+                  color: Color(
                     0xFFE3F2EB,
                   ),
                   shape: BoxShape.circle,

@@ -22,8 +22,6 @@ class LocationSelector extends ConsumerWidget {
 
     return locations.when(
       data: (items) {
-        final effectiveSelected = selected;
-
         final selectedLabel = selected?.name ?? 'Todas las localidades';
 
         return Material(
@@ -160,19 +158,6 @@ class LocationSelector extends ConsumerWidget {
           ),
         );
       },
-    );
-  }
-
-  Location? _defaultLocation(
-    List<Location> locations,
-  ) {
-    if (locations.isEmpty) {
-      return null;
-    }
-
-    return locations.firstWhere(
-      (location) => location.slug == 'lago-ranco',
-      orElse: () => locations.first,
     );
   }
 

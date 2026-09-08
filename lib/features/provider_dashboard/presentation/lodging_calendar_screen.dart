@@ -21,8 +21,6 @@ class _LodgingCalendarScreenState extends ConsumerState<LodgingCalendarScreen> {
     DateTime.now().month,
   );
 
-  bool _saving = false;
-
   @override
   Widget build(
     BuildContext context,
@@ -427,10 +425,6 @@ class _LodgingCalendarScreenState extends ConsumerState<LodgingCalendarScreen> {
       return;
     }
 
-    setState(() {
-      _saving = true;
-    });
-
     final repository = ref.read(
       lodgingCalendarRepositoryProvider,
     );
@@ -464,9 +458,7 @@ class _LodgingCalendarScreenState extends ConsumerState<LodgingCalendarScreen> {
       );
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(this.context).showSnackBar(
           SnackBar(
             content: Text(
               'No pudimos guardar: $error',
@@ -474,12 +466,6 @@ class _LodgingCalendarScreenState extends ConsumerState<LodgingCalendarScreen> {
           ),
         );
       }
-    }
-
-    if (mounted) {
-      setState(() {
-        _saving = false;
-      });
     }
   }
 

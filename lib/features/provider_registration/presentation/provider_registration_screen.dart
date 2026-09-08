@@ -372,7 +372,7 @@ class _ProviderRegistrationScreenState
             ),
             const SizedBox(height: 7),
             DropdownButtonFormField<String>(
-              value: _location,
+              initialValue: _location,
               decoration: const InputDecoration(
                 prefixIcon: Icon(
                   Icons.location_on_outlined,
