@@ -11,7 +11,7 @@ enum BusinessType {
     return switch (this) {
       BusinessType.service => 'Servicio',
       BusinessType.commerce => 'Comercio',
-      BusinessType.gastronomy => 'Gastronomía',
+      BusinessType.gastronomy => 'GastronomÃ­a',
       BusinessType.lodging => 'Alojamiento',
     };
   }

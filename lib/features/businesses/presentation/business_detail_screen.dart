@@ -12,6 +12,10 @@ import '../../../theme/ranco_colors.dart';
 import '../application/business_hours.dart';
 import '../application/business_providers.dart';
 
+import '../../reviews/presentation/reviews_section.dart';
+
+import 'lodging_public_profile.dart';
+
 class BusinessDetailScreen extends ConsumerWidget {
   const BusinessDetailScreen({
     required this.businessId,
@@ -80,6 +84,11 @@ class _BusinessDetail extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) {
+    if (business.type == BusinessType.lodging) {
+      return LodgingPublicProfile(
+        business: business,
+      );
+    }
     final favorite = ref.watch(
       isFavoriteProvider(
         business.id,
@@ -263,7 +272,7 @@ class _BusinessDetail extends ConsumerWidget {
             ),
 
             // ==================================================
-            // REPUTACIÓN / ESTADO
+            // REPUTACIÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œN / ESTADO
             // ==================================================
 
             SliverToBoxAdapter(
@@ -431,7 +440,7 @@ class _BusinessDetail extends ConsumerWidget {
                       title: 'Acerca',
                       child: Text(
                         (business.description ?? '').trim().isEmpty
-                            ? 'Este prestador aún no ha agregado una descripción.'
+                            ? 'Este prestador aÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºn no ha agregado una descripciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n.'
                             : business.description!,
                         style: const TextStyle(
                           color: Color(
@@ -450,7 +459,7 @@ class _BusinessDetail extends ConsumerWidget {
                       title: 'Servicios',
                       child: business.services.isEmpty
                           ? const Text(
-                              'Este prestador aún no informa servicios especÃ­ficos.',
+                              'Este prestador aÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºn no informa servicios especÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­ficos.',
                               style: TextStyle(
                                 color: Color(
                                   0xFF71827A,
@@ -527,7 +536,7 @@ class _BusinessDetail extends ConsumerWidget {
                           Expanded(
                             child: Text(
                               openNow
-                                  ? 'Disponible según horario'
+                                  ? 'Disponible segÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºn horario'
                                   : 'Fuera del horario informado',
                               style: const TextStyle(
                                 color: RancoColors.forest,
@@ -569,6 +578,11 @@ class _BusinessDetail extends ConsumerWidget {
                             ),
                     ),
 
+                    ReviewsSection(
+                      businessId: business.id,
+                      ratingAvg: business.ratingAvg,
+                      reviewCount: business.reviewCount,
+                    ),
                     // =============================================
                     // SOLICITAR SERVICIO
                     // =============================================
@@ -643,6 +657,48 @@ class _BusinessDetail extends ConsumerWidget {
 
         ref.invalidate(
           favoriteBusinessesProvider,
+        );
+
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: const Color(0xFF234B3D),
+            margin: const EdgeInsets.fromLTRB(
+              16,
+              0,
+              16,
+              14,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            content: Row(
+              children: [
+                Icon(
+                  isFavorite
+                      ? Icons.favorite_border_rounded
+                      : Icons.favorite_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    isFavorite
+                        ? 'Quitado de Guardados'
+                        : 'Guardado en favoritos',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
       failure: (failure) {
@@ -728,12 +784,12 @@ class _BusinessDetail extends ConsumerWidget {
     return switch (day) {
       1 => 'Lunes',
       2 => 'Martes',
-      3 => 'Miércoles',
+      3 => 'MiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rcoles',
       4 => 'Jueves',
       5 => 'Viernes',
-      6 => 'Sábado',
+      6 => 'SÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡bado',
       7 => 'Domingo',
-      _ => 'DÃ­a',
+      _ => 'DÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­a',
     };
   }
 }
@@ -773,7 +829,7 @@ class _BusinessStatsCard extends StatelessWidget {
             _ProfileStatusChip(
               icon: Icons.star_rounded,
               label:
-                  '${rating.toStringAsFixed(1)} · $reviewCount ${reviewCount == 1 ? 'reseña' : 'reseñas'}',
+                  '${rating.toStringAsFixed(1)} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· $reviewCount ${reviewCount == 1 ? 'reseÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±a' : 'reseÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±as'}',
               foreground: const Color(0xFF8A5B12),
               background: const Color(0xFFFFF3D9),
             ),

@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../shared/models/business.dart';
 import '../../../theme/ranco_colors.dart';
+import '../../auth/application/auth_controller.dart';
+import '../../favorites/application/favorite_providers.dart';
+import '../../favorites/data/favorites_repository.dart';
+import '../../provider_dashboard/data/business_media_repository.dart';
 
-class BusinessCard extends StatelessWidget {
+class BusinessCard extends ConsumerWidget {
   const BusinessCard({
     required this.business,
     super.key,
@@ -13,112 +18,169 @@ class BusinessCard extends StatelessWidget {
   final Business business;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+    WidgetRef ref,
+  ) {
     final coverage = business.coverage
-        .map((location) => location.name)
+        .map(
+          (location) => location.name,
+        )
         .take(2)
-        .join(' Ãƒâ€š\u00B7 ');
+        .join(' · ');
 
     final serviceName = business.services.isNotEmpty
         ? business.services.first.subcategory.name
         : business.type.label;
+
+    final isLodging = business.type == BusinessType.lodging;
 
     final openNow = _isOpenNow(
       business.hours,
       DateTime.now(),
     );
 
+    final favorite = ref.watch(
+      isFavoriteProvider(
+        business.id,
+      ),
+    );
+
+    final mediaRepository = ref.read(
+      businessMediaRepositoryProvider,
+    );
+
+    final coverPath = business.coverPath;
+
+    final coverUrl = coverPath == null
+        ? null
+        : mediaRepository.publicUrl(
+            coverPath,
+          );
+
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(
+        22,
+      ),
       child: InkWell(
         onTap: () {
-          context.go('/business/${business.id}');
+          context.go(
+            '/business/${business.id}',
+          );
         },
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(
+          22,
+        ),
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(
+              22,
+            ),
             border: Border.all(
-              color: const Color(0xFFD5E2DC),
+              color: const Color(
+                0xFFD4E1DB,
+              ),
             ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ======================================================
-              // HERO
-              // ======================================================
-
-              Container(
-                height: 125,
-                margin: const EdgeInsets.fromLTRB(
-                  12,
-                  12,
-                  12,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  10,
+                  10,
+                  10,
                   0,
                 ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE5F1EC),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Stack(
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 58,
-                        height: 58,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Icon(
-                          _iconForType(business.type),
-                          color: RancoColors.forest,
-                          size: 29,
-                        ),
-                      ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(
+                    18,
+                  ),
+                  child: SizedBox(
+                    height: 145,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        if (coverUrl != null)
+                          Image.network(
+                            coverUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (
+                              context,
+                              error,
+                              stackTrace,
+                            ) {
+                              return _FallbackHero(
+                                type: business.type,
+                              );
+                            },
+                          ),
+                        if (coverUrl == null)
+                          _FallbackHero(
+                            type: business.type,
+                          ),
+                        if (coverUrl != null)
+                          const DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Color(
+                                    0x18000000,
+                                  ),
+                                  Color(
+                                    0x55000000,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        if (business.isFeatured)
+                          const Positioned(
+                            top: 10,
+                            left: 10,
+                            child: _HeroBadge(
+                              icon: Icons.star_rounded,
+                              label: 'Destacado',
+                              foregroundColor: Color(
+                                0xFF895A13,
+                              ),
+                              backgroundColor: Color(
+                                0xFFFFF1CF,
+                              ),
+                            ),
+                          ),
+                        if (business.isVerified)
+                          const Positioned(
+                            top: 10,
+                            right: 10,
+                            child: _HeroBadge(
+                              icon: Icons.verified_rounded,
+                              label: 'Verificado',
+                              foregroundColor: RancoColors.forest,
+                              backgroundColor: Colors.white,
+                            ),
+                          ),
+                      ],
                     ),
-
-                    // Verificado
-                    if (business.isVerified)
-                      Positioned(
-                        top: 10,
-                        right: 10,
-                        child: const _HeroBadge(
-                          icon: Icons.verified_rounded,
-                          label: 'Verificado',
-                          foregroundColor: RancoColors.forest,
-                          backgroundColor: Colors.white,
-                        ),
-                      ),
-
-                    // Destacado
-                    if (business.isFeatured)
-                      const Positioned(
-                        top: 10,
-                        left: 10,
-                        child: const _HeroBadge(
-                          icon: Icons.star_rounded,
-                          label: 'Destacado',
-                          foregroundColor: Color(0xFF8A5B12),
-                          backgroundColor: Color(0xFFFFF3D9),
-                        ),
-                      ),
-                  ],
+                  ),
                 ),
               ),
-
-              // ======================================================
-              // INFORMACIÃƒÆ’Ã¢â‚¬Å“N
-              // ======================================================
-
               Padding(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.fromLTRB(
+                  14,
+                  14,
+                  14,
+                  14,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Expanded(
                           child: Text(
@@ -126,62 +188,58 @@ class BusinessCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: Color(0xFF30443B),
+                              color: Color(
+                                0xFF2F433A,
+                              ),
                               fontSize: 17,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
                         ),
-                        if (business.isVerified)
-                          const Padding(
-                            padding: EdgeInsets.only(left: 5),
-                            child: Icon(
-                              Icons.verified_rounded,
-                              color: RancoColors.forest,
-                              size: 18,
-                            ),
-                          ),
                       ],
                     ),
-
-                    const SizedBox(height: 4),
-
+                    const SizedBox(
+                      height: 4,
+                    ),
                     Text(
                       serviceName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Color(0xFF5D7168),
+                        color: Color(
+                          0xFF60736A,
+                        ),
+                        fontSize: 13,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-
-                    const SizedBox(height: 10),
-
-                    // ==================================================
-                    // RATING + DISPONIBILIDAD
-                    // ==================================================
-
+                    const SizedBox(
+                      height: 10,
+                    ),
                     Wrap(
-                      spacing: 8,
+                      spacing: 7,
                       runSpacing: 7,
-                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         if (business.ratingAvg > 0)
                           _InfoBadge(
                             icon: Icons.star_rounded,
                             label:
                                 '${business.ratingAvg.toStringAsFixed(1)} (${business.reviewCount})',
-                            iconColor: const Color(0xFFB7791F),
+                            iconColor: const Color(
+                              0xFFB7791F,
+                            ),
                           ),
-                        _AvailabilityBadge(
-                          openNow: openNow,
-                        ),
+                        if (!isLodging)
+                          _AvailabilityBadge(
+                            openNow: openNow,
+                          ),
+                        if (isLodging) const _LodgingBadge(),
                       ],
                     ),
-
                     if (coverage.isNotEmpty) ...[
-                      const SizedBox(height: 10),
+                      const SizedBox(
+                        height: 10,
+                      ),
                       Row(
                         children: [
                           const Icon(
@@ -189,14 +247,18 @@ class BusinessCard extends StatelessWidget {
                             size: 16,
                             color: RancoColors.forest,
                           ),
-                          const SizedBox(width: 4),
+                          const SizedBox(
+                            width: 4,
+                          ),
                           Expanded(
                             child: Text(
                               coverage,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                color: Color(0xFF73847C),
+                                color: Color(
+                                  0xFF73847C,
+                                ),
                                 fontSize: 12,
                               ),
                             ),
@@ -204,13 +266,12 @@ class BusinessCard extends StatelessWidget {
                         ],
                       ),
                     ],
-
-                    const SizedBox(height: 14),
-
+                    const SizedBox(
+                      height: 14,
+                    ),
                     Row(
                       children: [
                         Expanded(
-                          flex: 2,
                           child: FilledButton(
                             onPressed: () {
                               context.go(
@@ -218,24 +279,30 @@ class BusinessCard extends StatelessWidget {
                               );
                             },
                             style: FilledButton.styleFrom(
-                              minimumSize: const Size.fromHeight(46),
+                              minimumSize: const Size.fromHeight(
+                                46,
+                              ),
                               backgroundColor: RancoColors.forest,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
+                                borderRadius: BorderRadius.circular(
+                                  14,
+                                ),
                               ),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
-                                  'Ver perfil',
-                                  style: TextStyle(
+                                  isLodging ? 'Ver alojamiento' : 'Ver perfil',
+                                  style: const TextStyle(
                                     fontWeight: FontWeight.w800,
                                   ),
                                 ),
-                                SizedBox(width: 7),
-                                Icon(
+                                const SizedBox(
+                                  width: 7,
+                                ),
+                                const Icon(
                                   Icons.arrow_forward_rounded,
                                   size: 18,
                                 ),
@@ -243,28 +310,96 @@ class BusinessCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          width: 48,
-                          height: 46,
-                          child: OutlinedButton(
-                            onPressed: () {
-                              context.go(
-                                '/business/${business.id}',
-                              );
-                            },
-                            style: OutlinedButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              side: const BorderSide(
-                                color: Color(0xFFD5E2DC),
+                        const SizedBox(
+                          width: 8,
+                        ),
+                        favorite.when(
+                          data: (isFavorite) {
+                            return SizedBox(
+                              width: 48,
+                              height: 46,
+                              child: OutlinedButton(
+                                onPressed: () async {
+                                  await _toggleFavorite(
+                                    context,
+                                    ref,
+                                    isFavorite,
+                                  );
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  backgroundColor: isFavorite
+                                      ? const Color(
+                                          0xFFE4F1EB,
+                                        )
+                                      : Colors.white,
+                                  side: BorderSide(
+                                    color: isFavorite
+                                        ? RancoColors.forest
+                                        : const Color(
+                                            0xFFD5E2DC,
+                                          ),
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(
+                                      14,
+                                    ),
+                                  ),
+                                ),
+                                child: Icon(
+                                  isFavorite
+                                      ? Icons.favorite_rounded
+                                      : Icons.favorite_border_rounded,
+                                  color: RancoColors.forest,
+                                ),
                               ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
+                            );
+                          },
+                          loading: () => const SizedBox(
+                            width: 48,
+                            height: 46,
+                            child: Center(
+                              child: SizedBox(
+                                width: 19,
+                                height: 19,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               ),
                             ),
-                            child: const Icon(
-                              Icons.favorite_border_rounded,
-                              color: RancoColors.forest,
+                          ),
+                          error: (
+                            error,
+                            stackTrace,
+                          ) =>
+                              SizedBox(
+                            width: 48,
+                            height: 46,
+                            child: OutlinedButton(
+                              onPressed: () async {
+                                await _toggleFavorite(
+                                  context,
+                                  ref,
+                                  false,
+                                );
+                              },
+                              style: OutlinedButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                side: const BorderSide(
+                                  color: Color(
+                                    0xFFD5E2DC,
+                                  ),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    14,
+                                  ),
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.favorite_border_rounded,
+                                color: RancoColors.forest,
+                              ),
                             ),
                           ),
                         ),
@@ -277,6 +412,77 @@ class BusinessCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _toggleFavorite(
+    BuildContext context,
+    WidgetRef ref,
+    bool isFavorite,
+  ) async {
+    final user = ref.read(authStateProvider).valueOrNull;
+
+    if (user == null) {
+      context.go('/sign-in');
+      return;
+    }
+
+    final repository = ref.read(
+      favoritesRepositoryProvider,
+    );
+
+    final result = isFavorite
+        ? await repository.removeFavorite(
+            business.id,
+          )
+        : await repository.addFavorite(
+            business.id,
+          );
+
+    if (!context.mounted) {
+      return;
+    }
+
+    result.when(
+      success: (_) {
+        ref.invalidate(
+          isFavoriteProvider(
+            business.id,
+          ),
+        );
+
+        ref.invalidate(
+          favoriteBusinessesProvider,
+        );
+
+        ScaffoldMessenger.of(
+          context,
+        ).hideCurrentSnackBar();
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            duration: const Duration(
+              seconds: 2,
+            ),
+            content: Text(
+              isFavorite ? 'Quitado de Guardados' : 'Guardado en favoritos',
+            ),
+          ),
+        );
+      },
+      failure: (failure) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              failure.message,
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -331,6 +537,7 @@ class BusinessCard extends StatelessWidget {
     }
 
     final hour = int.tryParse(parts[0]);
+
     final minute = int.tryParse(parts[1]);
 
     if (hour == null || minute == null) {
@@ -339,16 +546,46 @@ class BusinessCard extends StatelessWidget {
 
     return (hour * 60) + minute;
   }
+}
 
-  IconData _iconForType(
-    BusinessType type,
+class _FallbackHero extends StatelessWidget {
+  const _FallbackHero({
+    required this.type,
+  });
+
+  final BusinessType type;
+
+  @override
+  Widget build(
+    BuildContext context,
   ) {
-    return switch (type) {
-      BusinessType.service => Icons.handyman_outlined,
-      BusinessType.commerce => Icons.storefront_outlined,
-      BusinessType.gastronomy => Icons.restaurant_outlined,
-      BusinessType.lodging => Icons.bed_outlined,
-    };
+    return ColoredBox(
+      color: const Color(
+        0xFFE5F1EC,
+      ),
+      child: Center(
+        child: Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(
+              18,
+            ),
+          ),
+          child: Icon(
+            switch (type) {
+              BusinessType.service => Icons.handyman_outlined,
+              BusinessType.commerce => Icons.storefront_outlined,
+              BusinessType.gastronomy => Icons.restaurant_outlined,
+              BusinessType.lodging => Icons.bed_outlined,
+            },
+            color: RancoColors.forest,
+            size: 30,
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -366,7 +603,9 @@ class _HeroBadge extends StatelessWidget {
   final Color backgroundColor;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: 9,
@@ -374,7 +613,9 @@ class _HeroBadge extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(
+          20,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -384,7 +625,9 @@ class _HeroBadge extends StatelessWidget {
             size: 15,
             color: foregroundColor,
           ),
-          const SizedBox(width: 4),
+          const SizedBox(
+            width: 4,
+          ),
           Text(
             label,
             style: TextStyle(
@@ -411,15 +654,21 @@ class _InfoBadge extends StatelessWidget {
   final Color iconColor;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: 9,
         vertical: 6,
       ),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F7F6),
-        borderRadius: BorderRadius.circular(20),
+        color: const Color(
+          0xFFF4F7F5,
+        ),
+        borderRadius: BorderRadius.circular(
+          20,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -429,13 +678,62 @@ class _InfoBadge extends StatelessWidget {
             size: 15,
             color: iconColor,
           ),
-          const SizedBox(width: 4),
+          const SizedBox(
+            width: 4,
+          ),
           Text(
             label,
             style: const TextStyle(
-              color: Color(0xFF52645C),
+              color: Color(
+                0xFF52645C,
+              ),
               fontSize: 12,
               fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LodgingBadge extends StatelessWidget {
+  const _LodgingBadge();
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 9,
+        vertical: 6,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(
+          0xFFE4F1EB,
+        ),
+        borderRadius: BorderRadius.circular(
+          20,
+        ),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.calendar_month_outlined,
+            size: 14,
+            color: RancoColors.forest,
+          ),
+          SizedBox(
+            width: 5,
+          ),
+          Text(
+            'Consulta disponibilidad',
+            style: TextStyle(
+              color: RancoColors.forest,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
@@ -452,12 +750,24 @@ class _AvailabilityBadge extends StatelessWidget {
   final bool openNow;
 
   @override
-  Widget build(BuildContext context) {
-    final foreground =
-        openNow ? const Color(0xFF267A55) : const Color(0xFF8C6840);
+  Widget build(
+    BuildContext context,
+  ) {
+    final foreground = openNow
+        ? const Color(
+            0xFF267A55,
+          )
+        : const Color(
+            0xFF8C6840,
+          );
 
-    final background =
-        openNow ? const Color(0xFFE4F3EB) : const Color(0xFFF5EEE5);
+    final background = openNow
+        ? const Color(
+            0xFFE4F3EB,
+          )
+        : const Color(
+            0xFFF5EEE5,
+          );
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -466,7 +776,9 @@ class _AvailabilityBadge extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(
+          20,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -479,7 +791,9 @@ class _AvailabilityBadge extends StatelessWidget {
               shape: BoxShape.circle,
             ),
           ),
-          const SizedBox(width: 5),
+          const SizedBox(
+            width: 5,
+          ),
           Text(
             openNow ? 'Disponible ahora' : 'Fuera de horario',
             style: TextStyle(
