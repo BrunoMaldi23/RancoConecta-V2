@@ -34,3 +34,11 @@ macos/Flutter/ephemeral/
 
 # Node tooling
 node_modules/
+
+.vercel
+.env*
+.vercel/
+.env.production.local
+VERCEL_FINAL_CHECK.txt
+VERCEL_PROD_AUDIT.txt
+PROD_POLISH_REPORT.txt
