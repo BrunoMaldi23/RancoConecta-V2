@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../theme/ranco_colors.dart';
 import '../application/provider_dashboard_providers.dart';
 import '../data/business_media_repository.dart';
+import '../../../core/widgets/ranco_app_bar.dart';
 
 class LodgingPhotosScreen extends ConsumerStatefulWidget {
   const LodgingPhotosScreen({
@@ -33,10 +34,9 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
       backgroundColor: const Color(
         0xFFEAF4F0,
       ),
-      appBar: AppBar(
-        title: const Text(
-          'Fotografias',
-        ),
+      appBar: const RancoAppBar(
+        title: 'Fotografías',
+        fallbackRoute: '/provider/dashboard',
       ),
       body: business.when(
         data: (business) {
@@ -80,7 +80,7 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Portada y galeria',
+                              'Portada y galería',
                               style: TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.w900,
@@ -90,7 +90,7 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
                               height: 4,
                             ),
                             Text(
-                              'Sube hasta 15 fotografias de tu alojamiento.',
+                              'Sube hasta 15 fotografías de tu alojamiento.',
                               style: TextStyle(
                                 color: Color(
                                   0xFF697A72,
@@ -216,7 +216,7 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
                             height: 10,
                           ),
                           Text(
-                            'Aun no hay fotos en la galeria.',
+                            'Aun no hay fotos en la galería.',
                           ),
                         ],
                       ),
@@ -290,7 +290,7 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
                               Icons.add_photo_alternate_outlined,
                             ),
                       label: const Text(
-                        'Agregar fotografia',
+                        'Agregar fotografía',
                       ),
                       style: FilledButton.styleFrom(
                         backgroundColor: RancoColors.forest,
@@ -311,7 +311,7 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
             ) =>
                 Center(
               child: Text(
-                'No pudimos cargar las fotografias: $error',
+                'No pudimos cargar las fotografías: $error',
               ),
             ),
           );
@@ -398,7 +398,7 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
       ).showSnackBar(
         SnackBar(
           content: Text(
-            'No pudimos subir la fotografia: $error',
+            'No pudimos subir la fotografía: $error',
           ),
         ),
       );
@@ -452,10 +452,10 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
       builder: (context) {
         return AlertDialog(
           title: const Text(
-            'Eliminar fotografia',
+            'Eliminar fotografía',
           ),
           content: const Text(
-            'Esta fotografia se eliminara de forma permanente.',
+            'Esta fotografía se eliminara de forma permanente.',
           ),
           actions: [
             TextButton(

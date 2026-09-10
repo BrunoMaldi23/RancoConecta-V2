@@ -534,27 +534,49 @@ class LodgingPublicProfile extends ConsumerWidget {
                               item.storagePath,
                             );
 
-                            return ClipRRect(
-                              borderRadius: BorderRadius.circular(
-                                14,
-                              ),
-                              child: Image.network(
-                                url,
-                                fit: BoxFit.cover,
-                                errorBuilder: (
+                            return GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () {
+                                final urls = gallery
+                                    .map(
+                                      (photo) => ref
+                                          .read(
+                                            businessMediaRepositoryProvider,
+                                          )
+                                          .publicUrl(
+                                            photo.storagePath,
+                                          ),
+                                    )
+                                    .toList();
+
+                                _showRancoPhotoViewer(
                                   context,
-                                  error,
-                                  stackTrace,
-                                ) {
-                                  return const ColoredBox(
-                                    color: Color(
-                                      0xFFE4F1EB,
-                                    ),
-                                    child: Icon(
-                                      Icons.broken_image_outlined,
-                                    ),
-                                  );
-                                },
+                                  urls,
+                                  index,
+                                );
+                              },
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(
+                                  14,
+                                ),
+                                child: Image.network(
+                                  url,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (
+                                    context,
+                                    error,
+                                    stackTrace,
+                                  ) {
+                                    return const ColoredBox(
+                                      color: Color(
+                                        0xFFE4F1EB,
+                                      ),
+                                      child: Icon(
+                                        Icons.broken_image_outlined,
+                                      ),
+                                    );
+                                  },
+                                ),
                               ),
                             );
                           },
@@ -1154,6 +1176,265 @@ class _LoadingCard extends StatelessWidget {
       ),
       child: const Center(
         child: CircularProgressIndicator(),
+      ),
+    );
+  }
+}
+
+void _showRancoPhotoViewer(
+  BuildContext context,
+  List<String> urls,
+  int initialIndex,
+) {
+  if (urls.isEmpty) {
+    return;
+  }
+
+  showDialog<void>(
+    context: context,
+    barrierColor: Colors.black,
+    builder: (context) {
+      return _RancoPhotoViewer(
+        urls: urls,
+        initialIndex: initialIndex,
+      );
+    },
+  );
+}
+
+class _RancoPhotoViewer extends StatefulWidget {
+  const _RancoPhotoViewer({
+    required this.urls,
+    required this.initialIndex,
+  });
+
+  final List<String> urls;
+  final int initialIndex;
+
+  @override
+  State<_RancoPhotoViewer> createState() => _RancoPhotoViewerState();
+}
+
+class _RancoPhotoViewerState extends State<_RancoPhotoViewer> {
+  late final PageController _controller;
+  late int _index;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _index = widget.initialIndex;
+
+    _controller = PageController(
+      initialPage: widget.initialIndex,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _previous() {
+    if (_index <= 0) {
+      return;
+    }
+
+    _controller.previousPage(
+      duration: const Duration(
+        milliseconds: 220,
+      ),
+      curve: Curves.easeOut,
+    );
+  }
+
+  void _next() {
+    if (_index >= widget.urls.length - 1) {
+      return;
+    }
+
+    _controller.nextPage(
+      duration: const Duration(
+        milliseconds: 220,
+      ),
+      curve: Curves.easeOut,
+    );
+  }
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Material(
+      color: Colors.black,
+      child: SafeArea(
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: PageView.builder(
+                controller: _controller,
+                itemCount: widget.urls.length,
+                onPageChanged: (value) {
+                  setState(() {
+                    _index = value;
+                  });
+                },
+                itemBuilder: (
+                  context,
+                  index,
+                ) {
+                  return Center(
+                    child: InteractiveViewer(
+                      minScale: 1,
+                      maxScale: 4,
+                      child: Image.network(
+                        widget.urls[index],
+                        width: double.infinity,
+                        height: double.infinity,
+                        fit: BoxFit.contain,
+                        loadingBuilder: (
+                          context,
+                          child,
+                          progress,
+                        ) {
+                          if (progress == null) {
+                            return child;
+                          }
+
+                          return const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          );
+                        },
+                        errorBuilder: (
+                          context,
+                          error,
+                          stackTrace,
+                        ) {
+                          return const Center(
+                            child: Icon(
+                              Icons.broken_image_outlined,
+                              color: Colors.white70,
+                              size: 56,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            Positioned(
+              top: 10,
+              right: 12,
+              child: IconButton.filled(
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.black.withValues(
+                    alpha: .55,
+                  ),
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                icon: const Icon(
+                  Icons.close_rounded,
+                ),
+              ),
+            ),
+            Positioned(
+              top: 17,
+              left: 0,
+              right: 0,
+              child: IgnorePointer(
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(
+                        alpha: .50,
+                      ),
+                      borderRadius: BorderRadius.circular(
+                        18,
+                      ),
+                    ),
+                    child: Text(
+                      '${_index + 1} / ${widget.urls.length}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            if (widget.urls.length > 1 && _index > 0)
+              Positioned(
+                left: 12,
+                top: 0,
+                bottom: 0,
+                child: Center(
+                  child: IconButton.filled(
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.black.withValues(
+                        alpha: .48,
+                      ),
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: _previous,
+                    icon: const Icon(
+                      Icons.chevron_left_rounded,
+                      size: 30,
+                    ),
+                  ),
+                ),
+              ),
+            if (widget.urls.length > 1 && _index < widget.urls.length - 1)
+              Positioned(
+                right: 12,
+                top: 0,
+                bottom: 0,
+                child: Center(
+                  child: IconButton.filled(
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.black.withValues(
+                        alpha: .48,
+                      ),
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: _next,
+                    icon: const Icon(
+                      Icons.chevron_right_rounded,
+                      size: 30,
+                    ),
+                  ),
+                ),
+              ),
+            const Positioned(
+              bottom: 18,
+              left: 0,
+              right: 0,
+              child: IgnorePointer(
+                child: Center(
+                  child: Text(
+                    'Desliza o usa las flechas · Pellizca para ampliar',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

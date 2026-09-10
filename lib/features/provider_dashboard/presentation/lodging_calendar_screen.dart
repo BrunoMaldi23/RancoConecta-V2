@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../theme/ranco_colors.dart';
 import '../application/provider_dashboard_providers.dart';
 import '../data/lodging_calendar_repository.dart';
+import '../../../core/widgets/ranco_app_bar.dart';
 
 class LodgingCalendarScreen extends ConsumerStatefulWidget {
   const LodgingCalendarScreen({
@@ -33,10 +34,9 @@ class _LodgingCalendarScreenState extends ConsumerState<LodgingCalendarScreen> {
       backgroundColor: const Color(
         0xFFEAF4F0,
       ),
-      appBar: AppBar(
-        title: const Text(
-          'Calendario',
-        ),
+      appBar: const RancoAppBar(
+        title: 'Calendario',
+        fallbackRoute: '/provider/dashboard',
       ),
       body: business.when(
         data: (business) {

@@ -7,9 +7,15 @@ import '../../../core/widgets/ranco_error_state.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../../shared/models/service_request.dart';
 import '../application/service_request_providers.dart';
+import '../../../core/widgets/ranco_app_bar.dart';
 
 class RequestsScreen extends ConsumerWidget {
-  const RequestsScreen({super.key});
+  const RequestsScreen({
+    this.showBack = false,
+    super.key,
+  });
+
+  final bool showBack;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -24,7 +30,8 @@ class RequestsScreen extends ConsumerWidget {
           data: (items) => ListView(
             padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
             children: [
-              Text('Solicitudes', style: Theme.of(context).textTheme.headlineSmall),
+              Text('Solicitudes',
+                  style: Theme.of(context).textTheme.headlineSmall),
               const SizedBox(height: 4),
               Text(
                 'Revisa aquí los servicios que has solicitado.',
@@ -133,7 +140,8 @@ class _RequestCard extends StatelessWidget {
                   color: colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(Icons.assignment_outlined, color: colorScheme.primary),
+                child:
+                    Icon(Icons.assignment_outlined, color: colorScheme.primary),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -155,7 +163,8 @@ class _RequestCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(request.status.label, style: Theme.of(context).textTheme.labelSmall),
+              Text(request.status.label,
+                  style: Theme.of(context).textTheme.labelSmall),
               const SizedBox(width: 4),
               const Icon(Icons.chevron_right_rounded),
             ],
@@ -223,7 +232,10 @@ class RequestDetailScreen extends ConsumerWidget {
     final request = ref.watch(requestDetailProvider(requestId));
     final dateFormat = DateFormat.yMMMd('es');
     return Scaffold(
-      appBar: AppBar(title: const Text('Solicitud')),
+      appBar: const RancoAppBar(
+        title: 'Solicitud',
+        fallbackRoute: '/requests',
+      ),
       body: request.when(
         data: (request) => ListView(
           padding: const EdgeInsets.all(20),

@@ -95,8 +95,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/requests',
-                pageBuilder: (context, state) => const NoTransitionPage(
-                  child: RequestsScreen(),
+                pageBuilder: (context, state) => NoTransitionPage(
+                  child: RequestsScreen(
+                    showBack: state.uri.queryParameters['from'] == 'account',
+                  ),
                 ),
               ),
             ],
@@ -105,8 +107,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/saved',
-                pageBuilder: (context, state) => const NoTransitionPage(
-                  child: SavedScreen(),
+                pageBuilder: (context, state) => NoTransitionPage(
+                  child: SavedScreen(
+                    showBack: state.uri.queryParameters['from'] == 'account',
+                  ),
                 ),
               ),
             ],

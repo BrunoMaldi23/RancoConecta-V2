@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../theme/ranco_colors.dart';
 import '../application/provider_dashboard_providers.dart';
 import '../data/lodging_details_repository.dart';
+import '../../../core/widgets/ranco_app_bar.dart';
 
 class LodgingRatesScreen extends ConsumerStatefulWidget {
   const LodgingRatesScreen({
@@ -46,10 +47,9 @@ class _LodgingRatesScreenState extends ConsumerState<LodgingRatesScreen> {
       backgroundColor: const Color(
         0xFFEAF4F0,
       ),
-      appBar: AppBar(
-        title: const Text(
-          'Tarifas',
-        ),
+      appBar: const RancoAppBar(
+        title: 'Tarifas',
+        fallbackRoute: '/provider/dashboard',
       ),
       body: business.when(
         data: (business) {

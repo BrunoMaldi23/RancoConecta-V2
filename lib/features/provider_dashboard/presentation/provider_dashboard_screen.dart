@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../theme/ranco_colors.dart';
 import '../application/provider_dashboard_providers.dart';
+import '../../../core/widgets/ranco_app_bar.dart';
 
 class ProviderDashboardScreen extends ConsumerWidget {
   const ProviderDashboardScreen({
@@ -23,10 +24,9 @@ class ProviderDashboardScreen extends ConsumerWidget {
       backgroundColor: const Color(
         0xFFEAF4F0,
       ),
-      appBar: AppBar(
-        title: const Text(
-          'Mi alojamiento',
-        ),
+      appBar: const RancoAppBar(
+        title: 'Mi alojamiento',
+        fallbackRoute: '/account',
       ),
       body: business.when(
         data: (business) {
@@ -96,7 +96,7 @@ class ProviderDashboardScreen extends ConsumerWidget {
                         Icons.visibility_outlined,
                       ),
                       label: const Text(
-                        'Ver publicacion',
+                        'Ver publicación',
                       ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.white,
@@ -124,8 +124,8 @@ class ProviderDashboardScreen extends ConsumerWidget {
               ),
               _DashboardTile(
                 icon: Icons.holiday_village_outlined,
-                title: 'Informacion del alojamiento',
-                subtitle: 'Huespedes, dormitorios, camas y horarios',
+                title: 'Información del alojamiento',
+                subtitle: 'Huéspedes, dormitorios, camas y horarios',
                 onTap: () {
                   context.go(
                     '/provider/lodging',
@@ -144,8 +144,8 @@ class ProviderDashboardScreen extends ConsumerWidget {
               ),
               _DashboardTile(
                 icon: Icons.photo_library_outlined,
-                title: 'Fotografias',
-                subtitle: 'Portada y galeria',
+                title: 'Fotografías',
+                subtitle: 'Portada y galería',
                 onTap: () {
                   context.go(
                     '/provider/photos',

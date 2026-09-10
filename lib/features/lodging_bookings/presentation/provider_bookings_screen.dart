@@ -5,6 +5,7 @@ import '../../../theme/ranco_colors.dart';
 import '../../provider_dashboard/application/provider_dashboard_providers.dart';
 import '../application/lodging_booking_providers.dart';
 import '../data/lodging_booking_repository.dart';
+import '../../../core/widgets/ranco_app_bar.dart';
 
 class ProviderBookingsScreen extends ConsumerWidget {
   const ProviderBookingsScreen({
@@ -24,10 +25,9 @@ class ProviderBookingsScreen extends ConsumerWidget {
       backgroundColor: const Color(
         0xFFEAF4F0,
       ),
-      appBar: AppBar(
-        title: const Text(
-          'Reservas',
-        ),
+      appBar: const RancoAppBar(
+        title: 'Reservas',
+        fallbackRoute: '/provider/dashboard',
       ),
       body: business.when(
         data: (business) {

@@ -7,11 +7,15 @@ import '../../../theme/ranco_colors.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../businesses/presentation/business_card.dart';
 import '../application/favorite_providers.dart';
+import '../../../core/widgets/ranco_app_bar.dart';
 
 class SavedScreen extends ConsumerWidget {
   const SavedScreen({
+    this.showBack = false,
     super.key,
   });
+
+  final bool showBack;
 
   @override
   Widget build(
@@ -20,7 +24,7 @@ class SavedScreen extends ConsumerWidget {
   ) {
     final auth = ref.watch(authStateProvider);
 
-    return ColoredBox(
+    final content = ColoredBox(
       color: const Color(
         0xFFEAF4F0,
       ),
@@ -139,9 +143,21 @@ class SavedScreen extends ConsumerWidget {
           stackTrace,
         ) =>
             const RancoErrorState(
-          message: 'No pudimos leer la sesiÃ³n.',
+          message: 'No pudimos leer la sesión.',
         ),
       ),
+    );
+
+    if (!showBack) {
+      return content;
+    }
+
+    return Scaffold(
+      appBar: const RancoAppBar(
+        title: 'Guardados',
+        fallbackRoute: '/account',
+      ),
+      body: content,
     );
   }
 }
@@ -173,7 +189,7 @@ class _GuestSaved extends StatelessWidget {
           height: 4,
         ),
         const Text(
-          'Guarda tus prestadores favoritos y vuelve a encontrarlos rÃ¡pidamente.',
+          'Guarda tus prestadores favoritos y vuelve a encontrarlos rápidamente.',
           style: TextStyle(
             color: Color(
               0xFF71827A,
@@ -274,7 +290,7 @@ class _SavedInfoPanel extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Tus favoritos vivirÃ¡n aquÃ­',
+                  'Tus favoritos vivirán aquí',
                   style: TextStyle(
                     color: Color(
                       0xFF30443B,
@@ -287,7 +303,7 @@ class _SavedInfoPanel extends StatelessWidget {
                   height: 5,
                 ),
                 Text(
-                  'Pulsa el corazÃ³n de un prestador para guardarlo y acceder rÃ¡pidamente desde esta secciÃ³n.',
+                  'Pulsa el corazón de un prestador para guardarlo y acceder rápidamente desde esta sección.',
                   style: TextStyle(
                     color: Color(
                       0xFF71827A,

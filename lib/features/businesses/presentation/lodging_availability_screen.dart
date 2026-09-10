@@ -68,6 +68,41 @@ class _LodgingAvailabilityScreenState
         0xFFEAF4F0,
       ),
       appBar: AppBar(
+        automaticallyImplyLeading: false,
+        leadingWidth: 68,
+        leading: Padding(
+          padding: const EdgeInsets.only(
+            left: 14,
+            top: 7,
+            bottom: 7,
+          ),
+          child: Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(
+              14,
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(
+                14,
+              ),
+              onTap: () {
+                if (Navigator.of(context).canPop()) {
+                  Navigator.of(context).pop();
+                  return;
+                }
+
+                context.go(
+                  '/business/${widget.business.id}',
+                );
+              },
+              child: const Icon(
+                Icons.arrow_back_rounded,
+                color: RancoColors.forest,
+                size: 23,
+              ),
+            ),
+          ),
+        ),
         title: const Text(
           'Reservar',
         ),
@@ -107,8 +142,8 @@ class _LodgingAvailabilityScreenState
               ),
               _BookingSection(
                 number: '2',
-                title: 'HuÃ©spedes',
-                subtitle: 'MÃ¡ximo ${lodging.maxGuests} personas.',
+                title: 'Huéspedes',
+                subtitle: 'Máximo ${lodging.maxGuests} personas.',
                 child: _GuestSelector(
                   value: _guests,
                   maxGuests: lodging.maxGuests,
@@ -151,7 +186,7 @@ class _LodgingAvailabilityScreenState
                       ),
                       Expanded(
                         child: Text(
-                          '${_guests - lodging.includedGuests} huÃ©sped adicional: ${_money(lodging.extraGuestPrice)} por persona y noche.',
+                          '${_guests - lodging.includedGuests} huésped adicional: ${_money(lodging.extraGuestPrice)} por persona y noche.',
                           style: const TextStyle(
                             color: Color(
                               0xFF7A581F,
@@ -170,7 +205,7 @@ class _LodgingAvailabilityScreenState
               ),
               _BookingSection(
                 number: '3',
-                title: 'Mensaje al anfitriÃ³n',
+                title: 'Mensaje al anfitrión',
                 subtitle: 'Opcional',
                 child: TextField(
                   controller: _messageController,
@@ -264,7 +299,7 @@ class _LodgingAvailabilityScreenState
                         icon: Icons.block_outlined,
                         title: 'Fechas no disponibles',
                         message:
-                            'Una o mÃ¡s noches seleccionadas estÃ¡n bloqueadas.',
+                            'Una o más noches seleccionadas están bloqueadas.',
                         error: true,
                       );
                     }
@@ -272,7 +307,7 @@ class _LodgingAvailabilityScreenState
                     if (nights < lodging.minNights) {
                       return _MessageCard(
                         icon: Icons.nights_stay_outlined,
-                        title: 'EstadÃ­a mÃ­nima',
+                        title: 'Estadía mínima',
                         message:
                             'Este alojamiento exige al menos ${lodging.minNights} noches.',
                         error: true,
@@ -302,7 +337,7 @@ class _LodgingAvailabilityScreenState
                           icon: Icons.check_circle_outline,
                           title: 'Fechas disponibles',
                           message:
-                              '$nights ${nights == 1 ? 'noche' : 'noches'} Â· $_guests ${_guests == 1 ? 'huÃ©sped' : 'huÃ©spedes'}',
+                              '$nights ${nights == 1 ? 'noche' : 'noches'} · $_guests ${_guests == 1 ? 'huésped' : 'huéspedes'}',
                         ),
                         const SizedBox(
                           height: 12,
@@ -365,7 +400,7 @@ class _LodgingAvailabilityScreenState
                             ),
                             Flexible(
                               child: Text(
-                                'La solicitud quedarÃ¡ pendiente hasta que el anfitriÃ³n la confirme.',
+                                'La solicitud quedará pendiente hasta que el anfitrión la confirme.',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   color: Color(
@@ -553,7 +588,7 @@ class _LodgingAvailabilityScreenState
               'Solicitud enviada',
             ),
             content: const Text(
-              'El anfitriÃ³n recibiÃ³ tu solicitud de reserva.',
+              'El anfitrión recibió tu solicitud de reserva.',
               textAlign: TextAlign.center,
             ),
             actions: [
@@ -788,7 +823,7 @@ class _PropertyHeader extends StatelessWidget {
                         height: 5,
                       ),
                       Text(
-                        'Hasta $maxGuests huÃ©spedes',
+                        'Hasta $maxGuests huéspedes',
                         style: const TextStyle(
                           color: Color(
                             0xFF708078,
@@ -1895,7 +1930,7 @@ class _SummaryCard extends StatelessWidget {
           ),
           _SummaryRow(
             label:
-                '${_LodgingAvailabilityScreenState._dateLabel(range.start)} â†’ ${_LodgingAvailabilityScreenState._dateLabel(range.end)}',
+                '${_LodgingAvailabilityScreenState._dateLabel(range.start)} → ${_LodgingAvailabilityScreenState._dateLabel(range.end)}',
             value: '$nights noches',
           ),
           const SizedBox(
@@ -1912,7 +1947,7 @@ class _SummaryCard extends StatelessWidget {
               height: 9,
             ),
             _SummaryRow(
-              label: 'HuÃ©spedes adicionales',
+              label: 'Huéspedes adicionales',
               value: _LodgingAvailabilityScreenState._money(
                 extraTotal,
               ),
@@ -1930,7 +1965,7 @@ class _SummaryCard extends StatelessWidget {
             children: [
               const Expanded(
                 child: Text(
-                  'Total estadÃ­a',
+                  'Total estadía',
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w900,

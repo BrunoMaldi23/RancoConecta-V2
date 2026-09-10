@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../theme/ranco_colors.dart';
 import '../application/provider_dashboard_providers.dart';
 import '../data/lodging_details_repository.dart';
+import '../../../core/widgets/ranco_app_bar.dart';
 
 class LodgingInformationScreen extends ConsumerStatefulWidget {
   const LodgingInformationScreen({
@@ -69,10 +70,9 @@ class _LodgingInformationScreenState
       backgroundColor: const Color(
         0xFFEAF4F0,
       ),
-      appBar: AppBar(
-        title: const Text(
-          'Informacion del alojamiento',
-        ),
+      appBar: const RancoAppBar(
+        title: 'Información del alojamiento',
+        fallbackRoute: '/provider/dashboard',
       ),
       body: business.when(
         data: (business) {
@@ -108,16 +108,16 @@ class _LodgingInformationScreenState
                       children: [
                         _NumberField(
                           controller: _maxGuests,
-                          label: 'Maximo de huespedes',
+                          label: 'Máximo de huéspedes',
                         ),
                         _NumberField(
                           controller: _includedGuests,
-                          label: 'Huespedes incluidos',
+                          label: 'Huéspedes incluidos',
                         ),
                       ],
                     ),
                     _Card(
-                      title: 'Distribucion',
+                      title: 'Distribución',
                       children: [
                         _NumberField(
                           controller: _bedrooms,
@@ -129,7 +129,7 @@ class _LodgingInformationScreenState
                         ),
                         _DecimalField(
                           controller: _bathrooms,
-                          label: 'Banos',
+                          label: 'Baños',
                         ),
                       ],
                     ),
@@ -146,16 +146,16 @@ class _LodgingInformationScreenState
                         ),
                         _NumberField(
                           controller: _minNights,
-                          label: 'Estadia minima',
+                          label: 'Estadía mínima',
                         ),
                       ],
                     ),
                     _Card(
-                      title: 'Politicas',
+                      title: 'Políticas',
                       children: [
                         _TextArea(
                           controller: _cancellation,
-                          label: 'Politica de cancelacion',
+                          label: 'Política de cancelación',
                         ),
                         _TextArea(
                           controller: _rules,
