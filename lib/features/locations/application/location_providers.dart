@@ -4,16 +4,13 @@ import '../../../core/errors/app_failure.dart';
 import '../../../shared/models/location.dart';
 import '../data/location_repository.dart';
 
-final locationsProvider =
-    FutureProvider<List<Location>>((ref) async {
-  final result = await ref
-      .watch(locationRepositoryProvider)
-      .listActiveLocations();
+final locationsProvider = FutureProvider<List<Location>>((ref) async {
+  final result =
+      await ref.watch(locationRepositoryProvider).listActiveLocations();
 
   return result.when(
     success: (locations) {
-      final sorted = [...locations]
-        ..sort((a, b) {
+      final sorted = [...locations]..sort((a, b) {
           const officialOrder = [
             'lago-ranco',
             'futrono',
@@ -28,11 +25,9 @@ final locationsProvider =
             'notuela',
           ];
 
-          final aIndex =
-              officialOrder.indexOf(a.slug);
+          final aIndex = officialOrder.indexOf(a.slug);
 
-          final bIndex =
-              officialOrder.indexOf(b.slug);
+          final bIndex = officialOrder.indexOf(b.slug);
 
           if (aIndex == -1 && bIndex == -1) {
             return a.name.compareTo(b.name);
@@ -55,8 +50,7 @@ final locationsProvider =
   );
 });
 
-final selectedLocationProvider =
-    StateProvider<Location?>((ref) => null);
+final selectedLocationProvider = StateProvider<Location?>((ref) => null);
 
 String locationFailureMessage(Object error) {
   if (error is AppFailure) {

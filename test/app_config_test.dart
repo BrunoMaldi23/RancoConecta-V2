@@ -21,4 +21,17 @@ void main() {
 
     expect(config.hasSupabaseConfig, isTrue);
   });
+
+  test('keeps risky feature flags disabled by default', () {
+    const config = AppConfig(
+      environment: AppEnvironment.production,
+      supabaseUrl: 'https://example.supabase.co',
+      supabasePublishableKey: 'sb_publishable_fake',
+    );
+
+    expect(config.featureFlags.chatEnabled, isFalse);
+    expect(config.featureFlags.paymentsEnabled, isFalse);
+    expect(config.featureFlags.quotesEnabled, isFalse);
+    expect(config.featureFlags.lodgingEnabled, isTrue);
+  });
 }

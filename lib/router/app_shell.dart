@@ -11,8 +11,10 @@ class AppShell extends StatelessWidget {
   static const _destinations = [
     _Destination('Inicio', Icons.home_outlined, Icons.home_rounded),
     _Destination('Explorar', Icons.search_rounded, Icons.search_rounded),
-    _Destination('Solicitudes', Icons.assignment_outlined, Icons.assignment_rounded),
-    _Destination('Guardados', Icons.bookmark_border_rounded, Icons.bookmark_rounded),
+    _Destination(
+        'Solicitudes', Icons.assignment_outlined, Icons.assignment_rounded),
+    _Destination(
+        'Guardados', Icons.bookmark_border_rounded, Icons.bookmark_rounded),
     _Destination('Cuenta', Icons.person_outline_rounded, Icons.person_rounded),
   ];
 

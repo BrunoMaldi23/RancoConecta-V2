@@ -579,6 +579,8 @@ class _FallbackHero extends StatelessWidget {
               BusinessType.commerce => Icons.storefront_outlined,
               BusinessType.gastronomy => Icons.restaurant_outlined,
               BusinessType.lodging => Icons.bed_outlined,
+              BusinessType.tourism => Icons.terrain_outlined,
+              BusinessType.emergency => Icons.emergency_outlined,
             },
             color: RancoColors.forest,
             size: 30,

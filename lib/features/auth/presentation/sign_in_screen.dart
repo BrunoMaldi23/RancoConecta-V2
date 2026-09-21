@@ -51,15 +51,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               child: Column(
                 children: [
                   const SizedBox(height: 8),
-
                   Image.asset(
                     'assets/branding/ranco_logo_login.png',
                     width: isCompact ? 215 : 245,
                     fit: BoxFit.contain,
                   ),
-
                   const SizedBox(height: 22),
-
                   Container(
                     padding: EdgeInsets.all(isCompact ? 18 : 22),
                     decoration: BoxDecoration(
@@ -83,7 +80,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                         children: [
                           const _FieldLabel('Correo'),
                           const SizedBox(height: 7),
-
                           TextFormField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
@@ -98,12 +94,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                             ),
                             validator: validateEmail,
                           ),
-
                           const SizedBox(height: 14),
-
                           const _FieldLabel('Contraseña'),
                           const SizedBox(height: 7),
-
                           TextFormField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
@@ -121,8 +114,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                                     : 'Ocultar contraseña',
                                 onPressed: () {
                                   setState(() {
-                                    _obscurePassword =
-                                        !_obscurePassword;
+                                    _obscurePassword = !_obscurePassword;
                                   });
                                 },
                                 icon: Icon(
@@ -140,7 +132,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                               return null;
                             },
                           ),
-
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
@@ -152,7 +143,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                               ),
                             ),
                           ),
-
                           if (_error != null) ...[
                             Container(
                               padding: const EdgeInsets.all(12),
@@ -160,8 +150,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                                 color: Theme.of(context)
                                     .colorScheme
                                     .errorContainer,
-                                borderRadius:
-                                    BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
                                 _error!,
@@ -174,55 +163,43 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                             ),
                             const SizedBox(height: 12),
                           ],
-
                           FilledButton(
-                            onPressed:
-                                _loading ? null : _submit,
+                            onPressed: _loading ? null : _submit,
                             style: FilledButton.styleFrom(
-                              minimumSize:
-                                  const Size.fromHeight(54),
-                              backgroundColor:
-                                  RancoColors.forest,
+                              minimumSize: const Size.fromHeight(54),
+                              backgroundColor: RancoColors.forest,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(16),
+                                borderRadius: BorderRadius.circular(16),
                               ),
                             ),
                             child: _loading
                                 ? const SizedBox.square(
                                     dimension: 20,
-                                    child:
-                                        CircularProgressIndicator(
+                                    child: CircularProgressIndicator(
                                       strokeWidth: 2.2,
                                       color: Colors.white,
                                     ),
                                   )
                                 : const Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.center,
-                                    mainAxisSize:
-                                        MainAxisSize.min,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
                                         'Entrar',
                                         style: TextStyle(
-                                          fontWeight:
-                                              FontWeight.w800,
+                                          fontWeight: FontWeight.w800,
                                           fontSize: 16,
                                         ),
                                       ),
                                       SizedBox(width: 10),
                                       Icon(
-                                        Icons
-                                            .arrow_forward_rounded,
+                                        Icons.arrow_forward_rounded,
                                       ),
                                     ],
                                   ),
                           ),
-
                           const SizedBox(height: 10),
-
                           TextButton.icon(
                             onPressed: () {
                               context.go('/');
@@ -235,17 +212,14 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                               'Continuar como visitante',
                             ),
                           ),
-
                           const SizedBox(height: 4),
-
                           Row(
                             children: [
                               const Expanded(
                                 child: Divider(),
                               ),
                               Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(
+                                padding: const EdgeInsets.symmetric(
                                   horizontal: 10,
                                 ),
                                 child: Text(
@@ -265,19 +239,15 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                               ),
                             ],
                           ),
-
                           const SizedBox(height: 14),
-
                           _ProviderCta(
                             onTap: () {
                               context.go('/provider/join');
                             },
                           ),
-
                           if (!config.hasSupabaseConfig &&
                               config.environment ==
-                                  AppEnvironment
-                                      .development) ...[
+                                  AppEnvironment.development) ...[
                             const SizedBox(height: 12),
                             const _InfoBanner(
                               message:
@@ -288,18 +258,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 18),
-
                   Text(
                     'Conectando personas y servicios locales',
                     textAlign: TextAlign.center,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(
-                          color:
-                              const Color(0xFF6F8179),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: const Color(0xFF6F8179),
                         ),
                   ),
                 ],
@@ -321,11 +285,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       _error = null;
     });
 
-    final result =
-        await ref.read(authRepositoryProvider).signIn(
-              email: _emailController.text.trim(),
-              password: _passwordController.text,
-            );
+    final result = await ref.read(authRepositoryProvider).signIn(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
 
     if (!mounted) return;
 
@@ -357,11 +320,10 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style:
-          Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: RancoColors.forest,
-                fontWeight: FontWeight.w800,
-              ),
+      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: RancoColors.forest,
+            fontWeight: FontWeight.w800,
+          ),
     );
   }
 }
@@ -403,8 +365,7 @@ class _ProviderCta extends StatelessWidget {
               const SizedBox(width: 12),
               const Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       '¿Quieres ofrecer un servicio?',
@@ -460,18 +421,16 @@ class ProviderJoinScreen extends StatelessWidget {
           ),
         ),
         title: const Text(
-          'Publicar mi servicio',
+          'Publicar mi negocio',
         ),
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints:
-              const BoxConstraints(maxWidth: 560),
+          constraints: const BoxConstraints(maxWidth: 560),
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Container(
                   width: 58,
@@ -479,8 +438,7 @@ class ProviderJoinScreen extends StatelessWidget {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: const Color(0xFFDDEFE7),
-                    borderRadius:
-                        BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(18),
                   ),
                   child: const Icon(
                     Icons.storefront_outlined,
@@ -488,66 +446,47 @@ class ProviderJoinScreen extends StatelessWidget {
                     size: 30,
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
                 Text(
-                  'Haz visible tu servicio',
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineMedium
-                      ?.copyWith(
+                  'Haz visible tu negocio',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         color: RancoColors.forest,
                         fontWeight: FontWeight.w800,
                       ),
                 ),
-
                 const SizedBox(height: 8),
-
                 Text(
-                  'Crea tu cuenta, completa tu publicación y elige una membresía para aparecer en Ranco Conecta.',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyLarge
-                      ?.copyWith(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurfaceVariant,
+                  'Inicia sesión, crea tu negocio como borrador y envíalo a revisión. Publicar es gratis; los planes premium serán opcionales.',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
-
                 const SizedBox(height: 26),
-
                 const _JoinStep(
                   number: '1',
-                  title: 'Registra tu cuenta',
+                  title: 'Inicia sesión',
                   subtitle:
                       'Usaremos tus datos para administrar tu publicación.',
                 ),
-
                 const _JoinStep(
                   number: '2',
-                  title: 'Describe tu servicio',
+                  title: 'Crea un borrador',
                   subtitle:
-                      'Agrega nombre, categoría, ubicación y contacto.',
+                      'Agrega tipo, nombre, categoría, ubicación y contacto.',
                 ),
-
                 const _JoinStep(
                   number: '3',
-                  title: 'Elige tu cobertura',
+                  title: 'Guarda y continúa',
                   subtitle:
                       'Selecciona las localidades donde prestas servicios.',
                 ),
-
                 const _JoinStep(
                   number: '4',
-                  title: 'Selecciona tu membresía',
+                  title: 'Envía a revisión',
                   subtitle:
-                      'Los prestadores publicados utilizan una membresía anual.',
+                      'La aprobación inicial habilita la publicación gratuita.',
                 ),
-
                 const SizedBox(height: 20),
-
                 FilledButton.icon(
                   onPressed: () {
                     context.go('/provider/register');
@@ -559,16 +498,12 @@ class ProviderJoinScreen extends StatelessWidget {
                     'Comenzar inscripción',
                   ),
                   style: FilledButton.styleFrom(
-                    minimumSize:
-                        const Size.fromHeight(54),
-                    backgroundColor:
-                        RancoColors.forest,
+                    minimumSize: const Size.fromHeight(54),
+                    backgroundColor: RancoColors.forest,
                     foregroundColor: Colors.white,
                   ),
                 ),
-
                 const SizedBox(height: 8),
-
                 OutlinedButton(
                   onPressed: () {
                     context.go('/sign-in');
@@ -600,21 +535,18 @@ class _JoinStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding:
-          const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius:
-              BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: const Color(0xFFD7E4DE),
           ),
         ),
         child: Row(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
               width: 34,
@@ -622,8 +554,7 @@ class _JoinStep extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: RancoColors.forest,
-                borderRadius:
-                    BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
                 number,
@@ -633,33 +564,23 @@ class _JoinStep extends StatelessWidget {
                 ),
               ),
             ),
-
             const SizedBox(width: 12),
-
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
                     style: const TextStyle(
-                      color:
-                          RancoColors.forest,
-                      fontWeight:
-                          FontWeight.w800,
+                      color: RancoColors.forest,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     subtitle,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurfaceVariant,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                   ),
                 ],
@@ -682,22 +603,16 @@ class SignUpScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<SignUpScreen> createState() =>
-      _SignUpScreenState();
+  ConsumerState<SignUpScreen> createState() => _SignUpScreenState();
 }
 
-class _SignUpScreenState
-    extends ConsumerState<SignUpScreen> {
+class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final _nameController =
-      TextEditingController();
-  final _emailController =
-      TextEditingController();
-  final _passwordController =
-      TextEditingController();
-  final _confirmPasswordController =
-      TextEditingController();
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
   bool _loading = false;
   bool _obscurePassword = true;
@@ -718,75 +633,51 @@ class _SignUpScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar:
-          const RancoAppBar(title: 'Crear cuenta'),
+      appBar: const RancoAppBar(title: 'Crear cuenta'),
       body: Center(
         child: ConstrainedBox(
-          constraints:
-              const BoxConstraints(maxWidth: 460),
+          constraints: const BoxConstraints(maxWidth: 460),
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Form(
               key: _formKey,
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
                     'Crear cuenta',
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineSmall,
+                    style: Theme.of(context).textTheme.headlineSmall,
                   ),
-
                   const SizedBox(height: 6),
-
                   Text(
                     'Esta pantalla queda disponible para compatibilidad del proyecto.',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurfaceVariant,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                   ),
-
                   const SizedBox(height: 22),
-
                   TextFormField(
                     controller: _nameController,
-                    textCapitalization:
-                        TextCapitalization.words,
-                    decoration:
-                        const InputDecoration(
-                      labelText:
-                          'Nombre completo',
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre completo',
                       prefixIcon: Icon(
-                        Icons
-                            .person_outline_rounded,
+                        Icons.person_outline_rounded,
                       ),
                     ),
                     validator: (value) {
-                      if (value == null ||
-                          value.trim().isEmpty) {
+                      if (value == null || value.trim().isEmpty) {
                         return 'Ingresa tu nombre.';
                       }
 
                       return null;
                     },
                   ),
-
                   const SizedBox(height: 12),
-
                   TextFormField(
-                    controller:
-                        _emailController,
-                    keyboardType:
-                        TextInputType.emailAddress,
-                    decoration:
-                        const InputDecoration(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
                       labelText: 'Correo',
                       prefixIcon: Icon(
                         Icons.mail_outline_rounded,
@@ -794,117 +685,89 @@ class _SignUpScreenState
                     ),
                     validator: validateEmail,
                   ),
-
                   const SizedBox(height: 12),
-
                   TextFormField(
-                    controller:
-                        _passwordController,
-                    obscureText:
-                        _obscurePassword,
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
                     decoration: InputDecoration(
                       labelText: 'Contraseña',
                       prefixIcon: const Icon(
-                        Icons
-                            .lock_outline_rounded,
+                        Icons.lock_outline_rounded,
                       ),
                       suffixIcon: IconButton(
                         onPressed: () {
                           setState(() {
-                            _obscurePassword =
-                                !_obscurePassword;
+                            _obscurePassword = !_obscurePassword;
                           });
                         },
                         icon: Icon(
                           _obscurePassword
-                              ? Icons
-                                  .visibility_outlined
-                              : Icons
-                                  .visibility_off_outlined,
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
                         ),
                       ),
                     ),
                     validator: (value) {
-                      if (value == null ||
-                          value.length < 8) {
+                      if (value == null || value.length < 8) {
                         return 'Usa al menos 8 caracteres.';
                       }
 
                       return null;
                     },
                   ),
-
                   const SizedBox(height: 12),
-
                   TextFormField(
-                    controller:
-                        _confirmPasswordController,
-                    obscureText:
-                        _obscurePassword,
-                    decoration:
-                        const InputDecoration(
-                      labelText:
-                          'Confirmar contraseña',
+                    controller: _confirmPasswordController,
+                    obscureText: _obscurePassword,
+                    decoration: const InputDecoration(
+                      labelText: 'Confirmar contraseña',
                       prefixIcon: Icon(
-                        Icons
-                            .lock_reset_outlined,
+                        Icons.lock_reset_outlined,
                       ),
                     ),
                     validator: (value) {
-                      if (value !=
-                          _passwordController.text) {
+                      if (value != _passwordController.text) {
                         return 'Las contraseñas no coinciden.';
                       }
 
                       return null;
                     },
                   ),
-
                   if (_message != null) ...[
                     const SizedBox(height: 12),
                     _InfoBanner(
                       message: _message!,
                     ),
                   ],
-
                   if (_error != null) ...[
                     const SizedBox(height: 12),
                     Text(
                       _error!,
                       style: TextStyle(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .error,
+                        color: Theme.of(context).colorScheme.error,
                       ),
                     ),
                   ],
-
                   const SizedBox(height: 20),
-
                   FilledButton.icon(
-                    onPressed:
-                        _loading ? null : _signUp,
+                    onPressed: _loading ? null : _signUp,
                     icon: _loading
                         ? const SizedBox.square(
                             dimension: 18,
-                            child:
-                                CircularProgressIndicator(
+                            child: CircularProgressIndicator(
                               strokeWidth: 2,
                             ),
                           )
                         : const Icon(
                             Icons.person_add_outlined,
                           ),
-                    label:
-                        const Text('Crear cuenta'),
+                    label: const Text('Crear cuenta'),
                   ),
-
                   TextButton(
                     onPressed: () {
                       context.go('/sign-in');
                     },
-                    child:
-                        const Text('Volver'),
+                    child: const Text('Volver'),
                   ),
                 ],
               ),
@@ -926,26 +789,20 @@ class _SignUpScreenState
       _message = null;
     });
 
-    final result =
-        await ref.read(authRepositoryProvider).signUp(
-              fullName:
-                  _nameController.text.trim(),
-              email:
-                  _emailController.text.trim(),
-              password:
-                  _passwordController.text,
-            );
+    final result = await ref.read(authRepositoryProvider).signUp(
+          fullName: _nameController.text.trim(),
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
 
     if (!mounted) return;
 
     result.when(
       success: (user) {
         setState(() {
-          _message =
-              user == null ||
-                      !user.emailConfirmed
-                  ? 'Cuenta creada. Revisa tu correo para confirmar el acceso si Supabase lo solicita.'
-                  : 'Cuenta creada correctamente.';
+          _message = user == null || !user.emailConfirmed
+              ? 'Cuenta creada. Revisa tu correo para confirmar el acceso si Supabase lo solicita.'
+              : 'Cuenta creada correctamente.';
         });
       },
       failure: (failure) {
@@ -963,23 +820,19 @@ class _SignUpScreenState
   }
 }
 
-class ForgotPasswordScreen
-    extends ConsumerStatefulWidget {
+class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({
     super.key,
   });
 
   @override
-  ConsumerState<ForgotPasswordScreen>
-      createState() =>
-          _ForgotPasswordScreenState();
+  ConsumerState<ForgotPasswordScreen> createState() =>
+      _ForgotPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState
-    extends ConsumerState<ForgotPasswordScreen> {
+class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController =
-      TextEditingController();
+  final _emailController = TextEditingController();
 
   bool _loading = false;
 
@@ -1000,62 +853,47 @@ class _ForgotPasswordScreenState
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints:
-              const BoxConstraints(maxWidth: 420),
+          constraints: const BoxConstraints(maxWidth: 420),
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Form(
               key: _formKey,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment:
-                    CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Text(
                     'Te enviaremos un correo de recuperación si la cuenta existe.',
                   ),
-
                   const SizedBox(height: 20),
-
                   TextFormField(
-                    controller:
-                        _emailController,
-                    keyboardType:
-                        TextInputType.emailAddress,
-                    decoration:
-                        const InputDecoration(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
                       labelText: 'Correo',
                     ),
                     validator: validateEmail,
                   ),
-
                   if (_message != null) ...[
                     const SizedBox(height: 12),
                     _InfoBanner(
                       message: _message!,
                     ),
                   ],
-
                   if (_error != null) ...[
                     const SizedBox(height: 12),
                     Text(
                       _error!,
                       style: TextStyle(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .error,
+                        color: Theme.of(context).colorScheme.error,
                       ),
                     ),
                   ],
-
                   const SizedBox(height: 20),
-
                   FilledButton.icon(
-                    onPressed:
-                        _loading ? null : _submitReset,
+                    onPressed: _loading ? null : _submitReset,
                     icon: const Icon(
-                      Icons
-                          .mark_email_read_outlined,
+                      Icons.mark_email_read_outlined,
                     ),
                     label: const Text(
                       'Enviar correo',
@@ -1081,19 +919,17 @@ class _ForgotPasswordScreenState
       _error = null;
     });
 
-    final result = await ref
-        .read(authRepositoryProvider)
-        .sendPasswordResetEmail(
-          _emailController.text.trim(),
-        );
+    final result =
+        await ref.read(authRepositoryProvider).sendPasswordResetEmail(
+              _emailController.text.trim(),
+            );
 
     if (!mounted) return;
 
     result.when(
       success: (_) {
         setState(() {
-          _message =
-              'Correo de recuperación enviado.';
+          _message = 'Correo de recuperación enviado.';
         });
       },
       failure: (failure) {

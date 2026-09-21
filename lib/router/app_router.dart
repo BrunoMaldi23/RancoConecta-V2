@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/auth/data/supabase_auth_repository.dart';
 import '../features/auth/presentation/sign_in_screen.dart';
+import '../features/admin/presentation/admin_screens.dart';
 import '../features/businesses/data/business_repository.dart';
 import '../features/businesses/presentation/business_detail_screen.dart';
 import '../features/businesses/presentation/lodging_availability_screen.dart';
@@ -20,10 +21,12 @@ import '../features/provider_dashboard/presentation/lodging_information_screen.d
 import '../features/provider_dashboard/presentation/lodging_photos_screen.dart';
 import '../features/provider_dashboard/presentation/lodging_rates_screen.dart';
 import '../features/provider_dashboard/presentation/provider_dashboard_screen.dart';
+import '../features/provider_registration/presentation/provider_business_status_screen.dart';
 import '../features/provider_registration/presentation/provider_registration_screen.dart';
 import '../features/service_requests/presentation/create_request_screen.dart';
 import '../features/service_requests/presentation/requests_screen.dart';
 import '../router/app_shell.dart';
+import '../shared/models/business.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authRepository = ref.watch(authRepositoryProvider);
@@ -44,6 +47,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       final path = state.uri.path;
 
+      final providerManagementRoute = _isProviderManagementRoute(path);
+      final adminRoute = path.startsWith('/admin');
+
       final protected = (path.startsWith('/business/') &&
               path.endsWith(
                 '/request',
@@ -51,7 +57,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           path.startsWith(
             '/requests/',
           ) ||
-          path == '/account/edit';
+          path == '/account/edit' ||
+          providerManagementRoute ||
+          adminRoute;
 
       if (protected && user == null) {
         return '/sign-in';
@@ -144,6 +152,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ProviderRegistrationScreen(),
       ),
       GoRoute(
+        path: '/provider/status',
+        builder: (context, state) => const ProviderBusinessStatusScreen(),
+      ),
+      GoRoute(
         path: '/provider/dashboard',
         builder: (context, state) => const ProviderDashboardScreen(),
       ),
@@ -170,6 +182,48 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/forgot-password',
         builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/admin',
+        builder: (context, state) => const AdminDashboardScreen(),
+      ),
+      GoRoute(
+        path: '/admin/businesses',
+        builder: (context, state) {
+          final status = BusinessPublicationStatus.parseOrDefault(
+            state.uri.queryParameters['status'] ?? 'pending_review',
+          );
+
+          return AdminBusinessesScreen(initialStatus: status);
+        },
+      ),
+      GoRoute(
+        path: '/admin/businesses/pending',
+        builder: (context, state) => const AdminBusinessesScreen(
+          initialStatus: BusinessPublicationStatus.pendingReview,
+        ),
+      ),
+      GoRoute(
+        path: '/admin/businesses/:id',
+        builder: (context, state) => AdminBusinessDetailScreen(
+          businessId: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/admin/users',
+        builder: (context, state) => const AdminPlaceholderScreen(
+          title: 'Usuarios',
+          message:
+              'Gestión de usuarios queda preparada para una fase posterior.',
+        ),
+      ),
+      GoRoute(
+        path: '/admin/audit',
+        builder: (context, state) => const AdminPlaceholderScreen(
+          title: 'Auditoría',
+          message:
+              'El historial se registra en backend; vista completa queda pendiente.',
+        ),
       ),
       GoRoute(
         path: '/account/edit',
@@ -215,6 +269,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ),
   );
 });
+
+bool _isProviderManagementRoute(String path) {
+  return path == '/provider/dashboard' ||
+      path == '/provider/register' ||
+      path == '/provider/status' ||
+      path == '/provider/lodging' ||
+      path == '/provider/bookings' ||
+      path == '/provider/calendar' ||
+      path == '/provider/photos' ||
+      path == '/provider/rates';
+}
 
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(

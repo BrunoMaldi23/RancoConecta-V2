@@ -5,7 +5,9 @@ enum BusinessType {
   service,
   commerce,
   gastronomy,
-  lodging;
+  lodging,
+  tourism,
+  emergency;
 
   String get label {
     return switch (this) {
@@ -13,14 +15,95 @@ enum BusinessType {
       BusinessType.commerce => 'Comercio',
       BusinessType.gastronomy => 'Gastronomía',
       BusinessType.lodging => 'Alojamiento',
+      BusinessType.tourism => 'Turismo',
+      BusinessType.emergency => 'Emergencia',
     };
   }
 
+  String get value => name;
+
   static BusinessType parse(String value) {
-    return BusinessType.values.firstWhere(
-      (type) => type.name == value,
-      orElse: () => BusinessType.service,
-    );
+    final type = tryParse(value);
+
+    if (type == null) {
+      throw ArgumentError.value(
+        value,
+        'value',
+        'Unknown business type',
+      );
+    }
+
+    return type;
+  }
+
+  static BusinessType? tryParse(String? value) {
+    if (value == null) {
+      return null;
+    }
+
+    for (final type in BusinessType.values) {
+      if (type.name == value) {
+        return type;
+      }
+    }
+
+    return null;
+  }
+
+  static BusinessType parseOrDefault(
+    String? value, {
+    BusinessType defaultValue = BusinessType.service,
+  }) {
+    return tryParse(value) ?? defaultValue;
+  }
+}
+
+enum BusinessPublicationStatus {
+  draft,
+  pendingReview,
+  changesRequested,
+  published,
+  paused,
+  rejected,
+  suspended,
+  archived;
+
+  String get value {
+    return switch (this) {
+      BusinessPublicationStatus.pendingReview => 'pending_review',
+      BusinessPublicationStatus.changesRequested => 'changes_requested',
+      _ => name,
+    };
+  }
+
+  String get label {
+    return switch (this) {
+      BusinessPublicationStatus.draft => 'Borrador',
+      BusinessPublicationStatus.pendingReview => 'En revisión',
+      BusinessPublicationStatus.changesRequested => 'Cambios solicitados',
+      BusinessPublicationStatus.published => 'Publicado',
+      BusinessPublicationStatus.paused => 'Pausado',
+      BusinessPublicationStatus.rejected => 'Rechazado',
+      BusinessPublicationStatus.suspended => 'Suspendido',
+      BusinessPublicationStatus.archived => 'Archivado',
+    };
+  }
+
+  bool get isPubliclyVisible {
+    return this == BusinessPublicationStatus.published;
+  }
+
+  static BusinessPublicationStatus parseOrDefault(String? value) {
+    return switch (value) {
+      'pending_review' => BusinessPublicationStatus.pendingReview,
+      'changes_requested' => BusinessPublicationStatus.changesRequested,
+      'published' => BusinessPublicationStatus.published,
+      'paused' => BusinessPublicationStatus.paused,
+      'rejected' => BusinessPublicationStatus.rejected,
+      'suspended' => BusinessPublicationStatus.suspended,
+      'archived' => BusinessPublicationStatus.archived,
+      _ => BusinessPublicationStatus.draft,
+    };
   }
 }
 

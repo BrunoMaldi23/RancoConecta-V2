@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -52,7 +52,6 @@ class HomeScreen extends ConsumerWidget {
                 },
               ),
             ),
-
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -66,30 +65,21 @@ class HomeScreen extends ConsumerWidget {
                   children: [
                     Text(
                       '¿Qué servicio necesitas?',
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineMedium
-                          ?.copyWith(
-                            color: RancoColors.forest,
-                            fontWeight: FontWeight.w900,
-                          ),
+                      style:
+                          Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                color: RancoColors.forest,
+                                fontWeight: FontWeight.w900,
+                              ),
                     ),
-
                     const SizedBox(height: 4),
-
                     Text(
                       'Profesionales, comercios y servicios locales cerca de ti.',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: const Color(0xFF71827A),
                             height: 1.4,
                           ),
                     ),
-
                     const SizedBox(height: 20),
-
                     TextField(
                       readOnly: true,
                       onTap: () {
@@ -122,15 +112,11 @@ class HomeScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 12),
-
                     const LocationSelector(
                       compact: true,
                     ),
-
                     const SizedBox(height: 12),
-
                     FilledButton.icon(
                       onPressed: () {
                         context.go('/explore');
@@ -154,9 +140,7 @@ class HomeScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 11),
-
                     _LocalSummary(
                       businesses: businesses,
                     ),
@@ -164,7 +148,6 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
             ),
-
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -175,8 +158,7 @@ class HomeScreen extends ConsumerWidget {
                 ),
                 child: _SectionTitle(
                   title: 'Rubros principales',
-                  subtitle:
-                      'Explora los servicios disponibles en tu sector.',
+                  subtitle: 'Explora los servicios disponibles en tu sector.',
                   actionLabel: 'Ver todos',
                   onAction: () {
                     context.go('/explore');
@@ -184,7 +166,6 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
             ),
-
             categories.when(
               data: (items) {
                 if (items.isEmpty) {
@@ -240,7 +221,6 @@ class HomeScreen extends ConsumerWidget {
                 );
               },
             ),
-
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -251,8 +231,7 @@ class HomeScreen extends ConsumerWidget {
                 ),
                 child: _SectionTitle(
                   title: 'Prestadores destacados',
-                  subtitle:
-                      'Servicios publicados en Ranco Conecta.',
+                  subtitle: 'Servicios publicados en Ranco Conecta.',
                   actionLabel: 'Ver todos',
                   onAction: () {
                     context.go('/explore');
@@ -260,7 +239,6 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
             ),
-
             businesses.when(
               data: (items) {
                 if (items.isEmpty) {
@@ -271,8 +249,7 @@ class HomeScreen extends ConsumerWidget {
                       ),
                       child: _EmptySectionCard(
                         icon: Icons.storefront_outlined,
-                        title:
-                            'Aún no hay prestadores publicados',
+                        title: 'Aún no hay prestadores publicados',
                         message:
                             'Los prestadores aparecerán aquí cuando existan publicaciones activas.',
                         buttonLabel: 'Explorar',
@@ -333,7 +310,6 @@ class HomeScreen extends ConsumerWidget {
                 );
               },
             ),
-
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -349,7 +325,6 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
             ),
-
             const SliverToBoxAdapter(
               child: SizedBox(height: 30),
             ),
@@ -386,9 +361,7 @@ class _HomeHeader extends StatelessWidget {
             icon: Icons.menu_rounded,
             onTap: onMenu,
           ),
-
           const SizedBox(width: 14),
-
           Expanded(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -408,9 +381,7 @@ class _HomeHeader extends StatelessWidget {
                     color: RancoColors.forest,
                   ),
                 ),
-
                 const SizedBox(width: 9),
-
                 RichText(
                   text: const TextSpan(
                     style: TextStyle(
@@ -436,17 +407,11 @@ class _HomeHeader extends StatelessWidget {
               ],
             ),
           ),
-
           const SizedBox(width: 14),
-
           Tooltip(
-            message: isSignedIn
-                ? 'Mi cuenta'
-                : 'Ingresar',
+            message: isSignedIn ? 'Mi cuenta' : 'Ingresar',
             child: _HeaderButton(
-              icon: isSignedIn
-                  ? Icons.person_rounded
-                  : Icons.login_rounded,
+              icon: isSignedIn ? Icons.person_rounded : Icons.login_rounded,
               onTap: onAccount,
               accent: true,
             ),
@@ -471,9 +436,7 @@ class _HeaderButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: accent
-          ? const Color(0xFFD06A42)
-          : Colors.white,
+      color: accent ? const Color(0xFFD06A42) : Colors.white,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -491,9 +454,7 @@ class _HeaderButton extends StatelessWidget {
           ),
           child: Icon(
             icon,
-            color: accent
-                ? Colors.white
-                : RancoColors.forest,
+            color: accent ? Colors.white : RancoColors.forest,
           ),
         ),
       ),
@@ -546,9 +507,7 @@ class _RancoDrawer extends StatelessWidget {
                           color: RancoColors.forest,
                         ),
                       ),
-
                       const SizedBox(width: 10),
-
                       Expanded(
                         child: RichText(
                           text: const TextSpan(
@@ -573,7 +532,6 @@ class _RancoDrawer extends StatelessWidget {
                           ),
                         ),
                       ),
-
                       IconButton(
                         onPressed: () {
                           Navigator.of(context).pop();
@@ -584,9 +542,7 @@ class _RancoDrawer extends StatelessWidget {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 20),
-
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
@@ -602,8 +558,7 @@ class _RancoDrawer extends StatelessWidget {
                         SizedBox(width: 12),
                         Expanded(
                           child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 'Ubicación seleccionada',
@@ -626,9 +581,7 @@ class _RancoDrawer extends StatelessWidget {
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 14),
-
                   InkWell(
                     onTap: () {
                       Navigator.of(context).pop();
@@ -664,26 +617,19 @@ class _RancoDrawer extends StatelessWidget {
                               color: RancoColors.forest,
                             ),
                           ),
-
                           const SizedBox(width: 12),
-
                           Expanded(
                             child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  isSignedIn
-                                      ? 'Mi cuenta'
-                                      : 'Modo visitante',
+                                  isSignedIn ? 'Mi cuenta' : 'Modo visitante',
                                   style: const TextStyle(
                                     color: RancoColors.forest,
                                     fontWeight: FontWeight.w800,
                                   ),
                                 ),
-
                                 const SizedBox(height: 2),
-
                                 Text(
                                   isSignedIn
                                       ? (userEmail ?? 'Cuenta activa')
@@ -698,7 +644,6 @@ class _RancoDrawer extends StatelessWidget {
                               ],
                             ),
                           ),
-
                           const Icon(
                             Icons.arrow_forward_ios_rounded,
                             size: 15,
@@ -708,9 +653,7 @@ class _RancoDrawer extends StatelessWidget {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 16),
-
                   _DrawerNavigationCard(
                     children: [
                       _DrawerItem(
@@ -786,9 +729,7 @@ class _RancoDrawer extends StatelessWidget {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 16),
-
                   Material(
                     color: const Color(0xFFE1F0EA),
                     borderRadius: BorderRadius.circular(18),
@@ -811,8 +752,7 @@ class _RancoDrawer extends StatelessWidget {
                             SizedBox(width: 12),
                             Expanded(
                               child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     '¿Ofreces un servicio?',
@@ -844,7 +784,6 @@ class _RancoDrawer extends StatelessWidget {
                 ],
               ),
             ),
-
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 20,
@@ -855,10 +794,7 @@ class _RancoDrawer extends StatelessWidget {
               child: Text(
                 'Conectando personas y servicios locales',
                 textAlign: TextAlign.center,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: const Color(0xFF83928C),
                     ),
               ),
@@ -923,9 +859,7 @@ class _DrawerItem extends StatelessWidget {
         vertical: 2,
       ),
       child: Material(
-        color: selected
-            ? const Color(0xFFE9F3EF)
-            : Colors.transparent,
+        color: selected ? const Color(0xFFE9F3EF) : Colors.transparent,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           onTap: onTap,
@@ -940,13 +874,10 @@ class _DrawerItem extends StatelessWidget {
                 Icon(
                   icon,
                   size: 21,
-                  color: selected
-                      ? RancoColors.forest
-                      : const Color(0xFF71827A),
+                  color:
+                      selected ? RancoColors.forest : const Color(0xFF71827A),
                 ),
-
                 const SizedBox(width: 14),
-
                 Expanded(
                   child: Text(
                     label,
@@ -954,13 +885,10 @@ class _DrawerItem extends StatelessWidget {
                       color: selected
                           ? RancoColors.forest
                           : const Color(0xFF405249),
-                      fontWeight: selected
-                          ? FontWeight.w800
-                          : FontWeight.w600,
+                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
                     ),
                   ),
                 ),
-
                 const Icon(
                   Icons.arrow_forward_ios_rounded,
                   size: 14,
@@ -1006,10 +934,7 @@ class _LocalSummary extends StatelessWidget {
                 child: Text(
                   'Lago Ranco y sectores cercanos',
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: const Color(0xFF6D7E76),
                       ),
                 ),
@@ -1017,9 +942,7 @@ class _LocalSummary extends StatelessWidget {
             ],
           ),
         ),
-
         const SizedBox(width: 8),
-
         Row(
           children: [
             const Icon(
@@ -1030,10 +953,7 @@ class _LocalSummary extends StatelessWidget {
             const SizedBox(width: 5),
             Text(
               '$count prestadores',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: RancoColors.forest,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1069,10 +989,7 @@ class _SectionTitle extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       color: RancoColors.forest,
                       fontWeight: FontWeight.w900,
                     ),
@@ -1080,10 +997,7 @@ class _SectionTitle extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 subtitle,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: const Color(0xFF71827A),
                     ),
               ),
@@ -1119,17 +1033,12 @@ class _CategoryGrid extends ConsumerWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final columns =
-              constraints.maxWidth >= 700
-                  ? 3
-                  : 2;
+          final columns = constraints.maxWidth >= 700 ? 3 : 2;
 
           const spacing = 10.0;
 
           final width =
-              (constraints.maxWidth -
-                      spacing * (columns - 1)) /
-                  columns;
+              (constraints.maxWidth - spacing * (columns - 1)) / columns;
 
           return Wrap(
             spacing: spacing,
@@ -1142,12 +1051,10 @@ class _CategoryGrid extends ConsumerWidget {
                     category: category,
                     onTap: () {
                       ref
-                              .read(
-                                selectedCategoryIdProvider
-                                    .notifier,
-                              )
-                              .state =
-                          category.id;
+                          .read(
+                            selectedCategoryIdProvider.notifier,
+                          )
+                          .state = category.id;
 
                       context.go('/explore');
                     },
@@ -1201,9 +1108,7 @@ class _CategoryCard extends StatelessWidget {
                   color: RancoColors.forest,
                 ),
               ),
-
               const SizedBox(height: 14),
-
               Text(
                 category.name,
                 maxLines: 2,
@@ -1214,9 +1119,7 @@ class _CategoryCard extends StatelessWidget {
                   fontSize: 15,
                 ),
               ),
-
               const SizedBox(height: 5),
-
               const Text(
                 'Ver servicios disponibles',
                 maxLines: 2,
@@ -1227,9 +1130,7 @@ class _CategoryCard extends StatelessWidget {
                   height: 1.3,
                 ),
               ),
-
               const SizedBox(height: 14),
-
               const Row(
                 children: [
                   Text(
@@ -1279,8 +1180,7 @@ class _ProviderCallout extends StatelessWidget {
               SizedBox(width: 14),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       '¿Ofreces un servicio?',
@@ -1376,9 +1276,7 @@ class _EmptySectionCard extends StatelessWidget {
               color: RancoColors.forest,
             ),
           ),
-
           const SizedBox(height: 12),
-
           Text(
             title,
             textAlign: TextAlign.center,
@@ -1387,9 +1285,7 @@ class _EmptySectionCard extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
-
           const SizedBox(height: 5),
-
           Text(
             message,
             textAlign: TextAlign.center,
@@ -1399,9 +1295,7 @@ class _EmptySectionCard extends StatelessWidget {
               height: 1.35,
             ),
           ),
-
-          if (buttonLabel != null &&
-              onPressed != null) ...[
+          if (buttonLabel != null && onPressed != null) ...[
             const SizedBox(height: 14),
             FilledButton(
               onPressed: onPressed,

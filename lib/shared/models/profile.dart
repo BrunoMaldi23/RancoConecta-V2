@@ -13,6 +13,14 @@ enum ProfileRole {
     };
   }
 
+  bool get canAccessAdmin {
+    return this == ProfileRole.admin || this == ProfileRole.superAdmin;
+  }
+
+  bool get canReviewBusinesses {
+    return canAccessAdmin;
+  }
+
   static ProfileRole parse(String value) {
     return switch (value) {
       'provider' => ProfileRole.provider,

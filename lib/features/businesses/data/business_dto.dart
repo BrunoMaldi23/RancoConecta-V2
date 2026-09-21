@@ -88,7 +88,7 @@ class BusinessDto {
     return Business(
       id: id,
       ownerId: ownerId,
-      type: BusinessType.parse(type),
+      type: BusinessType.parseOrDefault(type),
       name: name,
       slug: slug,
       description: description,

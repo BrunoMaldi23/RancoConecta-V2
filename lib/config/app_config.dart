@@ -18,6 +18,7 @@ class AppConfig {
     required this.environment,
     required this.supabaseUrl,
     required this.supabasePublishableKey,
+    this.featureFlags = const FeatureFlags(),
   });
 
   factory AppConfig.fromEnvironment() {
@@ -35,15 +36,48 @@ class AppConfig {
       supabaseUrl: supabaseUrl.isEmpty ? null : supabaseUrl,
       supabasePublishableKey:
           supabasePublishableKey.isEmpty ? null : supabasePublishableKey,
+      featureFlags: FeatureFlags.fromEnvironment(),
     );
   }
 
   final AppEnvironment environment;
   final String? supabaseUrl;
   final String? supabasePublishableKey;
+  final FeatureFlags featureFlags;
 
   bool get hasSupabaseConfig =>
       supabaseUrl != null && supabasePublishableKey != null;
+}
+
+class FeatureFlags {
+  const FeatureFlags({
+    this.chatEnabled = false,
+    this.paymentsEnabled = false,
+    this.quotesEnabled = false,
+    this.lodgingEnabled = true,
+  });
+
+  factory FeatureFlags.fromEnvironment() {
+    const chatEnabled = bool.fromEnvironment('CHAT_ENABLED');
+    const paymentsEnabled = bool.fromEnvironment('PAYMENTS_ENABLED');
+    const quotesEnabled = bool.fromEnvironment('QUOTES_ENABLED');
+    const lodgingEnabled = bool.fromEnvironment(
+      'LODGING_ENABLED',
+      defaultValue: true,
+    );
+
+    return const FeatureFlags(
+      chatEnabled: chatEnabled,
+      paymentsEnabled: paymentsEnabled,
+      quotesEnabled: quotesEnabled,
+      lodgingEnabled: lodgingEnabled,
+    );
+  }
+
+  final bool chatEnabled;
+  final bool paymentsEnabled;
+  final bool quotesEnabled;
+  final bool lodgingEnabled;
 }
 
 final appConfigProvider =

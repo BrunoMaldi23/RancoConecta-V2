@@ -2,13 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../features/auth/data/supabase_auth_repository.dart';
+import '../../../features/categories/application/category_providers.dart';
+import '../../../features/locations/application/location_providers.dart';
+import '../../../features/provider_dashboard/application/provider_dashboard_providers.dart';
+import '../../../shared/models/business.dart';
+import '../../../shared/models/category.dart';
+import '../../../shared/models/location.dart';
 import '../../../theme/ranco_colors.dart';
-import '../../auth/data/supabase_auth_repository.dart';
+import '../application/business_onboarding_requirements.dart';
+import '../data/business_onboarding_repository.dart';
 
 class ProviderRegistrationScreen extends ConsumerStatefulWidget {
-  const ProviderRegistrationScreen({
-    super.key,
-  });
+  const ProviderRegistrationScreen({super.key});
 
   @override
   ConsumerState<ProviderRegistrationScreen> createState() =>
@@ -18,74 +24,95 @@ class ProviderRegistrationScreen extends ConsumerStatefulWidget {
 class _ProviderRegistrationScreenState
     extends ConsumerState<ProviderRegistrationScreen> {
   final _pageController = PageController();
-
-  int _step = 0;
-  bool _loading = false;
-  bool _obscurePassword = true;
-
-  String? _error;
-  String? _successMessage;
-
-  final _accountKey = GlobalKey<FormState>();
-  final _businessKey = GlobalKey<FormState>();
-
   final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
-
-  final _businessNameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _whatsappController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _websiteController = TextEditingController();
+  final _addressController = TextEditingController();
 
-  String _publicationType = 'service';
-  String _location = 'Lago Ranco';
-  String _membership = 'basic';
+  int _step = 0;
+  bool _loading = true;
+  bool _saving = false;
+  bool _termsAccepted = false;
+  String? _businessId;
+  String? _error;
+  String? _statusMessage;
 
-  final List<String> _coverage = [
-    'Lago Ranco',
-  ];
-
-  static const _locations = [
-    'Lago Ranco',
-    'Futrono',
-    'Riñinahue',
-    'Llifen',
-    'Calcurrupe',
-    'Maihue',
-    'Dollinco',
-    'Caunahue',
-    'Curriñe',
-    'Cerrillos',
-    'Notuela',
-  ];
+  BusinessType _businessType = BusinessType.service;
+  String? _categoryId;
+  final Set<String> _subcategoryIds = {};
+  final Set<String> _coverageLocationIds = {};
 
   static const _steps = [
-    'Cuenta',
-    'Publicación',
+    'Tipo',
+    'Perfil',
+    'Clasificación',
     'Cobertura',
-    'Membresía',
-    'Confirmación',
+    'Revisión',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadExistingDraft();
+    });
+  }
 
   @override
   void dispose() {
     _pageController.dispose();
-
     _nameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
-
-    _businessNameController.dispose();
     _descriptionController.dispose();
     _phoneController.dispose();
-
+    _whatsappController.dispose();
+    _emailController.dispose();
+    _websiteController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(authRepositoryProvider).currentUser();
+
+    if (user == null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFEAF4F0),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFFEAF4F0),
+          title: const Text('Publicar negocio'),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.lock_outline,
+                  color: RancoColors.forest,
+                  size: 42,
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Inicia sesión para crear un negocio.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 18),
+                FilledButton(
+                  onPressed: () => context.go('/sign-in'),
+                  child: const Text('Ir a iniciar sesión'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFEAF4F0),
       appBar: AppBar(
@@ -93,22 +120,13 @@ class _ProviderRegistrationScreenState
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           onPressed: _back,
-          icon: const Icon(
-            Icons.arrow_back_rounded,
-          ),
+          icon: const Icon(Icons.arrow_back_rounded),
         ),
-        title: const Text(
-          'Inscribir mi servicio',
-        ),
-        centerTitle: true,
+        title: const Text('Crear negocio'),
         actions: [
-          IconButton(
-            onPressed: () {
-              context.go('/');
-            },
-            icon: const Icon(
-              Icons.home_outlined,
-            ),
+          TextButton(
+            onPressed: _saving ? null : _saveProgress,
+            child: const Text('Guardar'),
           ),
           const SizedBox(width: 8),
         ],
@@ -116,417 +134,183 @@ class _ProviderRegistrationScreenState
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 620),
-            child: Column(
-              children: [
-                _ProgressHeader(
-                  step: _step,
-                  steps: _steps,
-                ),
-                Expanded(
-                  child: PageView(
-                    controller: _pageController,
-                    physics: const NeverScrollableScrollPhysics(),
+            constraints: const BoxConstraints(maxWidth: 680),
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : Column(
                     children: [
-                      _accountStep(),
-                      _publicationStep(),
-                      _coverageStep(),
-                      _membershipStep(),
-                      _confirmationStep(),
+                      _ProgressHeader(step: _step, steps: _steps),
+                      if (_error != null)
+                        _InlineMessage(message: _error!, error: true),
+                      if (_statusMessage != null)
+                        _InlineMessage(message: _statusMessage!),
+                      Expanded(
+                        child: PageView(
+                          controller: _pageController,
+                          physics: const NeverScrollableScrollPhysics(),
+                          children: [
+                            _typeStep(),
+                            _profileStep(),
+                            _classificationStep(),
+                            _coverageStep(),
+                            _reviewStep(),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
-                ),
-              ],
-            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _accountStep() {
+  Widget _typeStep() {
     return _RegistrationPage(
-      title: 'Registra tus datos',
-      subtitle: 'Estos datos se utilizarán para administrar tu publicación.',
-      child: Form(
-        key: _accountKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const _Label('Nombre'),
-            const SizedBox(height: 7),
-            TextFormField(
-              controller: _nameController,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                hintText: 'Tu nombre',
-                prefixIcon: Icon(
-                  Icons.person_outline_rounded,
-                ),
-              ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Ingresa tu nombre.';
-                }
-
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            const _Label('Correo'),
-            const SizedBox(height: 7),
-            TextFormField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                hintText: 'tu@correo.cl',
-                prefixIcon: Icon(
-                  Icons.mail_outline_rounded,
-                ),
-              ),
-              validator: _validateEmail,
-            ),
-            const SizedBox(height: 16),
-            const _Label('Contraseña'),
-            const SizedBox(height: 7),
-            TextFormField(
-              controller: _passwordController,
-              obscureText: _obscurePassword,
-              decoration: InputDecoration(
-                hintText: 'Mínimo 8 caracteres',
-                prefixIcon: const Icon(
-                  Icons.lock_outline_rounded,
-                ),
-                suffixIcon: IconButton(
-                  onPressed: () {
-                    setState(() {
-                      _obscurePassword = !_obscurePassword;
-                    });
-                  },
-                  icon: Icon(
-                    _obscurePassword
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
-                  ),
-                ),
-              ),
-              validator: (value) {
-                if (value == null || value.length < 8) {
-                  return 'Usa al menos 8 caracteres.';
-                }
-
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            const _Label(
-              'Confirmar contraseña',
-            ),
-            const SizedBox(height: 7),
-            TextFormField(
-              controller: _confirmPasswordController,
-              obscureText: _obscurePassword,
-              decoration: const InputDecoration(
-                hintText: 'Repite tu contraseña',
-                prefixIcon: Icon(
-                  Icons.lock_reset_outlined,
-                ),
-              ),
-              validator: (value) {
-                if (value != _passwordController.text) {
-                  return 'Las contraseñas no coinciden.';
-                }
-
-                return null;
-              },
-            ),
-            const SizedBox(height: 26),
-            _NextButton(
-              text: 'Continuar',
-              onPressed: _next,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _publicationStep() {
-    return _RegistrationPage(
-      title: '¿Qué quieres publicar?',
-      subtitle: 'Selecciona el tipo que mejor representa tu actividad.',
-      child: Form(
-        key: _businessKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 1.2,
-              children: [
-                _TypeCard(
-                  selected: _publicationType == 'service',
-                  icon: Icons.handyman_outlined,
-                  title: 'Oficio o servicio',
-                  subtitle: 'Electricidad, gasfitería, fletes y más.',
-                  onTap: () {
-                    setState(() {
-                      _publicationType = 'service';
-                    });
-                  },
-                ),
-                _TypeCard(
-                  selected: _publicationType == 'commerce',
-                  icon: Icons.storefront_outlined,
-                  title: 'Comercio local',
-                  subtitle: 'Tiendas y emprendimientos.',
-                  onTap: () {
-                    setState(() {
-                      _publicationType = 'commerce';
-                    });
-                  },
-                ),
-                _TypeCard(
-                  selected: _publicationType == 'food',
-                  icon: Icons.restaurant_outlined,
-                  title: 'Gastronomía',
-                  subtitle: 'Restaurantes y comida.',
-                  onTap: () {
-                    setState(() {
-                      _publicationType = 'food';
-                    });
-                  },
-                ),
-                _TypeCard(
-                  selected: _publicationType == 'lodging',
-                  icon: Icons.bed_outlined,
-                  title: 'Alojamiento',
-                  subtitle: 'Cabañas y hospedajes.',
-                  onTap: () {
-                    setState(() {
-                      _publicationType = 'lodging';
-                    });
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 26),
-            const _Label(
-              'Nombre del servicio o negocio',
-            ),
-            const SizedBox(height: 7),
-            TextFormField(
-              controller: _businessNameController,
-              decoration: const InputDecoration(
-                hintText: 'Ej. Servicios del Ranco',
-                prefixIcon: Icon(
-                  Icons.store_outlined,
-                ),
-              ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Ingresa un nombre.';
-                }
-
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            const _Label('Descripción'),
-            const SizedBox(height: 7),
-            TextFormField(
-              controller: _descriptionController,
-              maxLines: 4,
-              minLines: 3,
-              decoration: const InputDecoration(
-                hintText: 'Describe brevemente lo que ofreces.',
-              ),
-              validator: (value) {
-                if (value == null || value.trim().length < 10) {
-                  return 'Agrega una descripción más completa.';
-                }
-
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            const _Label('Teléfono'),
-            const SizedBox(height: 7),
-            TextFormField(
-              controller: _phoneController,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                hintText: '+56 9 ...',
-                prefixIcon: Icon(
-                  Icons.phone_outlined,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const _Label(
-              'Localidad principal',
-            ),
-            const SizedBox(height: 7),
-            DropdownButtonFormField<String>(
-              initialValue: _location,
-              decoration: const InputDecoration(
-                prefixIcon: Icon(
-                  Icons.location_on_outlined,
-                ),
-              ),
-              items: _locations
-                  .map(
-                    (location) => DropdownMenuItem(
-                      value: location,
-                      child: Text(location),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (value) {
-                if (value == null) return;
-
-                setState(() {
-                  _location = value;
-
-                  if (!_coverage.contains(value)) {
-                    _coverage.add(value);
-                  }
-                });
-              },
-            ),
-            const SizedBox(height: 26),
-            _NextButton(
-              text: 'Continuar',
-              onPressed: _next,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _coverageStep() {
-    return _RegistrationPage(
-      title: '¿Dónde trabajas?',
-      subtitle: 'Selecciona todas las localidades donde ofreces tus servicios.',
+      title: 'Elige el tipo de negocio',
+      subtitle: 'Esto define las capacidades iniciales del negocio.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: _locations.map(
-              (location) {
-                final selected = _coverage.contains(location);
-
-                return FilterChip(
-                  selected: selected,
-                  label: Text(location),
-                  avatar: const Icon(
-                    Icons.location_on_outlined,
-                    size: 17,
-                  ),
-                  onSelected: (value) {
-                    setState(() {
-                      if (value) {
-                        if (!_coverage.contains(location)) {
-                          _coverage.add(location);
-                        }
-                      } else {
-                        _coverage.remove(location);
-                      }
-                    });
-                  },
-                );
-              },
-            ).toList(),
-          ),
-          if (_coverage.isEmpty) ...[
-            const SizedBox(height: 16),
-            const Text(
-              'Selecciona al menos una localidad.',
-              style: TextStyle(
-                color: Colors.red,
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.25,
+            children: [
+              _TypeCard(
+                selected: _businessType == BusinessType.service,
+                icon: Icons.handyman_outlined,
+                title: 'Servicio',
+                subtitle: 'Oficios, mantención, fletes y atención local.',
+                onTap: () => _setBusinessType(BusinessType.service),
               ),
-            ),
-          ],
-          const SizedBox(height: 30),
-          _NextButton(
-            text: 'Continuar',
-            onPressed: _coverage.isEmpty ? null : _next,
+              _TypeCard(
+                selected: _businessType == BusinessType.commerce,
+                icon: Icons.storefront_outlined,
+                title: 'Comercio',
+                subtitle: 'Tiendas, almacenes y negocios locales.',
+                onTap: () => _setBusinessType(BusinessType.commerce),
+              ),
+              _TypeCard(
+                selected: _businessType == BusinessType.gastronomy,
+                icon: Icons.restaurant_outlined,
+                title: 'Gastronomía',
+                subtitle: 'Restaurantes, cafeterías y comida preparada.',
+                onTap: () => _setBusinessType(BusinessType.gastronomy),
+              ),
+              _TypeCard(
+                selected: _businessType == BusinessType.lodging,
+                icon: Icons.bed_outlined,
+                title: 'Alojamiento',
+                subtitle: 'Cabañas, hoteles, hostales y hospedajes.',
+                onTap: () => _setBusinessType(BusinessType.lodging),
+              ),
+              _TypeCard(
+                selected: _businessType == BusinessType.tourism,
+                icon: Icons.terrain_outlined,
+                title: 'Turismo',
+                subtitle: 'Tours, experiencias y actividades.',
+                onTap: () => _setBusinessType(BusinessType.tourism),
+              ),
+              _TypeCard(
+                selected: _businessType == BusinessType.emergency,
+                icon: Icons.emergency_outlined,
+                title: 'Emergencia',
+                subtitle: 'Atención urgente y disponibilidad.',
+                onTap: () => _setBusinessType(BusinessType.emergency),
+              ),
+            ],
           ),
+          const SizedBox(height: 24),
+          _NextButton(text: 'Continuar', loading: _saving, onPressed: _next),
         ],
       ),
     );
   }
 
-  Widget _membershipStep() {
+  Widget _profileStep() {
     return _RegistrationPage(
-      title: 'Elige tu membresía',
-      subtitle:
-          'La membresía define la publicación de tu perfil dentro de Ranco Conecta.',
+      title: 'Perfil común',
+      subtitle: 'Esta información queda guardada como borrador.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _MembershipCard(
-            selected: _membership == 'basic',
-            icon: Icons.handyman_outlined,
-            title: 'Básico servicios',
-            subtitle: 'Ideal para oficios y prestadores locales.',
-            price: '\$9.990',
-            badge: 'Recomendado',
-            onTap: () {
-              setState(() {
-                _membership = 'basic';
-              });
-            },
+          const _Label('Nombre comercial'),
+          const SizedBox(height: 7),
+          TextField(
+            controller: _nameController,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(
+              hintText: 'Ej. Servicios del Ranco',
+              prefixIcon: Icon(Icons.store_outlined),
+            ),
           ),
-          const SizedBox(height: 12),
-          _MembershipCard(
-            selected: _membership == 'commerce',
-            icon: Icons.storefront_outlined,
-            title: 'Comercio Pro',
-            subtitle: 'Para negocios y comercios locales.',
-            price: '\$19.990',
-            onTap: () {
-              setState(() {
-                _membership = 'commerce';
-              });
-            },
+          const SizedBox(height: 16),
+          const _Label('Descripción'),
+          const SizedBox(height: 7),
+          TextField(
+            controller: _descriptionController,
+            minLines: 3,
+            maxLines: 5,
+            decoration: const InputDecoration(
+              hintText: 'Describe qué ofrece tu negocio.',
+            ),
           ),
-          const SizedBox(height: 12),
-          _MembershipCard(
-            selected: _membership == 'featured',
-            icon: Icons.star_outline_rounded,
-            title: 'Destacado',
-            subtitle: 'Mayor visibilidad dentro de la plataforma.',
-            price: '\$29.990',
-            onTap: () {
-              setState(() {
-                _membership = 'featured';
-              });
-            },
+          const SizedBox(height: 16),
+          const _Label('Contacto'),
+          const SizedBox(height: 7),
+          TextField(
+            controller: _phoneController,
+            keyboardType: TextInputType.phone,
+            decoration: const InputDecoration(
+              hintText: 'Teléfono',
+              prefixIcon: Icon(Icons.phone_outlined),
+            ),
           ),
-          const SizedBox(height: 12),
-          _MembershipCard(
-            selected: _membership == 'lodging',
-            icon: Icons.bed_outlined,
-            title: 'Alojamiento',
-            subtitle: 'Para cabañas, hospedajes y alojamientos.',
-            price: '\$39.990',
-            onTap: () {
-              setState(() {
-                _membership = 'lodging';
-              });
-            },
+          const SizedBox(height: 10),
+          TextField(
+            controller: _whatsappController,
+            keyboardType: TextInputType.phone,
+            decoration: const InputDecoration(
+              hintText: 'WhatsApp',
+              prefixIcon: Icon(Icons.chat_outlined),
+            ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(
+              hintText: 'Email comercial',
+              prefixIcon: Icon(Icons.mail_outline),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _websiteController,
+            keyboardType: TextInputType.url,
+            decoration: const InputDecoration(
+              hintText: 'Sitio web o red social',
+              prefixIcon: Icon(Icons.language_outlined),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const _Label('Dirección o referencia'),
+          const SizedBox(height: 7),
+          TextField(
+            controller: _addressController,
+            decoration: const InputDecoration(
+              hintText: 'Sector, calle o referencia',
+              prefixIcon: Icon(Icons.location_on_outlined),
+            ),
+          ),
+          const SizedBox(height: 24),
           _NextButton(
-            text: 'Revisar inscripción',
+            text: 'Guardar y continuar',
+            loading: _saving,
             onPressed: _next,
           ),
         ],
@@ -534,167 +318,469 @@ class _ProviderRegistrationScreenState
     );
   }
 
-  Widget _confirmationStep() {
+  Widget _classificationStep() {
+    final categories = ref.watch(categoriesProvider);
+    final subcategories = ref.watch(subcategoriesProvider(_categoryId));
+
     return _RegistrationPage(
-      title: 'Revisa tu inscripción',
-      subtitle:
-          'Confirma que los datos sean correctos antes de crear tu cuenta.',
+      title: 'Clasificación',
+      subtitle: _businessType == BusinessType.service
+          ? 'Selecciona categoría y servicios ofrecidos.'
+          : 'Selecciona la categoría principal del negocio.',
+      child: categories.when(
+        data: (items) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: _categoryId,
+                decoration: const InputDecoration(
+                  labelText: 'Categoría',
+                  prefixIcon: Icon(Icons.category_outlined),
+                ),
+                items: items
+                    .map(
+                      (category) => DropdownMenuItem(
+                        value: category.id,
+                        child: Text(category.name),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _categoryId = value;
+                    _subcategoryIds.clear();
+                  });
+                },
+              ),
+              if (_businessType == BusinessType.service) ...[
+                const SizedBox(height: 18),
+                subcategories.when(
+                  data: (services) {
+                    if (_categoryId == null) {
+                      return const Text('Selecciona una categoría primero.');
+                    }
+
+                    if (services.isEmpty) {
+                      return const Text('No hay servicios disponibles.');
+                    }
+
+                    return Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: services.map(_serviceChip).toList(),
+                    );
+                  },
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (error, stackTrace) => Text(
+                    failureMessage(error, 'No pudimos cargar servicios.'),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 24),
+              _NextButton(
+                text: 'Guardar y continuar',
+                loading: _saving,
+                onPressed: _next,
+              ),
+            ],
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stackTrace) => Text(
+          failureMessage(error, 'No pudimos cargar categorías.'),
+        ),
+      ),
+    );
+  }
+
+  Widget _coverageStep() {
+    final locations = ref.watch(locationsProvider);
+
+    return _RegistrationPage(
+      title: 'Cobertura y localidad',
+      subtitle: 'Selecciona donde opera o se ubica el negocio.',
+      child: locations.when(
+        data: (items) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: items.map((location) {
+                  final selected = _coverageLocationIds.contains(location.id);
+
+                  return FilterChip(
+                    selected: selected,
+                    avatar: const Icon(Icons.location_on_outlined, size: 17),
+                    label: Text(location.name),
+                    onSelected: (value) {
+                      setState(() {
+                        if (value) {
+                          _coverageLocationIds.add(location.id);
+                        } else {
+                          _coverageLocationIds.remove(location.id);
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 24),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _termsAccepted,
+                onChanged: (value) {
+                  setState(() {
+                    _termsAccepted = value ?? false;
+                  });
+                },
+                title: const Text('Acepto enviar esta información a revisión'),
+                subtitle: const Text(
+                  'La publicación gratuita queda sujeta a aprobación inicial.',
+                ),
+              ),
+              const SizedBox(height: 24),
+              _NextButton(
+                text: 'Guardar y revisar',
+                loading: _saving,
+                onPressed: _next,
+              ),
+            ],
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stackTrace) => Text(locationFailureMessage(error)),
+      ),
+    );
+  }
+
+  Widget _reviewStep() {
+    final draft = _currentDraftSnapshot();
+    final requirements = draft == null
+        ? const <OnboardingRequirement>[]
+        : const BusinessOnboardingRequirements().evaluate(draft);
+    final canSubmit = draft != null &&
+        _termsAccepted &&
+        requirements.every((item) => item.satisfied);
+
+    return _RegistrationPage(
+      title: 'Enviar a revisión',
+      subtitle: 'Revisa los requisitos mínimos antes de enviar.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _SummarySection(
-            title: 'Cuenta',
+          _SummaryCard(
             rows: [
+              _SummaryRow('Tipo', _businessType.label),
+              _SummaryRow('Nombre', _nameController.text),
               _SummaryRow(
-                label: 'Nombre',
-                value: _nameController.text,
+                'Categoría',
+                _categoryId == null ? 'Pendiente' : 'Seleccionada',
               ),
               _SummaryRow(
-                label: 'Correo',
-                value: _emailController.text,
+                'Servicios',
+                '${_subcategoryIds.length} seleccionados',
+              ),
+              _SummaryRow(
+                'Localidades',
+                '${_coverageLocationIds.length} seleccionadas',
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          _SummarySection(
-            title: 'Publicación',
-            rows: [
-              _SummaryRow(
-                label: 'Nombre',
-                value: _businessNameController.text,
+          const SizedBox(height: 16),
+          ...requirements.map(
+            (requirement) => ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                requirement.satisfied
+                    ? Icons.check_circle_outline
+                    : Icons.error_outline,
+                color: requirement.satisfied
+                    ? RancoColors.forest
+                    : const Color(0xFFB4543F),
               ),
-              _SummaryRow(
-                label: 'Tipo',
-                value: _publicationTypeLabel(),
-              ),
-              _SummaryRow(
-                label: 'Localidad',
-                value: _location,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _SummarySection(
-            title: 'Cobertura',
-            rows: [
-              _SummaryRow(
-                label: 'Localidades',
-                value: _coverage.join(', '),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _SummarySection(
-            title: 'Membresía',
-            rows: [
-              _SummaryRow(
-                label: 'Plan',
-                value: _membershipLabel(),
-              ),
-              _SummaryRow(
-                label: 'Valor',
-                value: _membershipPrice(),
-              ),
-            ],
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(
-                  0xFFFFE8E5,
-                ),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text(
-                _error!,
-                style: const TextStyle(
-                  color: Color(0xFF8C2F28),
-                ),
-              ),
+              title: Text(requirement.message),
             ),
-          ],
-          if (_successMessage != null) ...[
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(
-                  0xFFE1F0EA,
-                ),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text(
-                _successMessage!,
-                style: const TextStyle(
-                  color: RancoColors.forest,
-                ),
-              ),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              _termsAccepted ? Icons.check_circle_outline : Icons.error_outline,
+              color:
+                  _termsAccepted ? RancoColors.forest : const Color(0xFFB4543F),
             ),
-          ],
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: _loading ? null : _finish,
+            title: const Text('Acepta el envío a revisión.'),
+          ),
+          const SizedBox(height: 18),
+          FilledButton.icon(
+            onPressed: canSubmit && !_saving ? _submit : null,
+            icon: _saving
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.send_outlined),
+            label: const Text('Enviar a revisión'),
             style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(56),
+              minimumSize: const Size.fromHeight(54),
               backgroundColor: RancoColors.forest,
               foregroundColor: Colors.white,
             ),
-            child: _loading
-                ? const SizedBox.square(
-                    dimension: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Text(
-                    'Crear cuenta y continuar',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'El pago y activación de membresía se conectarán en el siguiente módulo.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
           ),
         ],
       ),
     );
   }
 
-  void _next() {
-    if (_step == 0) {
-      if (!_accountKey.currentState!.validate()) {
-        return;
-      }
-    }
+  Widget _serviceChip(Subcategory service) {
+    final selected = _subcategoryIds.contains(service.id);
 
-    if (_step == 1) {
-      if (!_businessKey.currentState!.validate()) {
-        return;
-      }
-    }
+    return FilterChip(
+      selected: selected,
+      label: Text(service.name),
+      onSelected: (value) {
+        setState(() {
+          if (value) {
+            _subcategoryIds.add(service.id);
+          } else {
+            _subcategoryIds.remove(service.id);
+          }
+        });
+      },
+    );
+  }
 
-    if (_step == 2 && _coverage.isEmpty) {
-      return;
-    }
-
-    if (_step >= _steps.length - 1) {
+  void _setBusinessType(BusinessType type) {
+    if (_businessId != null && type != _businessType) {
+      setState(() {
+        _error =
+            'El tipo de negocio es sensible. Crea otro borrador si necesitas cambiarlo.';
+      });
       return;
     }
 
     setState(() {
-      _step++;
+      _businessType = type;
+    });
+  }
+
+  Future<void> _loadExistingDraft() async {
+    final result = await ref
+        .read(businessOnboardingRepositoryProvider)
+        .getLatestEditableDraft();
+
+    if (!mounted) return;
+
+    result.when(
+      success: (draft) {
+        if (draft != null) {
+          _applyDraft(draft);
+        }
+      },
+      failure: (failure) {
+        _error = failure.message;
+      },
+    );
+
+    setState(() {
+      _loading = false;
+    });
+  }
+
+  void _applyDraft(BusinessDraft draft) {
+    _businessId = draft.id;
+    _businessType = draft.businessType;
+    _nameController.text = draft.name;
+    _descriptionController.text = draft.description ?? '';
+    _phoneController.text = draft.phone ?? '';
+    _whatsappController.text = draft.whatsapp ?? '';
+    _emailController.text = draft.email ?? '';
+    _websiteController.text = draft.website ?? '';
+    _addressController.text = draft.addressText ?? '';
+    _categoryId = draft.primaryCategoryId;
+    _coverageLocationIds
+      ..clear()
+      ..addAll(draft.coverage.map((location) => location.id));
+    _subcategoryIds
+      ..clear()
+      ..addAll(draft.services.map((service) => service.subcategory.id));
+    _termsAccepted = draft.onboardingMetadata['terms_accepted'] == true;
+    _step = (draft.onboardingMetadata['last_section'] as num?)?.toInt() ?? 0;
+    _step = _step.clamp(0, _steps.length - 1);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(_step);
+      }
+    });
+  }
+
+  BusinessDraft? _currentDraftSnapshot() {
+    final id = _businessId;
+
+    if (id == null) {
+      return null;
+    }
+
+    return BusinessDraft(
+      id: id,
+      businessType: _businessType,
+      publicationStatus: BusinessPublicationStatus.draft,
+      name: _nameController.text,
+      description: _descriptionController.text,
+      phone: _phoneController.text,
+      whatsapp: _whatsappController.text,
+      email: _emailController.text,
+      website: _websiteController.text,
+      primaryCategoryId: _categoryId,
+      addressText: _addressController.text,
+      coverage: _coverageLocationIds
+          .map((id) => Location(id: id, communeId: '', name: id, slug: ''))
+          .toList(),
+      services: _subcategoryIds
+          .map(
+            (id) => BusinessDraftService(
+              subcategory: Subcategory(
+                id: id,
+                categoryId: _categoryId ?? '',
+                name: id,
+                slug: '',
+                description: null,
+                iconKey: 'tools',
+              ),
+              description: null,
+              priceFrom: null,
+            ),
+          )
+          .toList(),
+      onboardingMetadata: {'terms_accepted': _termsAccepted},
+      submittedAt: null,
+      changesRequestedNote: null,
+    );
+  }
+
+  Future<bool> _ensureDraft() async {
+    if (_businessId != null) {
+      return true;
+    }
+
+    final name = _nameController.text.trim().isEmpty
+        ? 'Nuevo negocio'
+        : _nameController.text.trim();
+    final result = await ref
+        .read(businessOnboardingRepositoryProvider)
+        .createBusinessDraft(
+          businessType: _businessType,
+          name: name,
+        );
+
+    return result.when(
+      success: (id) {
+        _businessId = id;
+        return true;
+      },
+      failure: (failure) {
+        setState(() {
+          _error = failure.message;
+        });
+        return false;
+      },
+    );
+  }
+
+  Future<bool> _saveDraft({int? nextStep}) async {
+    setState(() {
+      _saving = true;
+      _error = null;
+      _statusMessage = null;
     });
 
-    _pageController.animateToPage(
+    final hasDraft = await _ensureDraft();
+
+    if (!hasDraft) {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+        });
+      }
+      return false;
+    }
+
+    final input = BusinessDraftInput(
+      businessId: _businessId!,
+      name: _nameController.text.trim(),
+      description: _descriptionController.text.trim(),
+      phone: _phoneController.text.trim(),
+      whatsapp: _whatsappController.text.trim(),
+      email: _emailController.text.trim(),
+      website: _websiteController.text.trim(),
+      primaryCategoryId: _categoryId,
+      addressText: _addressController.text.trim(),
+      coverageLocationIds: _coverageLocationIds.toList(),
+      serviceItems: _businessType == BusinessType.service
+          ? _subcategoryIds
+              .map((id) => ServiceDraftInput(subcategoryId: id))
+              .toList()
+          : const [],
+      onboardingMetadata: {
+        'last_section': nextStep ?? _step,
+        'terms_accepted': _termsAccepted,
+      },
+    );
+
+    final result = await ref
+        .read(businessOnboardingRepositoryProvider)
+        .updateBusinessDraft(
+          input,
+        );
+
+    if (!mounted) {
+      return false;
+    }
+
+    return result.when(
+      success: (draft) {
+        _applyDraft(draft);
+        setState(() {
+          _saving = false;
+          _statusMessage = 'Borrador guardado.';
+        });
+        return true;
+      },
+      failure: (failure) {
+        setState(() {
+          _saving = false;
+          _error = failure.message;
+        });
+        return false;
+      },
+    );
+  }
+
+  Future<void> _saveProgress() async {
+    await _saveDraft();
+  }
+
+  Future<void> _next() async {
+    if (_step >= _steps.length - 1) {
+      return;
+    }
+
+    final target = _step + 1;
+    final saved = await _saveDraft(nextStep: target);
+
+    if (!saved || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _step = target;
+    });
+
+    await _pageController.animateToPage(
       _step,
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeOut,
@@ -718,109 +804,41 @@ class _ProviderRegistrationScreenState
     );
   }
 
-  Future<void> _finish() async {
+  Future<void> _submit() async {
+    final saved = await _saveDraft(nextStep: _step);
+
+    if (!saved || _businessId == null) {
+      return;
+    }
+
     setState(() {
-      _loading = true;
+      _saving = true;
       _error = null;
-      _successMessage = null;
     });
 
-    final result = await ref.read(authRepositoryProvider).signUp(
-          fullName: _nameController.text.trim(),
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-        );
+    final result = await ref
+        .read(businessOnboardingRepositoryProvider)
+        .submitBusinessForReview(_businessId!);
 
     if (!mounted) return;
 
     result.when(
-      success: (user) {
-        if (user == null || !user.emailConfirmed) {
-          setState(() {
-            _successMessage =
-                'Cuenta creada. Revisa tu correo para confirmar tu cuenta antes de continuar.';
-          });
-        } else {
-          context.go('/account');
-        }
+      success: (_) {
+        ref.invalidate(myProviderBusinessesProvider);
+        context.go('/provider/status');
       },
       failure: (failure) {
         setState(() {
+          _saving = false;
           _error = failure.message;
         });
       },
     );
-
-    if (mounted) {
-      setState(() {
-        _loading = false;
-      });
-    }
-  }
-
-  String _publicationTypeLabel() {
-    switch (_publicationType) {
-      case 'commerce':
-        return 'Comercio local';
-      case 'food':
-        return 'Gastronomía';
-      case 'lodging':
-        return 'Alojamiento';
-      default:
-        return 'Oficio o servicio';
-    }
-  }
-
-  String _membershipLabel() {
-    switch (_membership) {
-      case 'commerce':
-        return 'Comercio Pro';
-      case 'featured':
-        return 'Destacado';
-      case 'lodging':
-        return 'Alojamiento';
-      default:
-        return 'Básico servicios';
-    }
-  }
-
-  String _membershipPrice() {
-    switch (_membership) {
-      case 'commerce':
-        return '\$19.990 / año';
-      case 'featured':
-        return '\$29.990 / año';
-      case 'lodging':
-        return '\$39.990 / año';
-      default:
-        return '\$9.990 / año';
-    }
-  }
-
-  String? _validateEmail(
-    String? value,
-  ) {
-    final email = value?.trim() ?? '';
-
-    if (email.isEmpty) {
-      return 'Ingresa tu correo.';
-    }
-
-    if (!RegExp(
-      r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-    ).hasMatch(email)) {
-      return 'Ingresa un correo válido.';
-    }
-
-    return null;
   }
 }
 
 class _ProgressHeader extends StatelessWidget {
-  const _ProgressHeader({
-    required this.step,
-    required this.steps,
-  });
+  const _ProgressHeader({required this.step, required this.steps});
 
   final int step;
   final List<String> steps;
@@ -828,45 +846,33 @@ class _ProgressHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        10,
-        20,
-        6,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
-            children: List.generate(
-              steps.length,
-              (index) {
-                return Expanded(
-                  child: Container(
-                    height: 5,
-                    margin: EdgeInsets.only(
-                      right: index == steps.length - 1 ? 0 : 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: index <= step
-                          ? RancoColors.forest
-                          : const Color(
-                              0xFFD5E3DD,
-                            ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
+            children: List.generate(steps.length, (index) {
+              return Expanded(
+                child: Container(
+                  height: 5,
+                  margin: EdgeInsets.only(
+                    right: index == steps.length - 1 ? 0 : 6,
                   ),
-                );
-              },
-            ),
+                  decoration: BoxDecoration(
+                    color: index <= step
+                        ? RancoColors.forest
+                        : const Color(0xFFD5E3DD),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              );
+            }),
           ),
           const SizedBox(height: 8),
           Text(
             'Paso ${step + 1} de ${steps.length} · ${steps[step]}',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: const Color(
-                    0xFF6B7D75,
-                  ),
+                  color: const Color(0xFF6B7D75),
                   fontWeight: FontWeight.w600,
                 ),
           ),
@@ -890,12 +896,7 @@ class _RegistrationPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        16,
-        20,
-        36,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -910,9 +911,7 @@ class _RegistrationPage extends StatelessWidget {
           Text(
             subtitle,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: const Color(
-                    0xFF6B7D75,
-                  ),
+                  color: const Color(0xFF6B7D75),
                 ),
           ),
           const SizedBox(height: 24),
@@ -945,18 +944,23 @@ class _NextButton extends StatelessWidget {
   const _NextButton({
     required this.text,
     required this.onPressed,
+    required this.loading,
   });
 
   final String text;
   final VoidCallback? onPressed;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
     return FilledButton.icon(
-      onPressed: onPressed,
-      icon: const Icon(
-        Icons.arrow_forward_rounded,
-      ),
+      onPressed: loading ? null : onPressed,
+      icon: loading
+          ? const SizedBox.square(
+              dimension: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.arrow_forward_rounded),
       label: Text(text),
       style: FilledButton.styleFrom(
         minimumSize: const Size.fromHeight(54),
@@ -995,33 +999,14 @@ class _TypeCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: selected
-                  ? RancoColors.forest
-                  : const Color(
-                      0xFFD5E2DC,
-                    ),
+              color: selected ? RancoColors.forest : const Color(0xFFD5E2DC),
               width: selected ? 1.5 : 1,
             ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: selected
-                      ? RancoColors.forest
-                      : const Color(
-                          0xFFE4F1EB,
-                        ),
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Icon(
-                  icon,
-                  color: selected ? Colors.white : RancoColors.forest,
-                ),
-              ),
+              Icon(icon, color: RancoColors.forest),
               const Spacer(),
               Text(
                 title,
@@ -1048,161 +1033,9 @@ class _TypeCard extends StatelessWidget {
   }
 }
 
-class _MembershipCard extends StatelessWidget {
-  const _MembershipCard({
-    required this.selected,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.price,
-    required this.onTap,
-    this.badge,
-  });
+class _SummaryCard extends StatelessWidget {
+  const _SummaryCard({required this.rows});
 
-  final bool selected;
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final String price;
-  final String? badge;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: selected
-                  ? RancoColors.forest
-                  : const Color(
-                      0xFFD5E2DC,
-                    ),
-              width: selected ? 1.6 : 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: selected
-                      ? RancoColors.forest
-                      : const Color(
-                          0xFFE4F1EB,
-                        ),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(
-                  icon,
-                  color: selected ? Colors.white : RancoColors.forest,
-                ),
-              ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            title,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                              color: Color(
-                                0xFF31443B,
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (badge != null) ...[
-                          const SizedBox(
-                            width: 8,
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 7,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(
-                                0xFFFFE9DF,
-                              ),
-                              borderRadius: BorderRadius.circular(
-                                20,
-                              ),
-                            ),
-                            child: Text(
-                              badge!,
-                              style: const TextStyle(
-                                color: Color(
-                                  0xFFC85D39,
-                                ),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(
-                          0xFF708179,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    price,
-                    style: const TextStyle(
-                      color: RancoColors.forest,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const Text(
-                    '/ año',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF708179),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SummarySection extends StatelessWidget {
-  const _SummarySection({
-    required this.title,
-    required this.rows,
-  });
-
-  final String title;
   final List<_SummaryRow> rows;
 
   @override
@@ -1212,69 +1045,68 @@ class _SummarySection extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFFD7E4DE),
-        ),
+        border: Border.all(color: const Color(0xFFD7E4DE)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: RancoColors.forest,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ...rows.map(
-            (row) => Padding(
-              padding: const EdgeInsets.only(
-                bottom: 8,
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 90,
-                    child: Text(
-                      row.label,
-                      style: const TextStyle(
-                        color: Color(
-                          0xFF708179,
-                        ),
-                        fontSize: 12,
+        children: rows
+            .map(
+              (row) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 120,
+                      child: Text(
+                        row.label,
+                        style: const TextStyle(color: Color(0xFF708179)),
                       ),
                     ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      row.value,
-                      style: const TextStyle(
-                        color: Color(
-                          0xFF31443B,
-                        ),
-                        fontWeight: FontWeight.w600,
+                    Expanded(
+                      child: Text(
+                        row.value.isEmpty ? 'Pendiente' : row.value,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ),
-        ],
+            )
+            .toList(),
       ),
     );
   }
 }
 
 class _SummaryRow {
-  const _SummaryRow({
-    required this.label,
-    required this.value,
-  });
+  const _SummaryRow(this.label, this.value);
 
   final String label;
   final String value;
+}
+
+class _InlineMessage extends StatelessWidget {
+  const _InlineMessage({required this.message, this.error = false});
+
+  final String message;
+  final bool error;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: error ? const Color(0xFFFFE8E5) : const Color(0xFFE1F0EA),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Text(
+          message,
+          style: TextStyle(
+            color: error ? const Color(0xFF8C2F28) : RancoColors.forest,
+          ),
+        ),
+      ),
+    );
+  }
 }

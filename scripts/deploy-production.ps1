@@ -25,6 +25,12 @@ if (-not (Test-Path -LiteralPath $EnvFile)) {
 
 Write-Step "Preparing sanitized public dart defines"
 $Allowed = @("APP_ENVIRONMENT", "SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY")
+$DefaultDefines = @(
+  "PAYMENTS_ENABLED=false",
+  "CHAT_ENABLED=false",
+  "QUOTES_ENABLED=false",
+  "LODGING_ENABLED=true"
+)
 $Lines = Get-Content -LiteralPath $EnvFile | Where-Object {
   $Line = $_
   $Allowed | Where-Object { $Line -match "^\s*$_=" }
@@ -37,7 +43,7 @@ foreach ($Key in $Allowed) {
 }
 
 New-Item -ItemType Directory -Force -Path (Split-Path $DefinesFile) | Out-Null
-Set-Content -LiteralPath $DefinesFile -Value $Lines -Encoding UTF8
+Set-Content -LiteralPath $DefinesFile -Value ($Lines + $DefaultDefines) -Encoding UTF8
 
 Write-Step "Running Flutter checks"
 flutter pub get

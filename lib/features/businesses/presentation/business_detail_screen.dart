@@ -272,7 +272,7 @@ class _BusinessDetail extends ConsumerWidget {
             ),
 
             // ==================================================
-            // REPUTACIÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œN / ESTADO
+            // REPUTACIÓN / ESTADO
             // ==================================================
 
             SliverToBoxAdapter(
@@ -440,7 +440,7 @@ class _BusinessDetail extends ConsumerWidget {
                       title: 'Acerca',
                       child: Text(
                         (business.description ?? '').trim().isEmpty
-                            ? 'Este prestador aÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºn no ha agregado una descripciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n.'
+                            ? 'Este prestador aún no ha agregado una descripción.'
                             : business.description!,
                         style: const TextStyle(
                           color: Color(
@@ -459,7 +459,7 @@ class _BusinessDetail extends ConsumerWidget {
                       title: 'Servicios',
                       child: business.services.isEmpty
                           ? const Text(
-                              'Este prestador aÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºn no informa servicios especÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­ficos.',
+                              'Este prestador aún no informa servicios especÃ­ficos.',
                               style: TextStyle(
                                 color: Color(
                                   0xFF71827A,
@@ -536,7 +536,7 @@ class _BusinessDetail extends ConsumerWidget {
                           Expanded(
                             child: Text(
                               openNow
-                                  ? 'Disponible segÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºn horario'
+                                  ? 'Disponible según horario'
                                   : 'Fuera del horario informado',
                               style: const TextStyle(
                                 color: RancoColors.forest,
@@ -775,6 +775,8 @@ class _BusinessDetail extends ConsumerWidget {
       BusinessType.commerce => Icons.storefront_outlined,
       BusinessType.gastronomy => Icons.restaurant_outlined,
       BusinessType.lodging => Icons.bed_outlined,
+      BusinessType.tourism => Icons.terrain_outlined,
+      BusinessType.emergency => Icons.emergency_outlined,
     };
   }
 
@@ -784,12 +786,12 @@ class _BusinessDetail extends ConsumerWidget {
     return switch (day) {
       1 => 'Lunes',
       2 => 'Martes',
-      3 => 'MiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rcoles',
+      3 => 'Miércoles',
       4 => 'Jueves',
       5 => 'Viernes',
-      6 => 'SÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡bado',
+      6 => 'Sábado',
       7 => 'Domingo',
-      _ => 'DÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­a',
+      _ => 'Día',
     };
   }
 }
@@ -829,7 +831,7 @@ class _BusinessStatsCard extends StatelessWidget {
             _ProfileStatusChip(
               icon: Icons.star_rounded,
               label:
-                  '${rating.toStringAsFixed(1)} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· $reviewCount ${reviewCount == 1 ? 'reseÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±a' : 'reseÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±as'}',
+                  '${rating.toStringAsFixed(1)} · $reviewCount ${reviewCount == 1 ? 'reseña' : 'reseñas'}',
               foreground: const Color(0xFF8A5B12),
               background: const Color(0xFFFFF3D9),
             ),

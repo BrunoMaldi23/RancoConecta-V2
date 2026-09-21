@@ -65,7 +65,8 @@ abstract final class RancoTheme {
         color: colorScheme.surfaceContainerLowest,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(RancoRadius.md),
-          side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: .8)),
+          side: BorderSide(
+              color: colorScheme.outlineVariant.withValues(alpha: .8)),
         ),
       ),
       dividerTheme: DividerThemeData(
@@ -101,7 +102,8 @@ abstract final class RancoTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: .62),
         hintStyle: TextStyle(color: colorScheme.onSurfaceVariant),
         border: OutlineInputBorder(
@@ -135,14 +137,16 @@ abstract final class RancoTheme {
           return TextStyle(
             fontSize: 11,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            color: selected ? colorScheme.primary : colorScheme.onSurfaceVariant,
+            color:
+                selected ? colorScheme.primary : colorScheme.onSurfaceVariant,
           );
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return IconThemeData(
             size: 22,
-            color: selected ? colorScheme.primary : colorScheme.onSurfaceVariant,
+            color:
+                selected ? colorScheme.primary : colorScheme.onSurfaceVariant,
           );
         }),
       ),
