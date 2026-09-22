@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../config/app_config.dart';
 import '../../../core/widgets/ranco_app_bar.dart';
 import '../../../theme/ranco_colors.dart';
+import '../../../theme/ranco_decoration.dart';
 import '../data/supabase_auth_repository.dart';
 
 class SignInScreen extends ConsumerStatefulWidget {
@@ -38,7 +39,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final isCompact = size.width < 390;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFEAF4F0),
+      backgroundColor: RancoColors.canvas,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -59,20 +60,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   const SizedBox(height: 22),
                   Container(
                     padding: EdgeInsets.all(isCompact ? 18 : 22),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: const Color(0xFFD4E2DC),
-                      ),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x12000000),
-                          blurRadius: 18,
-                          offset: Offset(0, 8),
-                        ),
-                      ],
-                    ),
+                    decoration: RancoDecoration.card(radius: 24),
                     child: Form(
                       key: _formKey,
                       child: Column(
@@ -408,9 +396,9 @@ class ProviderJoinScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFEAF4F0),
+      backgroundColor: RancoColors.canvas,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFEAF4F0),
+        backgroundColor: RancoColors.canvas,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           onPressed: () {
@@ -433,33 +421,52 @@ class ProviderJoinScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Container(
-                  width: 58,
-                  height: 58,
-                  alignment: Alignment.center,
+                  padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFDDEFE7),
-                    borderRadius: BorderRadius.circular(18),
+                    gradient: RancoDecoration.warmGradient,
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: const Color(0xFFE5D8C7)),
+                    boxShadow: RancoDecoration.softShadow,
                   ),
-                  child: const Icon(
-                    Icons.storefront_outlined,
-                    color: RancoColors.forest,
-                    size: 30,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 58,
+                        height: 58,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: .78),
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: const Icon(
+                          Icons.storefront_outlined,
+                          color: RancoColors.clay,
+                          size: 30,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Text(
+                        'Haz visible tu negocio',
+                        style: Theme.of(context)
+                            .textTheme
+                            .headlineMedium
+                            ?.copyWith(
+                              color: RancoColors.pine,
+                              fontWeight: FontWeight.w900,
+                              height: 1.06,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Crea tu publicación, define cobertura y envíala a revisión. La publicación inicial es gratuita.',
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: RancoColors.slate,
+                              height: 1.42,
+                            ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Haz visible tu negocio',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: RancoColors.forest,
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Inicia sesión, crea tu negocio como borrador y envíalo a revisión. Publicar es gratis; los planes premium serán opcionales.',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
                 ),
                 const SizedBox(height: 26),
                 const _JoinStep(
@@ -499,7 +506,7 @@ class ProviderJoinScreen extends StatelessWidget {
                   ),
                   style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(54),
-                    backgroundColor: RancoColors.forest,
+                    backgroundColor: RancoColors.pine,
                     foregroundColor: Colors.white,
                   ),
                 ),
@@ -538,13 +545,7 @@ class _JoinStep extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: Container(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFFD7E4DE),
-          ),
-        ),
+        decoration: RancoDecoration.card(radius: 18),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -553,7 +554,7 @@ class _JoinStep extends StatelessWidget {
               height: 34,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: RancoColors.forest,
+                color: number == '1' ? RancoColors.pine : RancoColors.clay,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
@@ -632,7 +633,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFEAF4F0),
+      backgroundColor: RancoColors.canvas,
       appBar: const RancoAppBar(title: 'Crear cuenta'),
       body: Center(
         child: ConstrainedBox(
@@ -848,7 +849,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFEAF4F0),
+      backgroundColor: RancoColors.canvas,
       appBar: const RancoAppBar(
         title: 'Recuperar contraseña',
       ),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/ranco_error_state.dart';
+import '../../../theme/ranco_decoration.dart';
 import '../../../theme/ranco_colors.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../businesses/presentation/business_card.dart';
@@ -24,9 +25,9 @@ class SavedScreen extends ConsumerWidget {
   ) {
     final auth = ref.watch(authStateProvider);
 
-    final content = ColoredBox(
-      color: const Color(
-        0xFFEAF4F0,
+    final content = Container(
+      decoration: const BoxDecoration(
+        gradient: RancoDecoration.pageGlow,
       ),
       child: auth.when(
         data: (user) {
@@ -47,24 +48,10 @@ class SavedScreen extends ConsumerWidget {
                 30,
               ),
               children: [
-                const Text(
-                  'Guardados',
-                  style: TextStyle(
-                    color: RancoColors.forest,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(
-                  height: 4,
-                ),
-                const Text(
-                  'Tus prestadores favoritos, siempre a mano.',
-                  style: TextStyle(
-                    color: Color(
-                      0xFF71827A,
-                    ),
-                  ),
+                const _SavedHeader(
+                  title: 'Guardados',
+                  subtitle: 'Tus prestadores favoritos, siempre a mano.',
+                  icon: Icons.bookmark_border_rounded,
                 ),
                 const SizedBox(
                   height: 18,
@@ -87,7 +74,7 @@ class SavedScreen extends ConsumerWidget {
                       'Explorar servicios',
                     ),
                     style: FilledButton.styleFrom(
-                      backgroundColor: RancoColors.forest,
+                      backgroundColor: RancoColors.pine,
                       foregroundColor: Colors.white,
                     ),
                   ),
@@ -177,24 +164,11 @@ class _GuestSaved extends StatelessWidget {
         30,
       ),
       children: [
-        const Text(
-          'Guardados',
-          style: TextStyle(
-            color: RancoColors.forest,
-            fontSize: 28,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(
-          height: 4,
-        ),
-        const Text(
-          'Guarda tus prestadores favoritos y vuelve a encontrarlos rápidamente.',
-          style: TextStyle(
-            color: Color(
-              0xFF71827A,
-            ),
-          ),
+        const _SavedHeader(
+          title: 'Guardados',
+          subtitle:
+              'Guarda tus prestadores favoritos y vuelve a encontrarlos rápidamente.',
+          icon: Icons.favorite_border_rounded,
         ),
         const SizedBox(
           height: 18,
@@ -216,7 +190,7 @@ class _GuestSaved extends StatelessWidget {
             'Ingresar',
           ),
           style: FilledButton.styleFrom(
-            backgroundColor: RancoColors.forest,
+            backgroundColor: RancoColors.pine,
             foregroundColor: Colors.white,
           ),
         ),
@@ -241,6 +215,72 @@ class _GuestSaved extends StatelessWidget {
   }
 }
 
+class _SavedHeader extends StatelessWidget {
+  const _SavedHeader({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: RancoDecoration.warmGradient,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE5D8C7)),
+        boxShadow: RancoDecoration.softShadow,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: .78),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(
+              icon,
+              color: RancoColors.clay,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: RancoColors.pine,
+                    fontSize: 27,
+                    fontWeight: FontWeight.w900,
+                    height: 1.05,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: RancoColors.slate,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SavedInfoPanel extends StatelessWidget {
   const _SavedInfoPanel();
 
@@ -252,17 +292,7 @@ class _SavedInfoPanel extends StatelessWidget {
       padding: const EdgeInsets.all(
         18,
       ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(
-          20,
-        ),
-        border: Border.all(
-          color: const Color(
-            0xFFD5E2DC,
-          ),
-        ),
-      ),
+      decoration: RancoDecoration.card(radius: 22),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -270,16 +300,14 @@ class _SavedInfoPanel extends StatelessWidget {
             width: 46,
             height: 46,
             decoration: BoxDecoration(
-              color: const Color(
-                0xFFE4F1EB,
-              ),
+              color: const Color(0xFFFFEFE3),
               borderRadius: BorderRadius.circular(
                 14,
               ),
             ),
             child: const Icon(
               Icons.favorite_border_rounded,
-              color: RancoColors.forest,
+              color: RancoColors.ember,
             ),
           ),
           const SizedBox(

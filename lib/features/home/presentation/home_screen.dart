@@ -11,6 +11,7 @@ import '../../../features/locations/application/location_providers.dart';
 import '../../../features/locations/presentation/location_selector.dart';
 import '../../../shared/models/category.dart';
 import '../../../theme/ranco_colors.dart';
+import '../../../theme/ranco_decoration.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -25,7 +26,7 @@ class HomeScreen extends ConsumerWidget {
     final isSignedIn = user != null;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFEAF4F0),
+      backgroundColor: RancoColors.canvas,
       drawer: _RancoDrawer(
         isSignedIn: isSignedIn,
         userEmail: user?.email,
@@ -53,99 +54,11 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
             SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  20,
-                  22,
-                  20,
-                  0,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '¿Qué servicio necesitas?',
-                      style:
-                          Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                color: RancoColors.forest,
-                                fontWeight: FontWeight.w900,
-                              ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Profesionales, comercios y servicios locales cerca de ti.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: const Color(0xFF71827A),
-                            height: 1.4,
-                          ),
-                    ),
-                    const SizedBox(height: 20),
-                    TextField(
-                      readOnly: true,
-                      onTap: () {
-                        context.go('/explore');
-                      },
-                      decoration: InputDecoration(
-                        hintText: 'Buscar servicios en Lago Ranco',
-                        prefixIcon: const Icon(
-                          Icons.search_rounded,
-                        ),
-                        suffixIcon: const Icon(
-                          Icons.arrow_forward_rounded,
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 15,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(18),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFD6E3DD),
-                          ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(18),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFD6E3DD),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const LocationSelector(
-                      compact: true,
-                    ),
-                    const SizedBox(height: 12),
-                    FilledButton.icon(
-                      onPressed: () {
-                        context.go('/explore');
-                      },
-                      icon: const Icon(
-                        Icons.search_rounded,
-                        size: 19,
-                      ),
-                      label: const Text(
-                        'Buscar',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(48),
-                        backgroundColor: RancoColors.forest,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 11),
-                    _LocalSummary(
-                      businesses: businesses,
-                    ),
-                  ],
-                ),
+              child: _HomeSearchPanel(
+                businesses: businesses,
+                onSearch: () {
+                  context.go('/explore');
+                },
               ),
             ),
             SliverToBoxAdapter(
@@ -351,8 +264,10 @@ class _HeaderButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: accent ? const Color(0xFFD06A42) : Colors.white,
+      color: accent ? RancoColors.ember : Colors.white,
       borderRadius: BorderRadius.circular(14),
+      elevation: accent ? 0 : 1,
+      shadowColor: RancoColors.ink.withValues(alpha: .10),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
@@ -364,13 +279,174 @@ class _HeaderButton extends StatelessWidget {
             border: accent
                 ? null
                 : Border.all(
-                    color: const Color(0xFFD4E2DC),
+                    color: RancoDecoration.softBorder,
                   ),
           ),
           child: Icon(
             icon,
             color: accent ? Colors.white : RancoColors.forest,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeSearchPanel extends StatelessWidget {
+  const _HomeSearchPanel({
+    required this.businesses,
+    required this.onSearch,
+  });
+
+  final AsyncValue businesses;
+  final VoidCallback onSearch;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: RancoDecoration.warmGradient,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: const Color(0xFFE1D5C3)),
+          boxShadow: RancoDecoration.softShadow,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: .72),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: const Color(0xFFE6D8C8)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.location_city_outlined,
+                    size: 15,
+                    color: RancoColors.clay,
+                  ),
+                  SizedBox(width: 6),
+                  Text(
+                    'Lago Ranco',
+                    style: TextStyle(
+                      color: RancoColors.pine,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '¿Qué servicio necesitas?',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    color: RancoColors.pine,
+                    fontWeight: FontWeight.w900,
+                    height: 1.05,
+                  ),
+            ),
+            const SizedBox(height: 7),
+            Text(
+              'Encuentra prestadores, comercios y servicios locales verificados cerca de ti.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: RancoColors.slate,
+                    height: 1.38,
+                  ),
+            ),
+            const SizedBox(height: 18),
+            Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              child: InkWell(
+                onTap: onSearch,
+                borderRadius: BorderRadius.circular(18),
+                child: Container(
+                  constraints: const BoxConstraints(minHeight: 54),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: RancoDecoration.softBorder),
+                    boxShadow: [
+                      BoxShadow(
+                        color: RancoColors.ink.withValues(alpha: .045),
+                        blurRadius: 16,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.search_rounded, color: RancoColors.pine),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Buscar servicios en Lago Ranco',
+                          style: TextStyle(
+                            color: Color(0xFF45554E),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      Icon(Icons.arrow_forward_rounded,
+                          color: RancoColors.clay),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const LocationSelector(compact: true),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: onSearch,
+                    icon: const Icon(Icons.travel_explore_rounded, size: 19),
+                    label: const Text('Explorar ahora'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                      backgroundColor: RancoColors.pine,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: RancoColors.ember,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: RancoColors.ember.withValues(alpha: .25),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.handshake_outlined,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 13),
+            _LocalSummary(businesses: businesses),
+          ],
         ),
       ),
     );
@@ -717,13 +793,7 @@ class _DrawerNavigationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFFD7E4DE),
-        ),
-      ),
+      decoration: RancoDecoration.card(radius: 20),
       child: Column(
         children: children,
       ),
@@ -746,6 +816,8 @@ class _DrawerItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tone = selected ? RancoColors.pine : RancoColors.slate;
+
     return Padding(
       padding: const EdgeInsets.symmetric(
         vertical: 2,
@@ -766,25 +838,23 @@ class _DrawerItem extends StatelessWidget {
                 Icon(
                   icon,
                   size: 21,
-                  color:
-                      selected ? RancoColors.forest : const Color(0xFF71827A),
+                  color: tone,
                 ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Text(
                     label,
                     style: TextStyle(
-                      color: selected
-                          ? RancoColors.forest
-                          : const Color(0xFF405249),
+                      color:
+                          selected ? RancoColors.pine : const Color(0xFF405249),
                       fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
                     ),
                   ),
                 ),
-                const Icon(
+                Icon(
                   Icons.arrow_forward_ios_rounded,
                   size: 14,
-                  color: Color(0xFFA1ADA8),
+                  color: selected ? RancoColors.clay : const Color(0xFFA1ADA8),
                 ),
               ],
             ),
@@ -819,7 +889,7 @@ class _LocalSummary extends StatelessWidget {
               const Icon(
                 Icons.near_me_outlined,
                 size: 16,
-                color: RancoColors.forest,
+                color: RancoColors.lake,
               ),
               const SizedBox(width: 6),
               Flexible(
@@ -840,13 +910,13 @@ class _LocalSummary extends StatelessWidget {
             const Icon(
               Icons.groups_outlined,
               size: 16,
-              color: RancoColors.forest,
+              color: RancoColors.clay,
             ),
             const SizedBox(width: 5),
             Text(
               '$count prestadores',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: RancoColors.forest,
+                    color: RancoColors.pine,
                     fontWeight: FontWeight.w700,
                   ),
             ),
@@ -971,18 +1041,22 @@ class _CategoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tone = _categoryTone(category);
+
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(22),
+      shadowColor: RancoColors.ink.withValues(alpha: .08),
+      elevation: 1,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(22),
         child: Container(
-          padding: const EdgeInsets.all(15),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: const Color(0xFFD6E3DD),
+              color: tone.withValues(alpha: .22),
             ),
           ),
           child: Column(
@@ -992,12 +1066,15 @@ class _CategoryCard extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: _categoryTone(category).withValues(alpha: .14),
+                  color: tone.withValues(alpha: .13),
                   borderRadius: BorderRadius.circular(13),
+                  border: Border.all(
+                    color: tone.withValues(alpha: .12),
+                  ),
                 ),
                 child: Icon(
                   _categoryIcon(category),
-                  color: _categoryTone(category),
+                  color: tone,
                 ),
               ),
               const SizedBox(height: 14),
@@ -1023,21 +1100,21 @@ class _CategoryCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 14),
-              const Row(
+              Row(
                 children: [
                   Text(
                     'Explorar',
                     style: TextStyle(
-                      color: RancoColors.forest,
+                      color: tone,
                       fontWeight: FontWeight.w700,
                       fontSize: 12,
                     ),
                   ),
-                  Spacer(),
+                  const Spacer(),
                   Icon(
                     Icons.arrow_forward_rounded,
                     size: 18,
-                    color: RancoColors.forest,
+                    color: tone,
                   ),
                 ],
               ),
@@ -1117,10 +1194,11 @@ class _HomeActionPanel extends StatelessWidget {
     );
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: RancoColors.forest,
-        borderRadius: BorderRadius.circular(22),
+        gradient: RancoDecoration.brandGradient,
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: RancoDecoration.liftShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1131,11 +1209,14 @@ class _HomeActionPanel extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: .14),
+                  color: Colors.white.withValues(alpha: .16),
                   borderRadius: BorderRadius.circular(15),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: .18),
+                  ),
                 ),
                 child: const Icon(
-                  Icons.map_outlined,
+                  Icons.explore_outlined,
                   color: Colors.white,
                 ),
               ),
@@ -1177,8 +1258,11 @@ class _HomeActionPanel extends StatelessWidget {
                   label: const Text('Ver prestadores'),
                   style: FilledButton.styleFrom(
                     backgroundColor: Colors.white,
-                    foregroundColor: RancoColors.forest,
+                    foregroundColor: RancoColors.pine,
                     minimumSize: const Size.fromHeight(48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                 ),
               ),
@@ -1189,7 +1273,12 @@ class _HomeActionPanel extends StatelessWidget {
                   onPressed: onPublish,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
-                    side: const BorderSide(color: Color(0xFFDDEFE7)),
+                    side: BorderSide(
+                      color: Colors.white.withValues(alpha: .72),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                   child: const Icon(Icons.add_business_outlined),
                 ),

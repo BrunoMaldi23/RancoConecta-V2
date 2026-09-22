@@ -11,7 +11,7 @@ abstract final class RancoTheme {
       primary: RancoColors.forest,
       secondary: RancoColors.lake,
       tertiary: RancoColors.clay,
-      surface: const Color(0xFFF7FAF8),
+      surface: RancoColors.canvas,
     );
     return _theme(colorScheme);
   }
@@ -33,6 +33,11 @@ abstract final class RancoTheme {
       useMaterial3: true,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: colorScheme.surface,
+      fontFamilyFallback: const [
+        'Inter',
+        'Roboto',
+        'Segoe UI',
+      ],
     );
 
     return base.copyWith(
@@ -47,9 +52,19 @@ abstract final class RancoTheme {
         ),
         titleLarge: base.textTheme.titleLarge?.copyWith(
           fontWeight: FontWeight.w700,
+          letterSpacing: 0,
         ),
         titleMedium: base.textTheme.titleMedium?.copyWith(
           fontWeight: FontWeight.w600,
+          letterSpacing: 0,
+        ),
+        bodyMedium: base.textTheme.bodyMedium?.copyWith(
+          letterSpacing: 0,
+          height: 1.35,
+        ),
+        bodySmall: base.textTheme.bodySmall?.copyWith(
+          letterSpacing: 0,
+          height: 1.35,
         ),
       ),
       appBarTheme: AppBarTheme(
@@ -62,7 +77,7 @@ abstract final class RancoTheme {
       cardTheme: CardThemeData(
         elevation: 0,
         margin: EdgeInsets.zero,
-        color: colorScheme.surfaceContainerLowest,
+        color: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(RancoRadius.md),
           side: BorderSide(

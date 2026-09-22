@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../theme/ranco_colors.dart';
+import '../../../theme/ranco_decoration.dart';
 import '../../../shared/models/profile.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/data/supabase_auth_repository.dart';
@@ -23,9 +24,9 @@ class AccountScreen extends ConsumerWidget {
       authStateProvider,
     );
 
-    return ColoredBox(
-      color: const Color(
-        0xFFEAF4F0,
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: RancoDecoration.pageGlow,
       ),
       child: auth.when(
         data: (user) {
@@ -293,27 +294,29 @@ class _AccountHeader extends StatelessWidget {
       padding: const EdgeInsets.all(
         18,
       ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(
-          22,
-        ),
-        border: Border.all(
-          color: const Color(
-            0xFFD2E1DA,
-          ),
-        ),
-      ),
+      decoration: RancoDecoration.card(radius: 24),
       child: Row(
         children: [
           Container(
             width: 66,
             height: 66,
-            decoration: const BoxDecoration(
-              color: Color(
-                0xFFA7F3CF,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFA7F3CF),
+                  Color(0xFFFFD7BE),
+                ],
               ),
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: RancoColors.forest.withValues(alpha: .15),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
             alignment: Alignment.center,
             child: Text(
@@ -377,7 +380,7 @@ class _AccountHeader extends StatelessWidget {
                   child: Text(
                     role,
                     style: const TextStyle(
-                      color: RancoColors.forest,
+                      color: RancoColors.pine,
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                     ),
@@ -391,7 +394,7 @@ class _AccountHeader extends StatelessWidget {
             onPressed: onEdit,
             icon: const Icon(
               Icons.edit_outlined,
-              color: RancoColors.forest,
+              color: RancoColors.clay,
             ),
           ),
         ],
@@ -429,17 +432,17 @@ class _BusinessCard extends StatelessWidget {
         18,
       ),
       decoration: BoxDecoration(
-        color: const Color(
-          0xFFDFF1E9,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFFE1F3EB),
+            Color(0xFFFDF6E9),
+          ],
         ),
-        borderRadius: BorderRadius.circular(
-          22,
-        ),
-        border: Border.all(
-          color: const Color(
-            0xFFC3DDD0,
-          ),
-        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: RancoDecoration.strongBorder),
+        boxShadow: RancoDecoration.softShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -460,7 +463,7 @@ class _BusinessCard extends StatelessWidget {
                   lodging
                       ? Icons.holiday_village_outlined
                       : Icons.storefront_outlined,
-                  color: RancoColors.forest,
+                  color: RancoColors.pine,
                   size: 27,
                 ),
               ),
@@ -584,7 +587,7 @@ class _BusinessCard extends StatelessWidget {
                 lodging ? 'Administrar alojamiento' : 'Administrar negocio',
               ),
               style: FilledButton.styleFrom(
-                backgroundColor: RancoColors.forest,
+                backgroundColor: RancoColors.pine,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(
@@ -606,7 +609,7 @@ class _BusinessCard extends StatelessWidget {
               'Ver publicación',
             ),
             style: TextButton.styleFrom(
-              foregroundColor: RancoColors.forest,
+              foregroundColor: RancoColors.pine,
             ),
           ),
         ],
@@ -775,26 +778,24 @@ class _BecomeProviderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(
-        0xFFDFF1E9,
-      ),
-      borderRadius: BorderRadius.circular(
-        20,
-      ),
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(22),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(
-          20,
-        ),
-        child: const Padding(
-          padding: EdgeInsets.all(
-            18,
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: RancoDecoration.warmGradient,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFE5D8C7)),
+            boxShadow: RancoDecoration.softShadow,
           ),
-          child: Row(
+          child: const Row(
             children: [
               Icon(
                 Icons.storefront_outlined,
-                color: RancoColors.forest,
+                color: RancoColors.clay,
                 size: 28,
               ),
               SizedBox(
@@ -829,7 +830,7 @@ class _BecomeProviderCard extends StatelessWidget {
               ),
               Icon(
                 Icons.arrow_forward_rounded,
-                color: RancoColors.forest,
+                color: RancoColors.pine,
               ),
             ],
           ),
@@ -852,17 +853,7 @@ class _WhiteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: padding,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(
-          20,
-        ),
-        border: Border.all(
-          color: const Color(
-            0xFFD2E1DA,
-          ),
-        ),
-      ),
+      decoration: RancoDecoration.card(radius: 20),
       child: child,
     );
   }
@@ -893,9 +884,7 @@ class _SettingsRow extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: const Color(
-                0xFFE5F2EC,
-              ),
+              color: const Color(0xFFFFEFE3),
               borderRadius: BorderRadius.circular(
                 13,
               ),
@@ -903,7 +892,7 @@ class _SettingsRow extends StatelessWidget {
             alignment: Alignment.center,
             child: Icon(
               icon,
-              color: RancoColors.forest,
+              color: RancoColors.clay,
               size: 21,
             ),
           ),
