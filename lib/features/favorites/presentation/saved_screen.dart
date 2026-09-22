@@ -42,12 +42,7 @@ class SavedScreen extends ConsumerWidget {
 
           return favorites.when(
             data: (items) => ListView(
-              padding: const EdgeInsets.fromLTRB(
-                18,
-                22,
-                18,
-                30,
-              ),
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 26),
               children: [
                 const _SavedHeader(
                   title: 'Guardados',
@@ -55,7 +50,7 @@ class SavedScreen extends ConsumerWidget {
                   icon: Icons.bookmark_border_rounded,
                 ),
                 const SizedBox(
-                  height: 18,
+                  height: 12,
                 ),
                 if (items.isEmpty) ...[
                   RancoEmptyState(
@@ -147,12 +142,7 @@ class _GuestSaved extends StatelessWidget {
     BuildContext context,
   ) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
-        18,
-        22,
-        18,
-        30,
-      ),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 26),
       children: [
         const _SavedHeader(
           title: 'Guardados',
@@ -161,7 +151,7 @@ class _GuestSaved extends StatelessWidget {
           icon: Icons.favorite_border_rounded,
         ),
         const SizedBox(
-          height: 18,
+          height: 12,
         ),
         RancoEmptyState(
           icon: Icons.favorite_border_rounded,
@@ -196,7 +186,7 @@ class _SavedHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: RancoDecoration.softGreenGradient,
         borderRadius: BorderRadius.circular(24),
@@ -206,8 +196,8 @@ class _SavedHeader extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 50,
-            height: 50,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: .78),
               borderRadius: BorderRadius.circular(16),

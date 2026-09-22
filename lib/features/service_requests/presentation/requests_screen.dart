@@ -33,10 +33,10 @@ class RequestsScreen extends ConsumerWidget {
           data: (items) => Container(
             decoration: const BoxDecoration(gradient: RancoDecoration.pageGlow),
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
               children: [
                 _RequestsHeader(count: items.length),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 if (items.isEmpty)
                   RancoEmptyState(
                     icon: Icons.assignment_outlined,
@@ -59,7 +59,7 @@ class RequestsScreen extends ConsumerWidget {
                       minimumSize: const Size.fromHeight(48),
                     ),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 12),
                   for (var index = 0; index < items.length; index++) ...[
                     _RequestCard(
                       request: items[index],
@@ -91,13 +91,13 @@ class _GuestRequests extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
       children: [
         const _RequestsHeader(
           count: 0,
           guest: true,
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 12),
         RancoEmptyState(
           icon: Icons.assignment_outlined,
           title: 'Tus solicitudes aparecerán aquí',
@@ -129,7 +129,7 @@ class _RequestsHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: RancoDecoration.softGreenGradient,
         borderRadius: BorderRadius.circular(24),
@@ -139,8 +139,8 @@ class _RequestsHeader extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 50,
-            height: 50,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: .78),
               borderRadius: BorderRadius.circular(16),

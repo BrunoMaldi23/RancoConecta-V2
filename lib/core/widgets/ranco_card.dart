@@ -5,7 +5,7 @@ import '../../theme/ranco_decoration.dart';
 class RancoCard extends StatelessWidget {
   const RancoCard({
     required this.child,
-    this.padding = const EdgeInsets.all(18),
+    this.padding = const EdgeInsets.all(14),
     this.onTap,
     this.radius = 20,
     this.elevated = true,

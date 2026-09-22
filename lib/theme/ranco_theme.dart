@@ -93,8 +93,8 @@ abstract final class RancoTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size(48, 44),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          minimumSize: const Size(44, 42),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
           textStyle: const TextStyle(fontWeight: FontWeight.w700),
           backgroundColor: RancoColors.primaryDark,
           foregroundColor: Colors.white,
@@ -107,8 +107,8 @@ abstract final class RancoTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size(48, 44),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          minimumSize: const Size(44, 42),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
           textStyle: const TextStyle(fontWeight: FontWeight.w700),
           foregroundColor: RancoColors.primaryDark,
           side: const BorderSide(color: RancoColors.primary),
@@ -126,7 +126,7 @@ abstract final class RancoTheme {
         filled: true,
         isDense: true,
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
         fillColor: Colors.white,
         hintStyle: TextStyle(color: colorScheme.onSurfaceVariant),
         border: OutlineInputBorder(

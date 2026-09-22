@@ -14,7 +14,7 @@ class RancoBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         color: colorScheme.primaryContainer.withValues(alpha: .74),
         borderRadius: BorderRadius.circular(999),

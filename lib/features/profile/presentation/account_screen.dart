@@ -58,12 +58,7 @@ class AccountScreen extends ConsumerWidget {
               return SafeArea(
                 top: false,
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(
-                    18,
-                    22,
-                    18,
-                    38,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 30),
                   children: [
                     const Text(
                       'Cuenta',
@@ -76,9 +71,7 @@ class AccountScreen extends ConsumerWidget {
                         letterSpacing: 0,
                       ),
                     ),
-                    const SizedBox(
-                      height: 20,
-                    ),
+                    const SizedBox(height: 14),
                     _AccountHeader(
                       initial: initial,
                       name: displayName,
@@ -91,15 +84,11 @@ class AccountScreen extends ConsumerWidget {
                       },
                     ),
                     if (isProvider) ...[
-                      const SizedBox(
-                        height: 26,
-                      ),
+                      const SizedBox(height: 20),
                       const _SectionTitle(
                         title: 'Mi negocio',
                       ),
-                      const SizedBox(
-                        height: 9,
-                      ),
+                      const SizedBox(height: 7),
                       ref
                           .watch(
                             myProviderBusinessProvider,
@@ -153,9 +142,7 @@ class AccountScreen extends ConsumerWidget {
                           ),
                     ],
                     if (!isProvider) ...[
-                      const SizedBox(
-                        height: 26,
-                      ),
+                      const SizedBox(height: 20),
                       _BecomeProviderCard(
                         onTap: () {
                           context.push(
@@ -164,15 +151,11 @@ class AccountScreen extends ConsumerWidget {
                         },
                       ),
                     ],
-                    const SizedBox(
-                      height: 26,
-                    ),
+                    const SizedBox(height: 20),
                     const _SectionTitle(
                       title: 'Cuenta y soporte',
                     ),
-                    const SizedBox(
-                      height: 9,
-                    ),
+                    const SizedBox(height: 7),
                     _WhiteCard(
                       padding: EdgeInsets.zero,
                       child: Column(
@@ -200,7 +183,7 @@ class AccountScreen extends ConsumerWidget {
                       height: 18,
                     ),
                     SizedBox(
-                      height: 50,
+                      height: 44,
                       child: OutlinedButton.icon(
                         onPressed: () async {
                           await ref
@@ -291,15 +274,13 @@ class _AccountHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(
-        18,
-      ),
-      decoration: RancoDecoration.card(radius: 24),
+      padding: const EdgeInsets.all(14),
+      decoration: RancoDecoration.card(radius: 20),
       child: Row(
         children: [
           Container(
-            width: 66,
-            height: 66,
+            width: 54,
+            height: 54,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
@@ -313,8 +294,8 @@ class _AccountHeader extends StatelessWidget {
               boxShadow: [
                 BoxShadow(
                   color: RancoColors.forest.withValues(alpha: .15),
-                  blurRadius: 18,
-                  offset: const Offset(0, 8),
+                  blurRadius: 12,
+                  offset: const Offset(0, 5),
                 ),
               ],
             ),
@@ -325,13 +306,13 @@ class _AccountHeader extends StatelessWidget {
                 color: Color(
                   0xFF174A35,
                 ),
-                fontSize: 27,
+                fontSize: 23,
                 fontWeight: FontWeight.w900,
               ),
             ),
           ),
           const SizedBox(
-            width: 15,
+            width: 12,
           ),
           Expanded(
             child: Column(
@@ -343,12 +324,12 @@ class _AccountHeader extends StatelessWidget {
                     color: Color(
                       0xFF22332B,
                     ),
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(
-                  height: 3,
+                  height: 2,
                 ),
                 Text(
                   email,
@@ -362,12 +343,12 @@ class _AccountHeader extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(
-                  height: 7,
+                  height: 5,
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 4,
+                    horizontal: 8,
+                    vertical: 3,
                   ),
                   decoration: BoxDecoration(
                     color: const Color(
@@ -392,8 +373,10 @@ class _AccountHeader extends StatelessWidget {
           IconButton(
             tooltip: 'Editar perfil',
             onPressed: onEdit,
+            visualDensity: VisualDensity.compact,
             icon: const Icon(
               Icons.edit_outlined,
+              size: 20,
               color: RancoColors.primaryDark,
             ),
           ),
@@ -428,9 +411,7 @@ class _BusinessCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(
-        18,
-      ),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -440,7 +421,7 @@ class _BusinessCard extends StatelessWidget {
             RancoColors.primarySoft,
           ],
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: RancoDecoration.strongBorder),
         boxShadow: RancoDecoration.softShadow,
       ),
@@ -450,12 +431,12 @@ class _BusinessCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 54,
-                height: 54,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(
-                    16,
+                    14,
                   ),
                 ),
                 alignment: Alignment.center,
@@ -464,11 +445,11 @@ class _BusinessCard extends StatelessWidget {
                       ? Icons.holiday_village_outlined
                       : Icons.storefront_outlined,
                   color: RancoColors.pine,
-                  size: 27,
+                  size: 23,
                 ),
               ),
               const SizedBox(
-                width: 13,
+                width: 11,
               ),
               Expanded(
                 child: Column(
@@ -482,12 +463,12 @@ class _BusinessCard extends StatelessWidget {
                         color: Color(
                           0xFF22332B,
                         ),
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
                     const SizedBox(
-                      height: 5,
+                      height: 4,
                     ),
                     Row(
                       children: [
@@ -530,7 +511,7 @@ class _BusinessCard extends StatelessWidget {
             ],
           ),
           const SizedBox(
-            height: 18,
+            height: 12,
           ),
           const Text(
             'Gestión rápida',
@@ -544,7 +525,7 @@ class _BusinessCard extends StatelessWidget {
             ),
           ),
           const SizedBox(
-            height: 9,
+            height: 7,
           ),
           if (lodging) ...[
             Row(
@@ -557,7 +538,7 @@ class _BusinessCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(
-                  width: 10,
+                  width: 8,
                 ),
                 Expanded(
                   child: _QuickAction(
@@ -569,11 +550,11 @@ class _BusinessCard extends StatelessWidget {
               ],
             ),
             const SizedBox(
-              height: 14,
+              height: 10,
             ),
           ],
           SizedBox(
-            height: 50,
+            height: 44,
             child: FilledButton.icon(
               onPressed: onManage,
               icon: const Icon(
@@ -594,7 +575,7 @@ class _BusinessCard extends StatelessWidget {
             ),
           ),
           const SizedBox(
-            height: 5,
+            height: 2,
           ),
           TextButton.icon(
             onPressed: onView,
@@ -639,18 +620,19 @@ class _QuickAction extends StatelessWidget {
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 13,
+            horizontal: 9,
+            vertical: 9,
           ),
-          child: Column(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 icon,
                 color: RancoColors.forest,
-                size: 22,
+                size: 18,
               ),
               const SizedBox(
-                height: 6,
+                width: 6,
               ),
               Text(
                 label,
@@ -678,9 +660,7 @@ class _MissingBusinessCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(
-        18,
-      ),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: RancoColors.primarySoft,
         borderRadius: BorderRadius.circular(
@@ -698,9 +678,7 @@ class _MissingBusinessCard extends StatelessWidget {
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(
-            height: 5,
-          ),
+          const SizedBox(height: 4),
           const Text(
             'Tu cuenta de prestador está activa, pero aún falta asociar o completar tu negocio.',
             style: TextStyle(
@@ -708,9 +686,7 @@ class _MissingBusinessCard extends StatelessWidget {
               height: 1.4,
             ),
           ),
-          const SizedBox(
-            height: 14,
-          ),
+          const SizedBox(height: 10),
           FilledButton(
             onPressed: onTap,
             child: const Text(
@@ -776,7 +752,7 @@ class _BecomeProviderCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(22),
         child: Container(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             gradient: RancoDecoration.softGreenGradient,
             borderRadius: BorderRadius.circular(22),
@@ -788,10 +764,10 @@ class _BecomeProviderCard extends StatelessWidget {
               Icon(
                 Icons.storefront_outlined,
                 color: RancoColors.primaryDark,
-                size: 28,
+                size: 24,
               ),
               SizedBox(
-                width: 13,
+                width: 10,
               ),
               Expanded(
                 child: Column(
@@ -866,15 +842,12 @@ class _SettingsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final content = Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 17,
-        vertical: 16,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               color: RancoColors.primarySoft,
               borderRadius: BorderRadius.circular(
@@ -885,11 +858,11 @@ class _SettingsRow extends StatelessWidget {
             child: Icon(
               icon,
               color: RancoColors.primaryDark,
-              size: 21,
+              size: 19,
             ),
           ),
           const SizedBox(
-            width: 13,
+            width: 11,
           ),
           Expanded(
             child: Column(

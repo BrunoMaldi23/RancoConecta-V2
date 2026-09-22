@@ -31,13 +31,13 @@ class RancoEmptyState extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
         child: Padding(
-          padding: EdgeInsets.all(compact ? 12 : 20),
+          padding: EdgeInsets.all(compact ? 10 : 14),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: compact ? 46 : 56,
-                height: compact ? 46 : 56,
+                width: compact ? 40 : 48,
+                height: compact ? 40 : 48,
                 decoration: BoxDecoration(
                   color: colorScheme.primaryContainer.withValues(alpha: .72),
                   borderRadius: BorderRadius.circular(16),
@@ -45,17 +45,17 @@ class RancoEmptyState extends StatelessWidget {
                 alignment: Alignment.center,
                 child: Icon(
                   icon,
-                  size: compact ? 24 : 28,
+                  size: compact ? 21 : 24,
                   color: colorScheme.primary,
                 ),
               ),
-              SizedBox(height: compact ? 10 : 14),
+              SizedBox(height: compact ? 8 : 10),
               Text(
                 title,
                 style: textTheme.titleLarge,
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
                 message,
                 style: textTheme.bodyMedium?.copyWith(
@@ -64,7 +64,7 @@ class RancoEmptyState extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               if (actionLabel != null && onAction != null) ...[
-                SizedBox(height: compact ? 14 : 18),
+                SizedBox(height: compact ? 10 : 14),
                 FilledButton.icon(
                   onPressed: onAction,
                   icon: const Icon(Icons.search_rounded),

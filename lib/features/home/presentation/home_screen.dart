@@ -63,12 +63,7 @@ class HomeScreen extends ConsumerWidget {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  20,
-                  26,
-                  12,
-                  10,
-                ),
+                padding: const EdgeInsets.fromLTRB(20, 20, 12, 8),
                 child: _SectionTitle(
                   title: 'Explora por categoría',
                   subtitle: 'Servicios, comercios y experiencias locales.',
@@ -136,12 +131,7 @@ class HomeScreen extends ConsumerWidget {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  20,
-                  28,
-                  20,
-                  0,
-                ),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                 child: _HomeActionPanel(
                   businesses: businesses,
                   onExplore: () {
@@ -154,7 +144,7 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
             const SliverToBoxAdapter(
-              child: SizedBox(height: 30),
+              child: SizedBox(height: 22),
             ),
           ],
         ),
@@ -304,12 +294,12 @@ class _HomeSearchPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
       child: Container(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           gradient: RancoDecoration.softGreenGradient,
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(color: RancoDecoration.softBorder),
           boxShadow: RancoDecoration.softShadow,
         ),
@@ -317,7 +307,7 @@ class _HomeSearchPanel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: .72),
                 borderRadius: BorderRadius.circular(999),
@@ -343,7 +333,7 @@ class _HomeSearchPanel extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 9),
             Text(
               '¿Qué necesitas hoy?',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -352,7 +342,7 @@ class _HomeSearchPanel extends StatelessWidget {
                     height: 1.05,
                   ),
             ),
-            const SizedBox(height: 7),
+            const SizedBox(height: 5),
             Text(
               'Encuentra servicios, comercios, gastronomía, alojamientos y experiencias cerca de ti.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -360,7 +350,7 @@ class _HomeSearchPanel extends StatelessWidget {
                     height: 1.38,
                   ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 12),
             Material(
               color: Colors.white,
               borderRadius: BorderRadius.circular(18),
@@ -368,10 +358,10 @@ class _HomeSearchPanel extends StatelessWidget {
                 onTap: onSearch,
                 borderRadius: BorderRadius.circular(18),
                 child: Container(
-                  constraints: const BoxConstraints(minHeight: 54),
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  constraints: const BoxConstraints(minHeight: 48),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: RancoDecoration.softBorder),
                     boxShadow: [
                       BoxShadow(
@@ -384,7 +374,7 @@ class _HomeSearchPanel extends StatelessWidget {
                   child: const Row(
                     children: [
                       Icon(Icons.search_rounded, color: RancoColors.pine),
-                      SizedBox(width: 12),
+                      SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           'Buscar en Ranco Conecta',
@@ -402,9 +392,9 @@ class _HomeSearchPanel extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 9),
             const LocationSelector(compact: true),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
             Row(
               children: [
                 Expanded(
@@ -413,7 +403,7 @@ class _HomeSearchPanel extends StatelessWidget {
                     icon: const Icon(Icons.travel_explore_rounded, size: 19),
                     label: const Text('Buscar'),
                     style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50),
+                      minimumSize: const Size.fromHeight(44),
                       backgroundColor: RancoColors.pine,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
@@ -422,10 +412,10 @@ class _HomeSearchPanel extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Container(
-                  width: 50,
-                  height: 50,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
                     color: RancoColors.primary,
                     borderRadius: BorderRadius.circular(16),
@@ -444,7 +434,7 @@ class _HomeSearchPanel extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 13),
+            const SizedBox(height: 9),
             _LocalSummary(businesses: businesses),
           ],
         ),
@@ -1053,7 +1043,7 @@ class _CategoryCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(22),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(13),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
@@ -1064,8 +1054,8 @@ class _CategoryCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
                   color: tone.withValues(alpha: .13),
                   borderRadius: BorderRadius.circular(13),
@@ -1078,7 +1068,7 @@ class _CategoryCard extends StatelessWidget {
                   color: tone,
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
               Text(
                 category.name,
                 maxLines: 2,
@@ -1089,7 +1079,7 @@ class _CategoryCard extends StatelessWidget {
                   fontSize: 15,
                 ),
               ),
-              const SizedBox(height: 5),
+              const SizedBox(height: 3),
               const Text(
                 'Ver opciones disponibles',
                 maxLines: 2,
@@ -1100,7 +1090,7 @@ class _CategoryCard extends StatelessWidget {
                   height: 1.3,
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
               Row(
                 children: [
                   Text(
@@ -1195,7 +1185,7 @@ class _HomeActionPanel extends StatelessWidget {
     );
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: RancoDecoration.brandGradient,
         borderRadius: BorderRadius.circular(26),
@@ -1207,8 +1197,8 @@ class _HomeActionPanel extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: .16),
                   borderRadius: BorderRadius.circular(15),
@@ -1221,7 +1211,7 @@ class _HomeActionPanel extends StatelessWidget {
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(width: 13),
+              const SizedBox(width: 11),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1249,7 +1239,7 @@ class _HomeActionPanel extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -1260,7 +1250,7 @@ class _HomeActionPanel extends StatelessWidget {
                   style: FilledButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: RancoColors.pine,
-                    minimumSize: const Size.fromHeight(48),
+                    minimumSize: const Size.fromHeight(44),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -1269,7 +1259,7 @@ class _HomeActionPanel extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               SizedBox(
-                height: 48,
+                height: 44,
                 child: OutlinedButton(
                   onPressed: onPublish,
                   style: OutlinedButton.styleFrom(
@@ -1307,7 +1297,7 @@ class _EmptySectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -1318,8 +1308,8 @@ class _EmptySectionCard extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            width: 52,
-            height: 52,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
               color: const Color(0xFFE4F1EB),
               borderRadius: BorderRadius.circular(16),
@@ -1329,7 +1319,7 @@ class _EmptySectionCard extends StatelessWidget {
               color: RancoColors.forest,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 9),
           Text(
             title,
             textAlign: TextAlign.center,
@@ -1338,7 +1328,7 @@ class _EmptySectionCard extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 4),
           Text(
             message,
             textAlign: TextAlign.center,

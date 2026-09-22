@@ -63,12 +63,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             child: SafeArea(
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  20,
-                  20,
-                  20,
-                  10,
-                ),
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -80,7 +75,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                                 fontWeight: FontWeight.w900,
                               ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 3),
                     const Text(
                       'Busca por rubro, localidad y disponibilidad.',
                       style: TextStyle(
@@ -88,7 +83,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                         height: 1.4,
                       ),
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 12),
                     RancoSearchField(
                       controller: _searchController,
                       hintText: '¿Qué estás buscando?',
@@ -100,11 +95,11 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                             .state = value;
                       },
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     const LocationSelector(
                       compact: true,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
                         const Expanded(
@@ -125,11 +120,11 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     categories.when(
                       data: (items) {
                         return SizedBox(
-                          height: 42,
+                          height: 38,
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: items.length + 1,
@@ -168,7 +163,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                         );
                       },
                       loading: () => const SizedBox(
-                        height: 42,
+                        height: 38,
                         child: Center(
                           child: LinearProgressIndicator(
                             minHeight: 2,
@@ -183,7 +178,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                       ),
                     ),
                     if (activeFilters > 0) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       Wrap(
                         spacing: 7,
                         runSpacing: 7,
@@ -241,7 +236,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                         ],
                       ),
                     ],
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 12),
                     businesses.maybeWhen(
                       data: (items) => Text(
                         items.isEmpty
@@ -279,7 +274,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                               'Prueba cambiando la localidad, el rubro o los filtros.',
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 10),
                       OutlinedButton.icon(
                         onPressed: _clearAll,
                         icon: const Icon(
@@ -304,7 +299,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                 ),
                 sliver: SliverList.separated(
                   itemCount: items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 14),
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
                   itemBuilder: (context, index) => BusinessCard(
                     business: items[index],
                   ),

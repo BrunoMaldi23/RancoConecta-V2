@@ -43,27 +43,25 @@ class LocationSelector extends ConsumerWidget {
             },
             child: Container(
               constraints: BoxConstraints(
-                minHeight: compact ? 52 : 58,
+                minHeight: compact ? 46 : 58,
               ),
               padding: EdgeInsets.symmetric(
-                horizontal: compact ? 14 : 16,
-                vertical: compact ? 10 : 12,
+                horizontal: compact ? 12 : 16,
+                vertical: compact ? 7 : 12,
               ),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(
                   compact ? 16 : 18,
                 ),
-                border: compact
-                    ? null
-                    : Border.all(
-                        color: const Color(0xFFD6E3DD),
-                      ),
+                border: Border.all(
+                  color: const Color(0xFFD6E3DD),
+                ),
               ),
               child: Row(
                 children: [
                   Container(
-                    width: compact ? 36 : 40,
-                    height: compact ? 36 : 40,
+                    width: compact ? 30 : 40,
+                    height: compact ? 30 : 40,
                     decoration: BoxDecoration(
                       color: compact
                           ? Colors.transparent
@@ -73,11 +71,11 @@ class LocationSelector extends ConsumerWidget {
                     child: const Icon(
                       Icons.location_on_outlined,
                       color: RancoColors.forest,
-                      size: 21,
+                      size: 19,
                     ),
                   ),
                   SizedBox(
-                    width: compact ? 2 : 10,
+                    width: compact ? 6 : 10,
                   ),
                   Expanded(
                     child: Column(
@@ -124,7 +122,7 @@ class LocationSelector extends ConsumerWidget {
         );
       },
       loading: () => Container(
-        height: compact ? 52 : 58,
+        height: compact ? 46 : 58,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: compact ? const Color(0xFFF4F8F6) : Colors.white,
