@@ -78,9 +78,7 @@ class ReviewsSection extends ConsumerWidget {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(
-                      0xFFFFF3D9,
-                    ),
+                    color: const Color(0xFFEAF5EF),
                     borderRadius: BorderRadius.circular(
                       20,
                     ),
@@ -90,9 +88,7 @@ class ReviewsSection extends ConsumerWidget {
                     children: [
                       const Icon(
                         Icons.star_rounded,
-                        color: Color(
-                          0xFFB7791F,
-                        ),
+                        color: Color(0xFF145A3A),
                         size: 17,
                       ),
                       const SizedBox(

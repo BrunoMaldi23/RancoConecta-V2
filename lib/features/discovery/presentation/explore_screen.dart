@@ -56,7 +56,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     ].where((value) => value).length;
 
     return ColoredBox(
-      color: const Color(0xFFEAF4F0),
+      color: RancoColors.canvas,
       child: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(

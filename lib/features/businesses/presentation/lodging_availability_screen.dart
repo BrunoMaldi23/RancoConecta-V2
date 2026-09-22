@@ -165,9 +165,7 @@ class _LodgingAvailabilityScreenState
                     13,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(
-                      0xFFFFF3D9,
-                    ),
+                    color: RancoColors.primarySoft,
                     borderRadius: BorderRadius.circular(
                       14,
                     ),
@@ -176,9 +174,7 @@ class _LodgingAvailabilityScreenState
                     children: [
                       const Icon(
                         Icons.info_outline_rounded,
-                        color: Color(
-                          0xFF8A611F,
-                        ),
+                        color: RancoColors.primaryDark,
                         size: 18,
                       ),
                       const SizedBox(

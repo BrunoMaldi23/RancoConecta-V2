@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/widgets/ranco_empty_state.dart';
 import '../../../core/widgets/ranco_error_state.dart';
-import '../../../theme/ranco_decoration.dart';
 import '../../../theme/ranco_colors.dart';
+import '../../../theme/ranco_decoration.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../businesses/presentation/business_card.dart';
 import '../application/favorite_providers.dart';
@@ -57,26 +58,15 @@ class SavedScreen extends ConsumerWidget {
                   height: 18,
                 ),
                 if (items.isEmpty) ...[
-                  const _SavedInfoPanel(),
-                  const SizedBox(
-                    height: 14,
-                  ),
-                  FilledButton.icon(
-                    onPressed: () {
-                      context.go(
-                        '/explore',
-                      );
+                  RancoEmptyState(
+                    icon: Icons.favorite_border_rounded,
+                    title: 'Todavía no tienes guardados',
+                    message:
+                        'Pulsa el corazón de un prestador para volver a encontrarlo rápidamente.',
+                    actionLabel: 'Explorar prestadores',
+                    onAction: () {
+                      context.go('/explore');
                     },
-                    icon: const Icon(
-                      Icons.search_rounded,
-                    ),
-                    label: const Text(
-                      'Explorar servicios',
-                    ),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: RancoColors.pine,
-                      foregroundColor: Colors.white,
-                    ),
                   ),
                 ] else ...[
                   Text(
@@ -173,42 +163,19 @@ class _GuestSaved extends StatelessWidget {
         const SizedBox(
           height: 18,
         ),
-        const _SavedInfoPanel(),
-        const SizedBox(
-          height: 14,
-        ),
-        FilledButton.icon(
-          onPressed: () {
-            context.go(
-              '/sign-in',
-            );
+        RancoEmptyState(
+          icon: Icons.favorite_border_rounded,
+          title: 'Tus favoritos vivirán aquí',
+          message:
+              'Inicia sesión para guardar prestadores y acceder a ellos desde cualquier dispositivo.',
+          actionLabel: 'Ingresar',
+          onAction: () {
+            context.go('/sign-in');
           },
-          icon: const Icon(
-            Icons.login_rounded,
-          ),
-          label: const Text(
-            'Ingresar',
-          ),
-          style: FilledButton.styleFrom(
-            backgroundColor: RancoColors.pine,
-            foregroundColor: Colors.white,
-          ),
-        ),
-        const SizedBox(
-          height: 8,
-        ),
-        TextButton.icon(
-          onPressed: () {
-            context.go(
-              '/explore',
-            );
+          secondaryLabel: 'Seguir explorando',
+          onSecondaryAction: () {
+            context.go('/explore');
           },
-          icon: const Icon(
-            Icons.search_rounded,
-          ),
-          label: const Text(
-            'Seguir explorando',
-          ),
         ),
       ],
     );
@@ -231,9 +198,9 @@ class _SavedHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: RancoDecoration.warmGradient,
+        gradient: RancoDecoration.softGreenGradient,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE5D8C7)),
+        border: Border.all(color: RancoDecoration.softBorder),
         boxShadow: RancoDecoration.softShadow,
       ),
       child: Row(
@@ -247,7 +214,7 @@ class _SavedHeader extends StatelessWidget {
             ),
             child: Icon(
               icon,
-              color: RancoColors.clay,
+              color: RancoColors.primaryDark,
             ),
           ),
           const SizedBox(width: 14),
@@ -270,73 +237,6 @@ class _SavedHeader extends StatelessWidget {
                   style: const TextStyle(
                     color: RancoColors.slate,
                     height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SavedInfoPanel extends StatelessWidget {
-  const _SavedInfoPanel();
-
-  @override
-  Widget build(
-    BuildContext context,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(
-        18,
-      ),
-      decoration: RancoDecoration.card(radius: 22),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFEFE3),
-              borderRadius: BorderRadius.circular(
-                14,
-              ),
-            ),
-            child: const Icon(
-              Icons.favorite_border_rounded,
-              color: RancoColors.ember,
-            ),
-          ),
-          const SizedBox(
-            width: 12,
-          ),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Tus favoritos vivirán aquí',
-                  style: TextStyle(
-                    color: Color(
-                      0xFF30443B,
-                    ),
-                    fontWeight: FontWeight.w900,
-                    fontSize: 16,
-                  ),
-                ),
-                SizedBox(
-                  height: 5,
-                ),
-                Text(
-                  'Pulsa el corazón de un prestador para guardarlo y acceder rápidamente desde esta sección.',
-                  style: TextStyle(
-                    color: Color(
-                      0xFF71827A,
-                    ),
-                    height: 1.4,
                   ),
                 ),
               ],

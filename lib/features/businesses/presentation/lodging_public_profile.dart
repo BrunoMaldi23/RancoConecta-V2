@@ -261,12 +261,8 @@ class LodgingPublicProfile extends ConsumerWidget {
                           icon: Icons.star_rounded,
                           label:
                               '${business.ratingAvg.toStringAsFixed(1)} (${business.reviewCount})',
-                          foreground: const Color(
-                            0xFF8A5B12,
-                          ),
-                          background: const Color(
-                            0xFFFFF3D9,
-                          ),
+                          foreground: RancoColors.primaryDark,
+                          background: RancoColors.primarySoft,
                         ),
                       if (business.isVerified)
                         const _StatusChip(
@@ -281,12 +277,8 @@ class LodgingPublicProfile extends ConsumerWidget {
                         const _StatusChip(
                           icon: Icons.workspace_premium_rounded,
                           label: 'Destacado',
-                          foreground: Color(
-                            0xFF8A5B12,
-                          ),
-                          background: Color(
-                            0xFFFFF3D9,
-                          ),
+                          foreground: RancoColors.primaryDark,
+                          background: RancoColors.primarySoft,
                         ),
                     ],
                   ),

@@ -423,9 +423,9 @@ class ProviderJoinScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    gradient: RancoDecoration.warmGradient,
+                    gradient: RancoDecoration.softGreenGradient,
                     borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: const Color(0xFFE5D8C7)),
+                    border: Border.all(color: RancoDecoration.softBorder),
                     boxShadow: RancoDecoration.softShadow,
                   ),
                   child: Column(
@@ -441,7 +441,7 @@ class ProviderJoinScreen extends StatelessWidget {
                         ),
                         child: const Icon(
                           Icons.storefront_outlined,
-                          color: RancoColors.clay,
+                          color: RancoColors.primaryDark,
                           size: 30,
                         ),
                       ),
@@ -554,7 +554,7 @@ class _JoinStep extends StatelessWidget {
               height: 34,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: number == '1' ? RancoColors.pine : RancoColors.clay,
+                color: number == '1' ? RancoColors.pine : RancoColors.primary,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(

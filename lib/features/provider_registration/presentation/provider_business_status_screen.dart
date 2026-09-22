@@ -14,9 +14,9 @@ class ProviderBusinessStatusScreen extends ConsumerWidget {
     final businesses = ref.watch(myProviderBusinessesProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFEAF4F0),
+      backgroundColor: RancoColors.canvas,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFEAF4F0),
+        backgroundColor: RancoColors.canvas,
         surfaceTintColor: Colors.transparent,
         title: const Text('Estado del negocio'),
       ),

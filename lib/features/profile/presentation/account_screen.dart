@@ -305,8 +305,8 @@ class _AccountHeader extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFFA7F3CF),
-                  Color(0xFFFFD7BE),
+                  RancoColors.primarySoft,
+                  Color(0xFFD8EFE4),
                 ],
               ),
               shape: BoxShape.circle,
@@ -394,7 +394,7 @@ class _AccountHeader extends StatelessWidget {
             onPressed: onEdit,
             icon: const Icon(
               Icons.edit_outlined,
-              color: RancoColors.clay,
+              color: RancoColors.primaryDark,
             ),
           ),
         ],
@@ -436,8 +436,8 @@ class _BusinessCard extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFFE1F3EB),
-            Color(0xFFFDF6E9),
+            Colors.white,
+            RancoColors.primarySoft,
           ],
         ),
         borderRadius: BorderRadius.circular(24),
@@ -496,12 +496,8 @@ class _BusinessCard extends StatelessWidget {
                           height: 8,
                           decoration: BoxDecoration(
                             color: published
-                                ? const Color(
-                                    0xFF279566,
-                                  )
-                                : const Color(
-                                    0xFFD59B35,
-                                  ),
+                                ? RancoColors.success
+                                : RancoColors.warning,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -686,12 +682,11 @@ class _MissingBusinessCard extends StatelessWidget {
         18,
       ),
       decoration: BoxDecoration(
-        color: const Color(
-          0xFFFFF3DC,
-        ),
+        color: RancoColors.primarySoft,
         borderRadius: BorderRadius.circular(
           20,
         ),
+        border: Border.all(color: RancoDecoration.softBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -709,9 +704,7 @@ class _MissingBusinessCard extends StatelessWidget {
           const Text(
             'Tu cuenta de prestador está activa, pero aún falta asociar o completar tu negocio.',
             style: TextStyle(
-              color: Color(
-                0xFF705F42,
-              ),
+              color: RancoColors.textSecondary,
               height: 1.4,
             ),
           ),
@@ -754,12 +747,11 @@ class _BusinessError extends StatelessWidget {
         18,
       ),
       decoration: BoxDecoration(
-        color: const Color(
-          0xFFFFE9E6,
-        ),
+        color: const Color(0xFFFFEDEC),
         borderRadius: BorderRadius.circular(
           18,
         ),
+        border: Border.all(color: const Color(0xFFF2C7C2)),
       ),
       child: const Text(
         'No pudimos cargar tu negocio.',
@@ -786,16 +778,16 @@ class _BecomeProviderCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            gradient: RancoDecoration.warmGradient,
+            gradient: RancoDecoration.softGreenGradient,
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFE5D8C7)),
+            border: Border.all(color: RancoDecoration.softBorder),
             boxShadow: RancoDecoration.softShadow,
           ),
           child: const Row(
             children: [
               Icon(
                 Icons.storefront_outlined,
-                color: RancoColors.clay,
+                color: RancoColors.primaryDark,
                 size: 28,
               ),
               SizedBox(
@@ -884,7 +876,7 @@ class _SettingsRow extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: const Color(0xFFFFEFE3),
+              color: RancoColors.primarySoft,
               borderRadius: BorderRadius.circular(
                 13,
               ),
@@ -892,7 +884,7 @@ class _SettingsRow extends StatelessWidget {
             alignment: Alignment.center,
             child: Icon(
               icon,
-              color: RancoColors.clay,
+              color: RancoColors.primaryDark,
               size: 21,
             ),
           ),

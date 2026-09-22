@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/ranco_colors.dart';
+
 class RancoSearchField extends StatelessWidget {
   const RancoSearchField({
     required this.controller,
@@ -19,8 +21,15 @@ class RancoSearchField extends StatelessWidget {
       onChanged: onChanged,
       textInputAction: TextInputAction.search,
       decoration: InputDecoration(
-        prefixIcon: const Icon(Icons.search),
+        prefixIcon: const Icon(
+          Icons.search_rounded,
+          color: RancoColors.primaryDark,
+        ),
         hintText: hintText,
+        suffixIcon: const Icon(
+          Icons.arrow_forward_rounded,
+          color: RancoColors.primary,
+        ),
       ),
     );
   }

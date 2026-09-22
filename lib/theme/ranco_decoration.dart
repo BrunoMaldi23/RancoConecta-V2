@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'ranco_colors.dart';
 
 abstract final class RancoDecoration {
-  static const softBorder = Color(0xFFD8E6DF);
-  static const strongBorder = Color(0xFFC0D8CD);
+  static const softBorder = RancoColors.border;
+  static const strongBorder = Color(0xFFBFD8CD);
 
   static List<BoxShadow> get softShadow => [
         BoxShadow(
@@ -26,9 +26,9 @@ abstract final class RancoDecoration {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
-      Color(0xFFF6FBF7),
-      Color(0xFFEAF4F0),
-      Color(0xFFFFF7EA),
+      RancoColors.surface,
+      Color(0xFFF0F8F4),
+      RancoColors.primarySoft,
     ],
     stops: [0, .58, 1],
   );
@@ -38,16 +38,16 @@ abstract final class RancoDecoration {
     end: Alignment.bottomRight,
     colors: [
       RancoColors.forest,
-      RancoColors.lake,
+      RancoColors.primaryDark,
     ],
   );
 
-  static const LinearGradient warmGradient = LinearGradient(
+  static const LinearGradient softGreenGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
-      Color(0xFFFFF3E3),
-      Color(0xFFE6F4ED),
+      Colors.white,
+      RancoColors.primarySoft,
     ],
   );
 

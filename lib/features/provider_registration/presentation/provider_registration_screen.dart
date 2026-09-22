@@ -80,9 +80,9 @@ class _ProviderRegistrationScreenState
 
     if (user == null) {
       return Scaffold(
-        backgroundColor: const Color(0xFFEAF4F0),
+        backgroundColor: RancoColors.canvas,
         appBar: AppBar(
-          backgroundColor: const Color(0xFFEAF4F0),
+          backgroundColor: RancoColors.canvas,
           title: const Text('Publicar negocio'),
         ),
         body: Center(
@@ -114,9 +114,9 @@ class _ProviderRegistrationScreenState
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFEAF4F0),
+      backgroundColor: RancoColors.canvas,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFEAF4F0),
+        backgroundColor: RancoColors.canvas,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           onPressed: _back,

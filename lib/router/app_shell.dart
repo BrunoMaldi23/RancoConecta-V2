@@ -33,13 +33,20 @@ class AppShell extends StatelessWidget {
                   onDestinationSelected: _goBranch,
                   labelType: NavigationRailLabelType.all,
                   backgroundColor: Colors.white,
-                  indicatorColor: const Color(0xFFE1F0EA),
+                  indicatorColor: RancoColors.primarySoft,
                   selectedIconTheme: const IconThemeData(
-                    color: RancoColors.forest,
+                    color: RancoColors.primaryDark,
+                  ),
+                  unselectedIconTheme: const IconThemeData(
+                    color: RancoColors.textSecondary,
                   ),
                   selectedLabelTextStyle: const TextStyle(
-                    color: RancoColors.forest,
+                    color: RancoColors.primaryDark,
                     fontWeight: FontWeight.w800,
+                  ),
+                  unselectedLabelTextStyle: const TextStyle(
+                    color: RancoColors.textSecondary,
+                    fontWeight: FontWeight.w500,
                   ),
                   groupAlignment: -0.72,
                   destinations: [

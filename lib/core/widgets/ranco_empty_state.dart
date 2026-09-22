@@ -5,6 +5,10 @@ class RancoEmptyState extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.message,
+    this.actionLabel,
+    this.onAction,
+    this.secondaryLabel,
+    this.onSecondaryAction,
     this.compact = false,
     super.key,
   });
@@ -12,6 +16,10 @@ class RancoEmptyState extends StatelessWidget {
   final IconData icon;
   final String title;
   final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  final String? secondaryLabel;
+  final VoidCallback? onSecondaryAction;
   final bool compact;
 
   @override
@@ -55,6 +63,21 @@ class RancoEmptyState extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
+              if (actionLabel != null && onAction != null) ...[
+                SizedBox(height: compact ? 14 : 18),
+                FilledButton.icon(
+                  onPressed: onAction,
+                  icon: const Icon(Icons.search_rounded),
+                  label: Text(actionLabel!),
+                ),
+              ],
+              if (secondaryLabel != null && onSecondaryAction != null) ...[
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: onSecondaryAction,
+                  child: Text(secondaryLabel!),
+                ),
+              ],
             ],
           ),
         ),

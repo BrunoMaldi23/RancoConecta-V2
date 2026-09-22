@@ -16,20 +16,20 @@ class RancoBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: colorScheme.secondaryContainer,
+        color: colorScheme.primaryContainer.withValues(alpha: .74),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 14, color: colorScheme.onSecondaryContainer),
+            Icon(icon, size: 14, color: colorScheme.primary),
             const SizedBox(width: 4),
           ],
           Text(
             label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onSecondaryContainer,
+                  color: colorScheme.primary,
                   fontWeight: FontWeight.w700,
                 ),
           ),

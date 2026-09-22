@@ -70,8 +70,8 @@ class HomeScreen extends ConsumerWidget {
                   10,
                 ),
                 child: _SectionTitle(
-                  title: 'Rubros principales',
-                  subtitle: 'Explora los servicios disponibles en tu sector.',
+                  title: 'Explora por categoría',
+                  subtitle: 'Servicios, comercios y experiencias locales.',
                   actionLabel: 'Ver todos',
                   onAction: () {
                     context.go('/explore');
@@ -264,7 +264,7 @@ class _HeaderButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: accent ? RancoColors.ember : Colors.white,
+      color: accent ? RancoColors.primaryDark : Colors.white,
       borderRadius: BorderRadius.circular(14),
       elevation: accent ? 0 : 1,
       shadowColor: RancoColors.ink.withValues(alpha: .10),
@@ -308,9 +308,9 @@ class _HomeSearchPanel extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          gradient: RancoDecoration.warmGradient,
+          gradient: RancoDecoration.softGreenGradient,
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: const Color(0xFFE1D5C3)),
+          border: Border.all(color: RancoDecoration.softBorder),
           boxShadow: RancoDecoration.softShadow,
         ),
         child: Column(
@@ -321,7 +321,7 @@ class _HomeSearchPanel extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: .72),
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: const Color(0xFFE6D8C8)),
+                border: Border.all(color: RancoDecoration.softBorder),
               ),
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
@@ -329,7 +329,7 @@ class _HomeSearchPanel extends StatelessWidget {
                   Icon(
                     Icons.location_city_outlined,
                     size: 15,
-                    color: RancoColors.clay,
+                    color: RancoColors.primary,
                   ),
                   SizedBox(width: 6),
                   Text(
@@ -345,7 +345,7 @@ class _HomeSearchPanel extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              '¿Qué servicio necesitas?',
+              '¿Qué necesitas hoy?',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     color: RancoColors.pine,
                     fontWeight: FontWeight.w900,
@@ -354,7 +354,7 @@ class _HomeSearchPanel extends StatelessWidget {
             ),
             const SizedBox(height: 7),
             Text(
-              'Encuentra prestadores, comercios y servicios locales verificados cerca de ti.',
+              'Encuentra servicios, comercios, gastronomía, alojamientos y experiencias cerca de ti.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: RancoColors.slate,
                     height: 1.38,
@@ -387,7 +387,7 @@ class _HomeSearchPanel extends StatelessWidget {
                       SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Buscar servicios en Lago Ranco',
+                          'Buscar en Ranco Conecta',
                           style: TextStyle(
                             color: Color(0xFF45554E),
                             fontSize: 16,
@@ -396,7 +396,7 @@ class _HomeSearchPanel extends StatelessWidget {
                         ),
                       ),
                       Icon(Icons.arrow_forward_rounded,
-                          color: RancoColors.clay),
+                          color: RancoColors.primary),
                     ],
                   ),
                 ),
@@ -411,7 +411,7 @@ class _HomeSearchPanel extends StatelessWidget {
                   child: FilledButton.icon(
                     onPressed: onSearch,
                     icon: const Icon(Icons.travel_explore_rounded, size: 19),
-                    label: const Text('Explorar ahora'),
+                    label: const Text('Buscar'),
                     style: FilledButton.styleFrom(
                       minimumSize: const Size.fromHeight(50),
                       backgroundColor: RancoColors.pine,
@@ -427,11 +427,11 @@ class _HomeSearchPanel extends StatelessWidget {
                   width: 50,
                   height: 50,
                   decoration: BoxDecoration(
-                    color: RancoColors.ember,
+                    color: RancoColors.primary,
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: RancoColors.ember.withValues(alpha: .25),
+                        color: RancoColors.primary.withValues(alpha: .18),
                         blurRadius: 18,
                         offset: const Offset(0, 8),
                       ),
@@ -854,7 +854,8 @@ class _DrawerItem extends StatelessWidget {
                 Icon(
                   Icons.arrow_forward_ios_rounded,
                   size: 14,
-                  color: selected ? RancoColors.clay : const Color(0xFFA1ADA8),
+                  color:
+                      selected ? RancoColors.primary : const Color(0xFFA1ADA8),
                 ),
               ],
             ),
@@ -910,7 +911,7 @@ class _LocalSummary extends StatelessWidget {
             const Icon(
               Icons.groups_outlined,
               size: 16,
-              color: RancoColors.clay,
+              color: RancoColors.primary,
             ),
             const SizedBox(width: 5),
             Text(
@@ -1090,7 +1091,7 @@ class _CategoryCard extends StatelessWidget {
               ),
               const SizedBox(height: 5),
               const Text(
-                'Ver servicios disponibles',
+                'Ver opciones disponibles',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -1159,8 +1160,8 @@ IconData _categoryIcon(Category category) {
 Color _categoryTone(Category category) {
   final key = '${category.themeKey} ${category.slug}'.toLowerCase();
 
-  if (key.contains('clay') || key.contains('food')) {
-    return RancoColors.clay;
+  if (key.contains('food') || key.contains('gastr')) {
+    return RancoColors.primary;
   }
   if (key.contains('lake') || key.contains('tour')) {
     return RancoColors.lake;

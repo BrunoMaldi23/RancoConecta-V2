@@ -834,8 +834,8 @@ class _BusinessStatsCard extends StatelessWidget {
               icon: Icons.star_rounded,
               label:
                   '${rating.toStringAsFixed(1)} · $reviewCount ${reviewCount == 1 ? 'reseña' : 'reseñas'}',
-              foreground: const Color(0xFF8A5B12),
-              background: const Color(0xFFFFF3D9),
+              foreground: RancoColors.primaryDark,
+              background: RancoColors.primarySoft,
             ),
           if (isVerified)
             const _ProfileStatusChip(
@@ -848,8 +848,8 @@ class _BusinessStatsCard extends StatelessWidget {
             const _ProfileStatusChip(
               icon: Icons.workspace_premium_rounded,
               label: 'Destacado',
-              foreground: Color(0xFF8A5B12),
-              background: Color(0xFFFFF3D9),
+              foreground: RancoColors.primaryDark,
+              background: RancoColors.primarySoft,
             ),
           _ProfileStatusChip(
             icon: openNow

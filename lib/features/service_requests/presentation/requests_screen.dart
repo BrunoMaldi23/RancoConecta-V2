@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/widgets/ranco_error_state.dart';
+import '../../../core/widgets/ranco_empty_state.dart';
 import '../../../theme/ranco_colors.dart';
 import '../../../theme/ranco_decoration.dart';
 import '../../auth/application/auth_controller.dart';
@@ -36,25 +37,29 @@ class RequestsScreen extends ConsumerWidget {
               children: [
                 _RequestsHeader(count: items.length),
                 const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: () => context.go('/explore'),
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Buscar un prestador'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: RancoColors.pine,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(48),
-                  ),
-                ),
-                const SizedBox(height: 18),
                 if (items.isEmpty)
-                  const _InfoPanel(
+                  RancoEmptyState(
                     icon: Icons.assignment_outlined,
-                    title: 'Aún no tienes solicitudes',
+                    title: 'Todavía no tienes solicitudes',
                     message:
-                        'Cuando envíes una solicitud desde el perfil de un prestador aparecerá aquí.',
+                        'Cuando contactes a un prestador, podrás seguir aquí el estado de tu solicitud.',
+                    actionLabel: 'Explorar prestadores',
+                    onAction: () {
+                      context.go('/explore');
+                    },
                   )
-                else
+                else ...[
+                  FilledButton.icon(
+                    onPressed: () => context.go('/explore'),
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Buscar un prestador'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: RancoColors.pine,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(48),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
                   for (var index = 0; index < items.length; index++) ...[
                     _RequestCard(
                       request: items[index],
@@ -62,6 +67,7 @@ class RequestsScreen extends ConsumerWidget {
                     ),
                     if (index != items.length - 1) const SizedBox(height: 10),
                   ],
+                ],
               ],
             ),
           ),
@@ -92,22 +98,19 @@ class _GuestRequests extends StatelessWidget {
           guest: true,
         ),
         const SizedBox(height: 18),
-        const _InfoPanel(
+        RancoEmptyState(
           icon: Icons.assignment_outlined,
           title: 'Tus solicitudes aparecerán aquí',
           message:
               'Inicia sesión para solicitar servicios, revisar estados y volver a contactar a tus prestadores.',
-        ),
-        const SizedBox(height: 14),
-        FilledButton.icon(
-          onPressed: () => context.go('/sign-in'),
-          icon: const Icon(Icons.login_rounded),
-          label: const Text('Ingresar'),
-        ),
-        const SizedBox(height: 8),
-        OutlinedButton(
-          onPressed: () => context.go('/sign-up'),
-          child: const Text('Crear cuenta'),
+          actionLabel: 'Ingresar',
+          onAction: () {
+            context.go('/sign-in');
+          },
+          secondaryLabel: 'Crear cuenta',
+          onSecondaryAction: () {
+            context.go('/sign-up');
+          },
         ),
       ],
     );
@@ -128,9 +131,9 @@ class _RequestsHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: RancoDecoration.warmGradient,
+        gradient: RancoDecoration.softGreenGradient,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE5D8C7)),
+        border: Border.all(color: RancoDecoration.softBorder),
         boxShadow: RancoDecoration.softShadow,
       ),
       child: Row(
@@ -246,57 +249,6 @@ class _RequestCard extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _InfoPanel extends StatelessWidget {
-  const _InfoPanel({
-    required this.icon,
-    required this.title,
-    required this.message,
-  });
-
-  final IconData icon;
-  final String title;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: RancoDecoration.card(radius: 20),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: colorScheme.primaryContainer.withValues(alpha: .65),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Icon(icon, color: colorScheme.primary),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 5),
-                Text(
-                  message,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -26,7 +26,7 @@ class AdminGate extends ConsumerWidget {
       data: (role) {
         if (role == null) {
           return Scaffold(
-            backgroundColor: const Color(0xFFEAF4F0),
+            backgroundColor: RancoColors.canvas,
             body: Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -877,7 +877,7 @@ class _AdminScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFEAF4F0),
+      backgroundColor: RancoColors.canvas,
       body: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 760;

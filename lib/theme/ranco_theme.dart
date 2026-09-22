@@ -10,7 +10,7 @@ abstract final class RancoTheme {
       brightness: Brightness.light,
       primary: RancoColors.forest,
       secondary: RancoColors.lake,
-      tertiary: RancoColors.clay,
+      tertiary: RancoColors.info,
       surface: RancoColors.canvas,
     );
     return _theme(colorScheme);
@@ -22,7 +22,7 @@ abstract final class RancoTheme {
       brightness: Brightness.dark,
       primary: const Color(0xFF8CCBAB),
       secondary: const Color(0xFF8BC6E0),
-      tertiary: const Color(0xFFE3A07B),
+      tertiary: const Color(0xFF8FCFC6),
       surface: RancoColors.night,
     );
     return _theme(colorScheme);
@@ -45,10 +45,12 @@ abstract final class RancoTheme {
         headlineMedium: base.textTheme.headlineMedium?.copyWith(
           fontWeight: FontWeight.w800,
           letterSpacing: 0,
+          color: RancoColors.textPrimary,
         ),
         headlineSmall: base.textTheme.headlineSmall?.copyWith(
           fontWeight: FontWeight.w700,
           letterSpacing: 0,
+          color: RancoColors.textPrimary,
         ),
         titleLarge: base.textTheme.titleLarge?.copyWith(
           fontWeight: FontWeight.w700,
@@ -94,8 +96,12 @@ abstract final class RancoTheme {
           minimumSize: const Size(48, 44),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           textStyle: const TextStyle(fontWeight: FontWeight.w700),
+          backgroundColor: RancoColors.primaryDark,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: RancoColors.border,
+          disabledForegroundColor: RancoColors.textSecondary,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(RancoRadius.sm),
+            borderRadius: BorderRadius.circular(RancoRadius.md),
           ),
         ),
       ),
@@ -104,8 +110,10 @@ abstract final class RancoTheme {
           minimumSize: const Size(48, 44),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           textStyle: const TextStyle(fontWeight: FontWeight.w700),
+          foregroundColor: RancoColors.primaryDark,
+          side: const BorderSide(color: RancoColors.primary),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(RancoRadius.sm),
+            borderRadius: BorderRadius.circular(RancoRadius.md),
           ),
         ),
       ),
@@ -119,19 +127,28 @@ abstract final class RancoTheme {
         isDense: true,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: .62),
+        fillColor: Colors.white,
         hintStyle: TextStyle(color: colorScheme.onSurfaceVariant),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(RancoRadius.sm),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(RancoRadius.md),
+          borderSide: const BorderSide(color: RancoColors.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(RancoRadius.sm),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(RancoRadius.md),
+          borderSide: const BorderSide(color: RancoColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(RancoRadius.sm),
-          borderSide: BorderSide(color: colorScheme.primary, width: 1.4),
+          borderRadius: BorderRadius.circular(RancoRadius.md),
+          borderSide:
+              const BorderSide(color: RancoColors.primaryDark, width: 1.4),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(RancoRadius.md),
+          borderSide: const BorderSide(color: RancoColors.error, width: 1.2),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(RancoRadius.md),
+          borderSide: const BorderSide(color: RancoColors.error, width: 1.4),
         ),
       ),
       chipTheme: base.chipTheme.copyWith(
@@ -145,8 +162,8 @@ abstract final class RancoTheme {
       navigationBarTheme: NavigationBarThemeData(
         height: 64,
         elevation: 0,
-        backgroundColor: colorScheme.surfaceContainerLowest,
-        indicatorColor: colorScheme.primaryContainer,
+        backgroundColor: Colors.white,
+        indicatorColor: RancoColors.primarySoft,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return TextStyle(
