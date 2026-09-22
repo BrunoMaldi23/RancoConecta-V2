@@ -39,11 +39,11 @@ abstract final class RancoTheme {
       textTheme: base.textTheme.copyWith(
         headlineMedium: base.textTheme.headlineMedium?.copyWith(
           fontWeight: FontWeight.w800,
-          letterSpacing: -0.7,
+          letterSpacing: 0,
         ),
         headlineSmall: base.textTheme.headlineSmall?.copyWith(
           fontWeight: FontWeight.w700,
-          letterSpacing: -0.4,
+          letterSpacing: 0,
         ),
         titleLarge: base.textTheme.titleLarge?.copyWith(
           fontWeight: FontWeight.w700,

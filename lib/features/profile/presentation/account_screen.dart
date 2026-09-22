@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../theme/ranco_colors.dart';
+import '../../../shared/models/profile.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/data/supabase_auth_repository.dart';
 import '../../provider_dashboard/application/provider_dashboard_providers.dart';
@@ -51,8 +52,7 @@ class AccountScreen extends ConsumerWidget {
 
               final email = user.email ?? 'Correo no disponible';
 
-              final isProvider =
-                  profile.role.label.toLowerCase() == 'prestador';
+              final isProvider = profile.role == ProfileRole.provider;
 
               return SafeArea(
                 top: false,
@@ -72,7 +72,7 @@ class AccountScreen extends ConsumerWidget {
                         ),
                         fontSize: 30,
                         fontWeight: FontWeight.w900,
-                        letterSpacing: -0.7,
+                        letterSpacing: 0,
                       ),
                     ),
                     const SizedBox(
@@ -547,30 +547,32 @@ class _BusinessCard extends StatelessWidget {
           const SizedBox(
             height: 9,
           ),
-          Row(
-            children: [
-              Expanded(
-                child: _QuickAction(
-                  icon: Icons.event_available_outlined,
-                  label: 'Reservas',
-                  onTap: onBookings,
+          if (lodging) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: _QuickAction(
+                    icon: Icons.event_available_outlined,
+                    label: 'Reservas',
+                    onTap: onBookings,
+                  ),
                 ),
-              ),
-              const SizedBox(
-                width: 10,
-              ),
-              Expanded(
-                child: _QuickAction(
-                  icon: Icons.calendar_month_outlined,
-                  label: 'Calendario',
-                  onTap: onCalendar,
+                const SizedBox(
+                  width: 10,
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(
-            height: 14,
-          ),
+                Expanded(
+                  child: _QuickAction(
+                    icon: Icons.calendar_month_outlined,
+                    label: 'Calendario',
+                    onTap: onCalendar,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(
+              height: 14,
+            ),
+          ],
           SizedBox(
             height: 50,
             child: FilledButton.icon(
@@ -1067,7 +1069,14 @@ String _publicationLabel(
       return 'Borrador';
 
     case 'pending':
+    case 'pending_review':
       return 'Pendiente';
+
+    case 'changes_requested':
+      return 'Cambios solicitados';
+
+    case 'suspended':
+      return 'Suspendido';
 
     case 'published':
       return 'Publicado';

@@ -504,7 +504,7 @@ class _LodgingAvailabilityScreenState
             'Confirmar solicitud',
           ),
           content: Text(
-            'Estas por solicitar una reserva para $nights ${nights == 1 ? 'noche' : 'noches'} y $_guests ${_guests == 1 ? 'huesped' : 'huespedes'}.\n\nEl anfitrion debera aceptar tu solicitud antes de que la reserva quede confirmada.',
+            'Estás por solicitar una reserva para $nights ${nights == 1 ? 'noche' : 'noches'} y $_guests ${_guests == 1 ? 'huésped' : 'huéspedes'}.\n\nEl anfitrión deberá aceptar tu solicitud antes de que la reserva quede confirmada.',
             textAlign: TextAlign.center,
           ),
           actions: [

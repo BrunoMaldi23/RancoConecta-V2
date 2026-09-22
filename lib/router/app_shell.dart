@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../theme/ranco_colors.dart';
 import '../theme/ranco_tokens.dart';
 
 class AppShell extends StatelessWidget {
@@ -31,6 +32,15 @@ class AppShell extends StatelessWidget {
                   selectedIndex: navigationShell.currentIndex,
                   onDestinationSelected: _goBranch,
                   labelType: NavigationRailLabelType.all,
+                  backgroundColor: Colors.white,
+                  indicatorColor: const Color(0xFFE1F0EA),
+                  selectedIconTheme: const IconThemeData(
+                    color: RancoColors.forest,
+                  ),
+                  selectedLabelTextStyle: const TextStyle(
+                    color: RancoColors.forest,
+                    fontWeight: FontWeight.w800,
+                  ),
                   groupAlignment: -0.72,
                   destinations: [
                     for (final destination in _destinations)

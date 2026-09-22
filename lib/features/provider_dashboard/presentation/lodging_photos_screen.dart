@@ -113,7 +113,7 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
                     height: 20,
                   ),
                   const Text(
-                    'PORTADA',
+                    'Portada',
                     style: TextStyle(
                       color: Color(
                         0xFF718078,
@@ -160,7 +160,7 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
                     children: [
                       const Expanded(
                         child: Text(
-                          'GALERIA',
+                          'Galería',
                           style: TextStyle(
                             color: Color(
                               0xFF718078,
@@ -216,7 +216,7 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
                             height: 10,
                           ),
                           Text(
-                            'Aun no hay fotos en la galería.',
+                            'Aún no hay fotos en la galería.',
                           ),
                         ],
                       ),
@@ -384,7 +384,7 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
       ).showSnackBar(
         const SnackBar(
           content: Text(
-            'Fotografia subida correctamente.',
+            'Fotografía subida correctamente.',
           ),
         ),
       );
@@ -434,6 +434,25 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
           businessId,
         ),
       );
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Portada actualizada.'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No pudimos actualizar la portada: $error'),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -455,7 +474,7 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
             'Eliminar fotografía',
           ),
           content: const Text(
-            'Esta fotografía se eliminara de forma permanente.',
+            'Esta fotografía se eliminará de forma permanente.',
           ),
           actions: [
             TextButton(
@@ -505,6 +524,25 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
       ref.invalidate(
         providerBusinessMediaProvider(
           businessId,
+        ),
+      );
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Fotografía eliminada.'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No pudimos eliminar la fotografía: $error'),
         ),
       );
     } finally {

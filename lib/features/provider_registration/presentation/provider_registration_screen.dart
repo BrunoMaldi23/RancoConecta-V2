@@ -172,57 +172,63 @@ class _ProviderRegistrationScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.25,
-            children: [
-              _TypeCard(
-                selected: _businessType == BusinessType.service,
-                icon: Icons.handyman_outlined,
-                title: 'Servicio',
-                subtitle: 'Oficios, mantención, fletes y atención local.',
-                onTap: () => _setBusinessType(BusinessType.service),
-              ),
-              _TypeCard(
-                selected: _businessType == BusinessType.commerce,
-                icon: Icons.storefront_outlined,
-                title: 'Comercio',
-                subtitle: 'Tiendas, almacenes y negocios locales.',
-                onTap: () => _setBusinessType(BusinessType.commerce),
-              ),
-              _TypeCard(
-                selected: _businessType == BusinessType.gastronomy,
-                icon: Icons.restaurant_outlined,
-                title: 'Gastronomía',
-                subtitle: 'Restaurantes, cafeterías y comida preparada.',
-                onTap: () => _setBusinessType(BusinessType.gastronomy),
-              ),
-              _TypeCard(
-                selected: _businessType == BusinessType.lodging,
-                icon: Icons.bed_outlined,
-                title: 'Alojamiento',
-                subtitle: 'Cabañas, hoteles, hostales y hospedajes.',
-                onTap: () => _setBusinessType(BusinessType.lodging),
-              ),
-              _TypeCard(
-                selected: _businessType == BusinessType.tourism,
-                icon: Icons.terrain_outlined,
-                title: 'Turismo',
-                subtitle: 'Tours, experiencias y actividades.',
-                onTap: () => _setBusinessType(BusinessType.tourism),
-              ),
-              _TypeCard(
-                selected: _businessType == BusinessType.emergency,
-                icon: Icons.emergency_outlined,
-                title: 'Emergencia',
-                subtitle: 'Atención urgente y disponibilidad.',
-                onTap: () => _setBusinessType(BusinessType.emergency),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 560 ? 3 : 2;
+
+              return GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: columns,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: constraints.maxWidth >= 560 ? 1.35 : 1.12,
+                children: [
+                  _TypeCard(
+                    selected: _businessType == BusinessType.service,
+                    icon: Icons.handyman_outlined,
+                    title: 'Servicio',
+                    subtitle: 'Oficios, mantención, fletes y atención local.',
+                    onTap: () => _setBusinessType(BusinessType.service),
+                  ),
+                  _TypeCard(
+                    selected: _businessType == BusinessType.commerce,
+                    icon: Icons.storefront_outlined,
+                    title: 'Comercio',
+                    subtitle: 'Tiendas, almacenes y negocios locales.',
+                    onTap: () => _setBusinessType(BusinessType.commerce),
+                  ),
+                  _TypeCard(
+                    selected: _businessType == BusinessType.gastronomy,
+                    icon: Icons.restaurant_outlined,
+                    title: 'Gastronomía',
+                    subtitle: 'Restaurantes, cafeterías y comida preparada.',
+                    onTap: () => _setBusinessType(BusinessType.gastronomy),
+                  ),
+                  _TypeCard(
+                    selected: _businessType == BusinessType.lodging,
+                    icon: Icons.bed_outlined,
+                    title: 'Alojamiento',
+                    subtitle: 'Cabañas, hoteles, hostales y hospedajes.',
+                    onTap: () => _setBusinessType(BusinessType.lodging),
+                  ),
+                  _TypeCard(
+                    selected: _businessType == BusinessType.tourism,
+                    icon: Icons.terrain_outlined,
+                    title: 'Turismo',
+                    subtitle: 'Tours, experiencias y actividades.',
+                    onTap: () => _setBusinessType(BusinessType.tourism),
+                  ),
+                  _TypeCard(
+                    selected: _businessType == BusinessType.emergency,
+                    icon: Icons.emergency_outlined,
+                    title: 'Emergencia',
+                    subtitle: 'Atención urgente y disponibilidad.',
+                    onTap: () => _setBusinessType(BusinessType.emergency),
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 24),
           _NextButton(text: 'Continuar', loading: _saving, onPressed: _next),
@@ -459,6 +465,22 @@ class _ProviderRegistrationScreenState
 
   Widget _reviewStep() {
     final draft = _currentDraftSnapshot();
+    final categories = ref.watch(categoriesProvider).valueOrNull ?? const [];
+    final locations = ref.watch(locationsProvider).valueOrNull ?? const [];
+    final subcategories =
+        ref.watch(subcategoriesProvider(_categoryId)).valueOrNull ?? const [];
+    final categoryName = categories
+        .where((category) => category.id == _categoryId)
+        .firstOrNull
+        ?.name;
+    final locationNames = locations
+        .where((location) => _coverageLocationIds.contains(location.id))
+        .map((location) => location.name)
+        .toList();
+    final serviceNames = subcategories
+        .where((service) => _subcategoryIds.contains(service.id))
+        .map((service) => service.name)
+        .toList();
     final requirements = draft == null
         ? const <OnboardingRequirement>[]
         : const BusinessOnboardingRequirements().evaluate(draft);
@@ -478,15 +500,19 @@ class _ProviderRegistrationScreenState
               _SummaryRow('Nombre', _nameController.text),
               _SummaryRow(
                 'Categoría',
-                _categoryId == null ? 'Pendiente' : 'Seleccionada',
+                categoryName ?? 'Pendiente',
               ),
               _SummaryRow(
                 'Servicios',
-                '${_subcategoryIds.length} seleccionados',
+                _businessType == BusinessType.service
+                    ? serviceNames.isEmpty
+                        ? 'Pendiente'
+                        : serviceNames.join(', ')
+                    : 'No aplica',
               ),
               _SummaryRow(
                 'Localidades',
-                '${_coverageLocationIds.length} seleccionadas',
+                locationNames.isEmpty ? 'Pendiente' : locationNames.join(', '),
               ),
             ],
           ),

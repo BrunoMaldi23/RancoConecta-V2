@@ -266,11 +266,12 @@ class RequestDetailScreen extends ConsumerWidget {
             const SizedBox(height: 24),
             Text('Timeline', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            const ListTile(
-              leading: Icon(Icons.check_circle_outline),
-              title: Text('Solicitud enviada'),
+            ListTile(
+              leading: const Icon(Icons.check_circle_outline),
+              title: const Text('Solicitud enviada'),
               subtitle: Text(
-                  'Las siguientes etapas se habilitarán en próximos sprints.'),
+                request.status.label,
+              ),
             ),
           ],
         ),

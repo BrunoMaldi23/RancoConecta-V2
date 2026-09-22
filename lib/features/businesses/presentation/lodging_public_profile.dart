@@ -411,7 +411,7 @@ class LodgingPublicProfile extends ConsumerWidget {
                         return Column(
                           children: [
                             _ProfileSection(
-                              title: 'Tu estadia',
+                              title: 'Tu estadía',
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -432,7 +432,7 @@ class LodgingPublicProfile extends ConsumerWidget {
                                     children: [
                                       _FeatureChip(
                                         icon: Icons.people_outline,
-                                        label: '${lodging.maxGuests} huespedes',
+                                        label: '${lodging.maxGuests} huéspedes',
                                       ),
                                       _FeatureChip(
                                         icon: Icons.bedroom_parent_outlined,
@@ -446,7 +446,7 @@ class LodgingPublicProfile extends ConsumerWidget {
                                       _FeatureChip(
                                         icon: Icons.bathtub_outlined,
                                         label:
-                                            '${_bathroomLabel(lodging.bathrooms)} banos',
+                                            '${_bathroomLabel(lodging.bathrooms)} baños',
                                       ),
                                     ],
                                   ),
@@ -471,7 +471,7 @@ class LodgingPublicProfile extends ConsumerWidget {
                                   const Divider(),
                                   _InfoRow(
                                     icon: Icons.nights_stay_outlined,
-                                    label: 'Estadia minima',
+                                    label: 'Estadía mínima',
                                     value:
                                         '${lodging.minNights} ${lodging.minNights == 1 ? 'noche' : 'noches'}',
                                   ),
@@ -496,7 +496,7 @@ class LodgingPublicProfile extends ConsumerWidget {
                       title: 'Acerca del alojamiento',
                       child: Text(
                         (business.description ?? '').trim().isEmpty
-                            ? 'El alojamiento aun no ha agregado una descripcion.'
+                            ? 'El alojamiento aún no ha agregado una descripción.'
                             : business.description!,
                         style: const TextStyle(
                           color: Color(
@@ -508,11 +508,11 @@ class LodgingPublicProfile extends ConsumerWidget {
                     ),
 
                     // --------------------------------------------------
-                    // GALERIA
+                    // GALERÍA
                     // --------------------------------------------------
                     if (gallery.isNotEmpty)
                       _ProfileSection(
-                        title: 'Fotografias',
+                        title: 'Fotografías',
                         child: GridView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),

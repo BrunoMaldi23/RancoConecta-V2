@@ -459,7 +459,7 @@ class _BusinessDetail extends ConsumerWidget {
                       title: 'Servicios',
                       child: business.services.isEmpty
                           ? const Text(
-                              'Este prestador aún no informa servicios especÃ­ficos.',
+                              'Este prestador aún no informa servicios específicos.',
                               style: TextStyle(
                                 color: Color(
                                   0xFF71827A,
@@ -588,12 +588,14 @@ class _BusinessDetail extends ConsumerWidget {
                     // =============================================
 
                     FilledButton.icon(
-                      onPressed: () {
-                        _requestService(
-                          context,
-                          ref,
-                        );
-                      },
+                      onPressed: business.acceptsRequests
+                          ? () {
+                              _requestService(
+                                context,
+                                ref,
+                              );
+                            }
+                          : null,
                       icon: const Icon(
                         Icons.assignment_outlined,
                       ),

@@ -6,6 +6,7 @@ import '../../../theme/ranco_colors.dart';
 import '../../../shared/models/business.dart';
 import '../../../shared/models/business_capability.dart';
 import '../application/provider_dashboard_providers.dart';
+import '../data/provider_business_repository.dart';
 import '../../../core/widgets/ranco_app_bar.dart';
 
 class ProviderDashboardScreen extends ConsumerWidget {
@@ -141,86 +142,40 @@ class ProviderDashboardScreen extends ConsumerWidget {
                 },
                 orElse: () => const SizedBox.shrink(),
               ),
-              Container(
-                padding: const EdgeInsets.all(
-                  18,
-                ),
-                decoration: BoxDecoration(
-                  color: RancoColors.forest,
-                  borderRadius: BorderRadius.circular(
-                    22,
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      _typeIcon(
-                        business.businessType,
-                      ),
-                      color: Colors.white,
-                      size: 34,
-                    ),
-                    const SizedBox(
-                      height: 14,
-                    ),
-                    Text(
-                      business.name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 21,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(
-                      height: 5,
-                    ),
-                    Text(
-                      '${business.businessType.label} · publicación ${business.publicationStatus}',
-                      style: const TextStyle(
-                        color: Color(
-                          0xFFD8EBE3,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(
-                      height: 14,
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        context.go(
-                          '/business/${business.id}',
-                        );
-                      },
-                      icon: const Icon(
-                        Icons.visibility_outlined,
-                      ),
-                      label: const Text(
-                        'Ver publicación',
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
+              _ProviderHero(
+                business: business,
+                onPreview: () {
+                  context.go(
+                    '/business/${business.id}',
+                  );
+                },
               ),
               const SizedBox(
                 height: 22,
               ),
-              const Text(
-                'GESTIÓN',
-                style: TextStyle(
-                  color: Color(
-                    0xFF718078,
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Gestión',
+                      style: TextStyle(
+                        color: RancoColors.forest,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                   ),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: .8,
-                ),
+                  Text(
+                    '${items.where((item) => item.route != null).length} activos',
+                    style: const TextStyle(
+                      color: Color(0xFF61736A),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(
-                height: 8,
+                height: 10,
               ),
               ...items.map(
                 (item) => _DashboardTile(
@@ -248,7 +203,7 @@ class ProviderDashboardScreen extends ConsumerWidget {
         ) =>
             const Center(
           child: Text(
-            'No pudimos cargar el alojamiento.',
+            'No pudimos cargar tu negocio.',
           ),
         ),
       ),
@@ -264,32 +219,32 @@ List<_ProviderDashboardItem> _dashboardItems(
       const _ProviderDashboardItem(
         icon: Icons.storefront_outlined,
         title: 'Perfil público',
-        subtitle: 'Nombre, descripción, contacto, horarios e imágenes',
+        subtitle: 'Fotos e identidad visual del negocio',
         route: '/provider/photos',
       ),
     if (capabilities.can(BusinessCapability.services))
       const _ProviderDashboardItem(
         icon: Icons.home_repair_service_outlined,
         title: 'Servicios',
-        subtitle: 'Servicios, precios orientativos y disponibilidad',
+        subtitle: 'Servicios y precios orientativos quedan en onboarding',
       ),
     if (capabilities.can(BusinessCapability.coverage))
       const _ProviderDashboardItem(
         icon: Icons.map_outlined,
         title: 'Cobertura',
-        subtitle: 'Localidades, radio y zonas atendidas',
+        subtitle: 'Localidades cubiertas quedan en onboarding',
       ),
     if (capabilities.can(BusinessCapability.menu))
       const _ProviderDashboardItem(
         icon: Icons.restaurant_menu_outlined,
         title: 'Menú',
-        subtitle: 'Carta, horarios y opciones futuras',
+        subtitle: 'Requiere módulo gastronómico dedicado',
       ),
     if (capabilities.can(BusinessCapability.catalog))
       const _ProviderDashboardItem(
         icon: Icons.inventory_2_outlined,
         title: 'Catálogo',
-        subtitle: 'Productos, categorías y ofertas futuras',
+        subtitle: 'Requiere módulo comercial dedicado',
       ),
     if (capabilities.can(BusinessCapability.rates))
       const _ProviderDashboardItem(
@@ -316,13 +271,13 @@ List<_ProviderDashboardItem> _dashboardItems(
       const _ProviderDashboardItem(
         icon: Icons.emergency_outlined,
         title: 'Disponibilidad de emergencia',
-        subtitle: 'Contacto, cobertura y estado operativo',
+        subtitle: 'Requiere módulo operacional dedicado',
       ),
     if (capabilities.can(BusinessCapability.promotions))
       const _ProviderDashboardItem(
         icon: Icons.campaign_outlined,
         title: 'Promociones',
-        subtitle: 'Ofertas y destacados comerciales',
+        subtitle: 'Requiere módulo de monetización visible',
       ),
   ];
 }
@@ -350,6 +305,81 @@ class _ProviderDashboardItem {
   final String title;
   final String subtitle;
   final String? route;
+}
+
+class _ProviderHero extends StatelessWidget {
+  const _ProviderHero({
+    required this.business,
+    required this.onPreview,
+  });
+
+  final ProviderBusinessSummary business;
+  final VoidCallback onPreview;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = BusinessPublicationStatus.parseOrDefault(
+      business.publicationStatus,
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: RancoColors.forest,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: .14),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(
+              _typeIcon(business.businessType),
+              color: Colors.white,
+              size: 30,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  business.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  '${business.businessType.label} · ${status.label}',
+                  style: const TextStyle(color: Color(0xFFD8EBE3)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          OutlinedButton.icon(
+            onPressed: onPreview,
+            icon: const Icon(Icons.visibility_outlined),
+            label: const Text('Ver'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white,
+              side: const BorderSide(color: Color(0xFFD8EBE3)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _DashboardTile extends StatelessWidget {
@@ -417,8 +447,9 @@ class _DashboardTile extends StatelessWidget {
         ),
         trailing: Icon(
           onTap == null
-              ? Icons.lock_clock_outlined
+              ? Icons.info_outline_rounded
               : Icons.chevron_right_rounded,
+          color: onTap == null ? const Color(0xFF9AA8A2) : RancoColors.forest,
         ),
       ),
     );

@@ -70,23 +70,10 @@ class ProviderBookingsScreen extends ConsumerWidget {
                   18,
                 ),
                 children: [
-                  const Text(
-                    'Reservas recibidas',
-                    style: TextStyle(
-                      fontSize: 23,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(
-                    height: 4,
-                  ),
-                  Text(
-                    '${pending.length} pendientes',
-                    style: const TextStyle(
-                      color: Color(
-                        0xFF687A71,
-                      ),
-                    ),
+                  _BookingSummary(
+                    pending: pending.length,
+                    accepted: accepted.length,
+                    history: history.length,
                   ),
                   const SizedBox(
                     height: 20,
@@ -228,6 +215,31 @@ class ProviderBookingsScreen extends ConsumerWidget {
     WidgetRef ref,
     LodgingBooking booking,
   ) async {
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Rechazar reserva'),
+            content: const Text(
+              'Confirma que quieres rechazar esta solicitud de reserva.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Rechazar'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!confirmed) {
+      return;
+    }
+
     try {
       await ref
           .read(
@@ -271,6 +283,89 @@ class ProviderBookingsScreen extends ConsumerWidget {
         ),
       );
     }
+  }
+}
+
+class _BookingSummary extends StatelessWidget {
+  const _BookingSummary({
+    required this.pending,
+    required this.accepted,
+    required this.history,
+  });
+
+  final int pending;
+  final int accepted;
+  final int history;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: RancoColors.forest,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Reservas recibidas',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 23,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Gestiona solicitudes reales de alojamiento y mantén tu disponibilidad al día.',
+            style: TextStyle(
+              color: Color(0xFFDDEFE7),
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _SummaryChip(label: 'Pendientes', value: pending),
+              _SummaryChip(label: 'Aceptadas', value: accepted),
+              _SummaryChip(label: 'Historial', value: history),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryChip extends StatelessWidget {
+  const _SummaryChip({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final int value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: .13),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Text(
+        '$value $label',
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+          fontSize: 12,
+        ),
+      ),
+    );
   }
 }
 

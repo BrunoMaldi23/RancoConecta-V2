@@ -53,84 +53,112 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(business.name,
-                          style: Theme.of(context).textTheme.headlineSmall),
+                      _RequestHeader(
+                        businessName: business.name,
+                        serviceCount: services.length,
+                      ),
                       const SizedBox(height: 20),
-                      DropdownButtonFormField<String>(
-                        initialValue: _selectedSubcategoryId,
-                        decoration:
-                            const InputDecoration(labelText: 'Servicio'),
-                        items: [
-                          for (final service in services)
-                            DropdownMenuItem(
-                              value: service.subcategory.id,
-                              child: Text(service.subcategory.name),
-                            ),
-                        ],
-                        onChanged: (value) =>
-                            setState(() => _selectedSubcategoryId = value),
-                        validator: (value) =>
-                            value == null ? 'Selecciona un servicio.' : null,
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _descriptionController,
-                        minLines: 4,
-                        maxLines: 6,
-                        decoration: const InputDecoration(
-                            labelText: 'Describe lo que necesitas'),
-                        validator: (value) =>
-                            (value == null || value.trim().length < 12)
-                                ? 'Cuéntanos un poco más.'
-                                : null,
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _addressController,
-                        decoration: const InputDecoration(
-                            labelText: 'Dirección o referencia'),
-                        validator: (value) =>
-                            (value == null || value.trim().isEmpty)
-                                ? 'Ingresa una dirección o referencia.'
-                                : null,
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<RequestUrgency>(
-                        initialValue: _urgency,
-                        decoration:
-                            const InputDecoration(labelText: 'Urgencia'),
-                        items: [
-                          for (final urgency in RequestUrgency.values)
-                            DropdownMenuItem(
-                                value: urgency, child: Text(urgency.label)),
-                        ],
-                        onChanged: (value) => setState(
-                            () => _urgency = value ?? RequestUrgency.normal),
-                      ),
-                      const SizedBox(height: 12),
-                      OutlinedButton.icon(
-                        onPressed: _pickDate,
-                        icon: const Icon(Icons.event_outlined),
-                        label: Text(
-                          _desiredDate == null
-                              ? 'Elegir fecha deseada'
-                              : '${_desiredDate!.day}/${_desiredDate!.month}/${_desiredDate!.year}',
+                      if (services.isEmpty) ...[
+                        const _UnavailablePanel(),
+                        const SizedBox(height: 16),
+                        OutlinedButton.icon(
+                          onPressed: () =>
+                              context.go('/business/${business.id}'),
+                          icon: const Icon(Icons.arrow_back_rounded),
+                          label: const Text('Volver al perfil'),
                         ),
-                      ),
-                      if (_error != null) ...[
+                      ] else ...[
+                        DropdownButtonFormField<String>(
+                          initialValue: _selectedSubcategoryId,
+                          decoration: const InputDecoration(
+                            labelText: 'Servicio',
+                            prefixIcon:
+                                Icon(Icons.home_repair_service_outlined),
+                          ),
+                          items: [
+                            for (final service in services)
+                              DropdownMenuItem(
+                                value: service.subcategory.id,
+                                child: Text(service.subcategory.name),
+                              ),
+                          ],
+                          onChanged: (value) =>
+                              setState(() => _selectedSubcategoryId = value),
+                          validator: (value) =>
+                              value == null ? 'Selecciona un servicio.' : null,
+                        ),
                         const SizedBox(height: 12),
-                        Text(_error!,
-                            style: TextStyle(
-                                color: Theme.of(context).colorScheme.error)),
+                        TextFormField(
+                          controller: _descriptionController,
+                          minLines: 4,
+                          maxLines: 6,
+                          decoration: const InputDecoration(
+                            labelText: 'Describe lo que necesitas',
+                            alignLabelWithHint: true,
+                          ),
+                          validator: (value) =>
+                              (value == null || value.trim().length < 12)
+                                  ? 'Cuéntanos un poco más.'
+                                  : null,
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _addressController,
+                          decoration: const InputDecoration(
+                            labelText: 'Dirección o referencia',
+                            prefixIcon: Icon(Icons.location_on_outlined),
+                          ),
+                          validator: (value) =>
+                              (value == null || value.trim().isEmpty)
+                                  ? 'Ingresa una dirección o referencia.'
+                                  : null,
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<RequestUrgency>(
+                          initialValue: _urgency,
+                          decoration: const InputDecoration(
+                            labelText: 'Urgencia',
+                            prefixIcon: Icon(Icons.priority_high_rounded),
+                          ),
+                          items: [
+                            for (final urgency in RequestUrgency.values)
+                              DropdownMenuItem(
+                                  value: urgency, child: Text(urgency.label)),
+                          ],
+                          onChanged: (value) => setState(
+                              () => _urgency = value ?? RequestUrgency.normal),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: _pickDate,
+                          icon: const Icon(Icons.event_outlined),
+                          label: Text(
+                            _desiredDate == null
+                                ? 'Elegir fecha deseada'
+                                : '${_desiredDate!.day}/${_desiredDate!.month}/${_desiredDate!.year}',
+                          ),
+                        ),
+                        if (_error != null) ...[
+                          const SizedBox(height: 12),
+                          Text(_error!,
+                              style: TextStyle(
+                                  color: Theme.of(context).colorScheme.error)),
+                        ],
+                        const SizedBox(height: 20),
+                        FilledButton.icon(
+                          onPressed:
+                              _saving ? null : () => _submit(business.id),
+                          icon: _saving
+                              ? const SizedBox.square(
+                                  dimension: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.send_outlined),
+                          label: const Text('Enviar solicitud'),
+                        ),
                       ],
-                      const SizedBox(height: 20),
-                      FilledButton.icon(
-                        onPressed: _saving || services.isEmpty
-                            ? null
-                            : () => _submit(business.id),
-                        icon: const Icon(Icons.send_outlined),
-                        label: const Text('Enviar solicitud'),
-                      ),
                     ],
                   ),
                 ),
@@ -199,5 +227,85 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
     if (mounted) {
       setState(() => _saving = false);
     }
+  }
+}
+
+class _RequestHeader extends StatelessWidget {
+  const _RequestHeader({
+    required this.businessName,
+    required this.serviceCount,
+  });
+
+  final String businessName;
+  final int serviceCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.assignment_outlined,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  businessName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  serviceCount == 1
+                      ? '1 servicio disponible para solicitar'
+                      : '$serviceCount servicios disponibles para solicitar',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UnavailablePanel extends StatelessWidget {
+  const _UnavailablePanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline_rounded),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Este prestador todavía no tiene servicios publicados para recibir solicitudes directas.',
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

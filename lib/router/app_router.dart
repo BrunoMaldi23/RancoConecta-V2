@@ -214,7 +214,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AdminPlaceholderScreen(
           title: 'Usuarios',
           message:
-              'Gestión de usuarios queda preparada para una fase posterior.',
+              'La base ya protege perfiles por RLS. Para listar y gestionar usuarios desde admin falta exponer un RPC dedicado; no se muestran datos simulados.',
         ),
       ),
       GoRoute(
@@ -222,7 +222,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AdminPlaceholderScreen(
           title: 'Auditoría',
           message:
-              'El historial se registra en backend; vista completa queda pendiente.',
+              'Los eventos se registran en backend. La vista se activará cuando exista una consulta admin segura para audit_logs.',
         ),
       ),
       GoRoute(

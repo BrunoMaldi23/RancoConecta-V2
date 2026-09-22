@@ -105,6 +105,14 @@ class _LodgingRatesScreenState extends ConsumerState<LodgingRatesScreen> {
                               fontWeight: FontWeight.w900,
                             ),
                           ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Estos valores alimentan la disponibilidad pública y el cálculo de reservas.',
+                            style: TextStyle(
+                              color: Color(0xFF61736A),
+                              height: 1.35,
+                            ),
+                          ),
                           const SizedBox(
                             height: 16,
                           ),
@@ -154,9 +162,14 @@ class _LodgingRatesScreenState extends ConsumerState<LodgingRatesScreen> {
                                 business.id,
                               );
                             },
-                      icon: const Icon(
-                        Icons.save_outlined,
-                      ),
+                      icon: _saving
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(Icons.save_outlined),
                       label: const Text(
                         'Guardar tarifas',
                       ),
@@ -225,7 +238,7 @@ class _LodgingRatesScreenState extends ConsumerState<LodgingRatesScreen> {
     );
 
     if (number == null || number < 1) {
-      return 'Valor invalido';
+      return 'Valor inválido';
     }
 
     return null;
@@ -239,7 +252,7 @@ class _LodgingRatesScreenState extends ConsumerState<LodgingRatesScreen> {
     );
 
     if (number == null || number < 0) {
-      return 'Valor invalido';
+      return 'Valor inválido';
     }
 
     return null;

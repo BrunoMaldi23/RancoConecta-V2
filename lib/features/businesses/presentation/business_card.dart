@@ -318,39 +318,44 @@ class BusinessCard extends ConsumerWidget {
                             return SizedBox(
                               width: 48,
                               height: 46,
-                              child: OutlinedButton(
-                                onPressed: () async {
-                                  await _toggleFavorite(
-                                    context,
-                                    ref,
-                                    isFavorite,
-                                  );
-                                },
-                                style: OutlinedButton.styleFrom(
-                                  padding: EdgeInsets.zero,
-                                  backgroundColor: isFavorite
-                                      ? const Color(
-                                          0xFFE4F1EB,
-                                        )
-                                      : Colors.white,
-                                  side: BorderSide(
-                                    color: isFavorite
-                                        ? RancoColors.forest
-                                        : const Color(
-                                            0xFFD5E2DC,
-                                          ),
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(
-                                      14,
+                              child: Tooltip(
+                                message: isFavorite
+                                    ? 'Quitar de guardados'
+                                    : 'Guardar prestador',
+                                child: OutlinedButton(
+                                  onPressed: () async {
+                                    await _toggleFavorite(
+                                      context,
+                                      ref,
+                                      isFavorite,
+                                    );
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    backgroundColor: isFavorite
+                                        ? const Color(
+                                            0xFFE4F1EB,
+                                          )
+                                        : Colors.white,
+                                    side: BorderSide(
+                                      color: isFavorite
+                                          ? RancoColors.forest
+                                          : const Color(
+                                              0xFFD5E2DC,
+                                            ),
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        14,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                child: Icon(
-                                  isFavorite
-                                      ? Icons.favorite_rounded
-                                      : Icons.favorite_border_rounded,
-                                  color: RancoColors.forest,
+                                  child: Icon(
+                                    isFavorite
+                                        ? Icons.favorite_rounded
+                                        : Icons.favorite_border_rounded,
+                                    color: RancoColors.forest,
+                                  ),
                                 ),
                               ),
                             );

@@ -594,8 +594,7 @@ class _JoinStep extends StatelessWidget {
 }
 
 ///
-/// Se conserva por compatibilidad.
-/// Ya no aparece como opción en el login.
+/// Registro de cuenta con Supabase Auth.
 ///
 class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({
@@ -633,6 +632,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFEAF4F0),
       appBar: const RancoAppBar(title: 'Crear cuenta'),
       body: Center(
         child: ConstrainedBox(
@@ -650,7 +650,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Esta pantalla queda disponible para compatibilidad del proyecto.',
+                    'Crea tu cuenta para guardar prestadores, solicitar servicios y administrar tu negocio si eres prestador.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
@@ -848,6 +848,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFEAF4F0),
       appBar: const RancoAppBar(
         title: 'Recuperar contraseña',
       ),

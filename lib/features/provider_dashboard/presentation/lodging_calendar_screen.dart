@@ -67,26 +67,9 @@ class _LodgingCalendarScreenState extends ConsumerState<LodgingCalendarScreen> {
                   18,
                 ),
                 children: [
-                  const Text(
-                    'Disponibilidad',
-                    style: TextStyle(
-                      fontSize: 23,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
+                  const _CalendarHeader(),
                   const SizedBox(
-                    height: 4,
-                  ),
-                  const Text(
-                    'Bloquea dias en los que no recibirás reservas o agrega una tarifa especial.',
-                    style: TextStyle(
-                      color: Color(
-                        0xFF697A72,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(
-                    height: 20,
+                    height: 16,
                   ),
                   Container(
                     padding: const EdgeInsets.all(
@@ -119,6 +102,7 @@ class _LodgingCalendarScreenState extends ConsumerState<LodgingCalendarScreen> {
                               icon: const Icon(
                                 Icons.chevron_left_rounded,
                               ),
+                              tooltip: 'Mes anterior',
                             ),
                             Expanded(
                               child: Text(
@@ -144,6 +128,7 @@ class _LodgingCalendarScreenState extends ConsumerState<LodgingCalendarScreen> {
                               icon: const Icon(
                                 Icons.chevron_right_rounded,
                               ),
+                              tooltip: 'Mes siguiente',
                             ),
                           ],
                         ),
@@ -456,6 +441,15 @@ class _LodgingCalendarScreenState extends ConsumerState<LodgingCalendarScreen> {
           ),
         ),
       );
+      if (mounted) {
+        ScaffoldMessenger.of(this.context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result.reset ? 'Día restablecido.' : 'Disponibilidad guardada.',
+            ),
+          ),
+        );
+      }
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(this.context).showSnackBar(
@@ -517,6 +511,54 @@ class _LodgingCalendarScreenState extends ConsumerState<LodgingCalendarScreen> {
     DateTime value,
   ) {
     return '${value.day} de ${_monthLabel(value).split(' ').first} de ${value.year}';
+  }
+}
+
+class _CalendarHeader extends StatelessWidget {
+  const _CalendarHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: RancoColors.forest,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: const Row(
+        children: [
+          Icon(
+            Icons.calendar_month_outlined,
+            color: Colors.white,
+            size: 30,
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Disponibilidad',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 23,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Bloquea días sin atención o agrega una tarifa especial.',
+                  style: TextStyle(
+                    color: Color(0xFFDDEFE7),
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

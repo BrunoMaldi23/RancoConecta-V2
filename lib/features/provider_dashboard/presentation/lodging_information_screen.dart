@@ -105,6 +105,8 @@ class _LodgingInformationScreenState
                   children: [
                     _Card(
                       title: 'Capacidad',
+                      subtitle:
+                          'Define cuántas personas puede recibir el alojamiento.',
                       children: [
                         _NumberField(
                           controller: _maxGuests,
@@ -118,6 +120,7 @@ class _LodgingInformationScreenState
                     ),
                     _Card(
                       title: 'Distribución',
+                      subtitle: 'Datos visibles para que el huésped compare.',
                       children: [
                         _NumberField(
                           controller: _bedrooms,
@@ -135,6 +138,8 @@ class _LodgingInformationScreenState
                     ),
                     _Card(
                       title: 'Ingreso y salida',
+                      subtitle:
+                          'Usa formato de 24 horas para evitar confusiones.',
                       children: [
                         _TextField(
                           controller: _checkIn,
@@ -152,6 +157,8 @@ class _LodgingInformationScreenState
                     ),
                     _Card(
                       title: 'Políticas',
+                      subtitle:
+                          'Condiciones claras reducen dudas antes de reservar.',
                       children: [
                         _TextArea(
                           controller: _cancellation,
@@ -171,9 +178,14 @@ class _LodgingInformationScreenState
                                 business.id,
                               );
                             },
-                      icon: const Icon(
-                        Icons.save_outlined,
-                      ),
+                      icon: _saving
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(Icons.save_outlined),
                       label: const Text(
                         'Guardar cambios',
                       ),
@@ -310,7 +322,7 @@ class _LodgingInformationScreenState
       ).showSnackBar(
         const SnackBar(
           content: Text(
-            'Informacion guardada.',
+            'Información guardada.',
           ),
         ),
       );
@@ -341,10 +353,12 @@ class _LodgingInformationScreenState
 class _Card extends StatelessWidget {
   const _Card({
     required this.title,
+    required this.subtitle,
     required this.children,
   });
 
   final String title;
+  final String subtitle;
   final List<Widget> children;
 
   @override
@@ -377,6 +391,14 @@ class _Card extends StatelessWidget {
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              color: Color(0xFF61736A),
+              height: 1.35,
             ),
           ),
           const SizedBox(
@@ -420,7 +442,7 @@ class _NumberField extends StatelessWidget {
         );
 
         if (number == null || number < 1) {
-          return 'Valor invalido';
+          return 'Valor inválido';
         }
 
         return null;
