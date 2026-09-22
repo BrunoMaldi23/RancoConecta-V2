@@ -73,7 +73,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Explorar',
+                      'Explorar prestadores',
                       style:
                           Theme.of(context).textTheme.headlineMedium?.copyWith(
                                 color: RancoColors.forest,
@@ -82,7 +82,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'Encuentra servicios, comercios y prestadores de tu zona.',
+                      'Busca por rubro, localidad y disponibilidad.',
                       style: TextStyle(
                         color: Color(0xFF71827A),
                         height: 1.4,

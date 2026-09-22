@@ -6,8 +6,8 @@ import '../../../core/widgets/ranco_error_state.dart';
 import '../../../core/widgets/ranco_skeleton.dart';
 import '../../../features/auth/data/supabase_auth_repository.dart';
 import '../../../features/businesses/application/business_providers.dart';
-import '../../../features/businesses/presentation/business_card.dart';
 import '../../../features/categories/application/category_providers.dart';
+import '../../../features/locations/application/location_providers.dart';
 import '../../../features/locations/presentation/location_selector.dart';
 import '../../../shared/models/category.dart';
 import '../../../theme/ranco_colors.dart';
@@ -226,100 +226,15 @@ class HomeScreen extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(
                   20,
                   28,
-                  12,
-                  10,
+                  20,
+                  0,
                 ),
-                child: _SectionTitle(
-                  title: 'Prestadores destacados',
-                  subtitle: 'Servicios publicados en Ranco Conecta.',
-                  actionLabel: 'Ver todos',
-                  onAction: () {
+                child: _HomeActionPanel(
+                  businesses: businesses,
+                  onExplore: () {
                     context.go('/explore');
                   },
-                ),
-              ),
-            ),
-            businesses.when(
-              data: (items) {
-                if (items.isEmpty) {
-                  return SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                      ),
-                      child: _EmptySectionCard(
-                        icon: Icons.storefront_outlined,
-                        title: 'Aún no hay prestadores publicados',
-                        message:
-                            'Los prestadores aparecerán aquí cuando existan publicaciones activas.',
-                        buttonLabel: 'Explorar',
-                        onPressed: () {
-                          context.go('/explore');
-                        },
-                      ),
-                    ),
-                  );
-                }
-
-                final visible = items.take(4).toList();
-
-                return SliverPadding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                  ),
-                  sliver: SliverList.separated(
-                    itemCount: visible.length,
-                    separatorBuilder: (_, __) {
-                      return const SizedBox(height: 12);
-                    },
-                    itemBuilder: (context, index) {
-                      return BusinessCard(
-                        business: visible[index],
-                      );
-                    },
-                  ),
-                );
-              },
-              loading: () {
-                return const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 20,
-                    ),
-                    child: RancoSkeleton(
-                      height: 220,
-                    ),
-                  ),
-                );
-              },
-              error: (error, stackTrace) {
-                return SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                    ),
-                    child: RancoErrorState(
-                      message: businessFailureMessage(error),
-                      onRetry: () {
-                        ref.invalidate(
-                          publishedBusinessesProvider,
-                        );
-                      },
-                    ),
-                  ),
-                );
-              },
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  20,
-                  30,
-                  20,
-                  14,
-                ),
-                child: _ProviderCallout(
-                  onTap: () {
+                  onPublish: () {
                     context.go('/provider/join');
                   },
                 ),
@@ -543,43 +458,54 @@ class _RancoDrawer extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F7F4),
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(
-                          Icons.location_on_outlined,
-                          color: RancoColors.forest,
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final selectedLocation = ref.watch(
+                        selectedLocationProvider,
+                      );
+
+                      return Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F7F4),
+                          borderRadius: BorderRadius.circular(18),
                         ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Ubicación seleccionada',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Color(0xFF72837B),
-                                ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.location_on_outlined,
+                              color: RancoColors.forest,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Ubicación',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFF72837B),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    selectedLocation?.name ??
+                                        'Todas las localidades',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      color: RancoColors.forest,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              SizedBox(height: 2),
-                              Text(
-                                'Todas las localidades',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  color: RancoColors.forest,
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 14),
                   InkWell(
@@ -678,36 +604,6 @@ class _RancoDrawer extends StatelessWidget {
                         },
                       ),
                       _DrawerItem(
-                        icon: Icons.grid_view_rounded,
-                        label: 'Categorías',
-                        onTap: () {
-                          _goDrawer(
-                            context,
-                            '/explore',
-                          );
-                        },
-                      ),
-                      _DrawerItem(
-                        icon: Icons.star_outline_rounded,
-                        label: 'Destacados',
-                        onTap: () {
-                          _goDrawer(
-                            context,
-                            '/explore',
-                          );
-                        },
-                      ),
-                      _DrawerItem(
-                        icon: Icons.location_on_outlined,
-                        label: 'Localidades',
-                        onTap: () {
-                          _goDrawer(
-                            context,
-                            '/explore',
-                          );
-                        },
-                      ),
-                      _DrawerItem(
                         icon: Icons.favorite_border_rounded,
                         label: 'Guardados',
                         onTap: () {
@@ -724,6 +620,16 @@ class _RancoDrawer extends StatelessWidget {
                           _goDrawer(
                             context,
                             '/requests',
+                          );
+                        },
+                      ),
+                      _DrawerItem(
+                        icon: Icons.storefront_outlined,
+                        label: isSignedIn ? 'Mi negocio' : 'Publicar negocio',
+                        onTap: () {
+                          _goDrawer(
+                            context,
+                            isSignedIn ? '/provider/status' : '/provider/join',
                           );
                         },
                       ),
@@ -784,21 +690,7 @@ class _RancoDrawer extends StatelessWidget {
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                10,
-                20,
-                18,
-              ),
-              child: Text(
-                'Conectando personas y servicios locales',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: const Color(0xFF83928C),
-                    ),
-              ),
-            ),
+            const SizedBox(height: 18),
           ],
         ),
       ),
@@ -1100,12 +992,12 @@ class _CategoryCard extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE4F1EB),
+                  color: _categoryTone(category).withValues(alpha: .14),
                   borderRadius: BorderRadius.circular(13),
                 ),
-                child: const Icon(
-                  Icons.handyman_outlined,
-                  color: RancoColors.forest,
+                child: Icon(
+                  _categoryIcon(category),
+                  color: _categoryTone(category),
                 ),
               ),
               const SizedBox(height: 14),
@@ -1157,79 +1049,154 @@ class _CategoryCard extends StatelessWidget {
   }
 }
 
-class _ProviderCallout extends StatelessWidget {
-  const _ProviderCallout({
-    required this.onTap,
+IconData _categoryIcon(Category category) {
+  final key =
+      '${category.iconKey} ${category.slug} ${category.name}'.toLowerCase();
+
+  if (key.contains('emerg')) return Icons.emergency_outlined;
+  if (key.contains('mecan') || key.contains('auto')) {
+    return Icons.build_outlined;
+  }
+  if (key.contains('flete') || key.contains('trans')) {
+    return Icons.local_shipping_outlined;
+  }
+  if (key.contains('jardin')) return Icons.yard_outlined;
+  if (key.contains('aseo') || key.contains('limp')) {
+    return Icons.cleaning_services_outlined;
+  }
+  if (key.contains('comput') || key.contains('tech')) {
+    return Icons.computer_outlined;
+  }
+  if (key.contains('comerc')) return Icons.storefront_outlined;
+  if (key.contains('gastr') || key.contains('comida')) {
+    return Icons.restaurant_outlined;
+  }
+  if (key.contains('aloj') || key.contains('caban')) {
+    return Icons.bed_outlined;
+  }
+  if (key.contains('turis')) return Icons.terrain_outlined;
+
+  return Icons.home_repair_service_outlined;
+}
+
+Color _categoryTone(Category category) {
+  final key = '${category.themeKey} ${category.slug}'.toLowerCase();
+
+  if (key.contains('clay') || key.contains('food')) {
+    return RancoColors.clay;
+  }
+  if (key.contains('lake') || key.contains('tour')) {
+    return RancoColors.lake;
+  }
+  if (key.contains('moss') || key.contains('garden')) {
+    return RancoColors.moss;
+  }
+  if (key.contains('danger') || key.contains('emerg')) {
+    return const Color(0xFFB4543F);
+  }
+
+  return RancoColors.forest;
+}
+
+class _HomeActionPanel extends StatelessWidget {
+  const _HomeActionPanel({
+    required this.businesses,
+    required this.onExplore,
+    required this.onPublish,
   });
 
-  final VoidCallback onTap;
+  final AsyncValue businesses;
+  final VoidCallback onExplore;
+  final VoidCallback onPublish;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFFDDEFE7),
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: const Padding(
-          padding: EdgeInsets.all(18),
-          child: Row(
+    final count = businesses.maybeWhen(
+      data: (items) => (items as List).length,
+      orElse: () => 0,
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: RancoColors.forest,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             children: [
-              _ProviderIcon(),
-              SizedBox(width: 14),
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .14),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: const Icon(
+                  Icons.map_outlined,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 13),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '¿Ofreces un servicio?',
+                    const Text(
+                      'Directorio local',
                       style: TextStyle(
-                        color: RancoColors.forest,
+                        color: Colors.white,
+                        fontSize: 18,
                         fontWeight: FontWeight.w900,
-                        fontSize: 15,
                       ),
                     ),
-                    SizedBox(height: 3),
+                    const SizedBox(height: 3),
                     Text(
-                      'Publica tu servicio y conecta con personas de tu zona.',
-                      style: TextStyle(
-                        color: Color(0xFF677970),
-                        fontSize: 12,
-                        height: 1.3,
+                      count == 1
+                          ? '1 prestador publicado'
+                          : '$count prestadores publicados',
+                      style: const TextStyle(
+                        color: Color(0xFFDDEFE7),
+                        height: 1.35,
                       ),
                     ),
                   ],
                 ),
               ),
-              SizedBox(width: 10),
-              Icon(
-                Icons.arrow_forward_rounded,
-                color: RancoColors.forest,
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: onExplore,
+                  icon: const Icon(Icons.search_rounded),
+                  label: const Text('Ver prestadores'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: RancoColors.forest,
+                    minimumSize: const Size.fromHeight(48),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              SizedBox(
+                height: 48,
+                child: OutlinedButton(
+                  onPressed: onPublish,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Color(0xFFDDEFE7)),
+                  ),
+                  child: const Icon(Icons.add_business_outlined),
+                ),
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ProviderIcon extends StatelessWidget {
-  const _ProviderIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 50,
-      height: 50,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: const Icon(
-        Icons.storefront_outlined,
-        color: RancoColors.forest,
+        ],
       ),
     );
   }
@@ -1240,15 +1207,11 @@ class _EmptySectionCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.message,
-    this.buttonLabel,
-    this.onPressed,
   });
 
   final IconData icon;
   final String title;
   final String message;
-  final String? buttonLabel;
-  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -1295,18 +1258,6 @@ class _EmptySectionCard extends StatelessWidget {
               height: 1.35,
             ),
           ),
-          if (buttonLabel != null && onPressed != null) ...[
-            const SizedBox(height: 14),
-            FilledButton(
-              onPressed: onPressed,
-              style: FilledButton.styleFrom(
-                backgroundColor: RancoColors.forest,
-              ),
-              child: Text(
-                buttonLabel!,
-              ),
-            ),
-          ],
         ],
       ),
     );

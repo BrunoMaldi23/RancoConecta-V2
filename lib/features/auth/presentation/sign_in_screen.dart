@@ -260,7 +260,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   ),
                   const SizedBox(height: 18),
                   Text(
-                    'Conectando personas y servicios locales',
+                    'Ranco Conecta · Lago Ranco',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: const Color(0xFF6F8179),

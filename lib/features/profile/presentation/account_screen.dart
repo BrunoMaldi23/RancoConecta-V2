@@ -94,7 +94,7 @@ class AccountScreen extends ConsumerWidget {
                         height: 26,
                       ),
                       const _SectionTitle(
-                        title: 'MI NEGOCIO',
+                        title: 'Mi negocio',
                       ),
                       const SizedBox(
                         height: 9,
@@ -167,7 +167,7 @@ class AccountScreen extends ConsumerWidget {
                       height: 26,
                     ),
                     const _SectionTitle(
-                      title: 'CUENTA Y SOPORTE',
+                      title: 'Cuenta y soporte',
                     ),
                     const SizedBox(
                       height: 9,
@@ -534,14 +534,14 @@ class _BusinessCard extends StatelessWidget {
             height: 18,
           ),
           const Text(
-            'GESTIÓN RÁPIDA',
+            'Gestión rápida',
             style: TextStyle(
               color: Color(
                 0xFF6D8178,
               ),
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w900,
-              letterSpacing: 0.6,
+              letterSpacing: 0,
             ),
           ),
           const SizedBox(
@@ -981,7 +981,7 @@ class _SectionTitle extends StatelessWidget {
         ),
         fontSize: 12,
         fontWeight: FontWeight.w900,
-        letterSpacing: 0.7,
+        letterSpacing: 0,
       ),
     );
   }
