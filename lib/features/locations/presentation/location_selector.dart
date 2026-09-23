@@ -25,13 +25,13 @@ class LocationSelector extends ConsumerWidget {
         final selectedLabel = selected?.name ?? 'Todas las localidades';
 
         return Material(
-          color: compact ? const Color(0xFFF4F8F6) : Colors.white,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(
-            compact ? 16 : 18,
+            compact ? 15 : 18,
           ),
           child: InkWell(
             borderRadius: BorderRadius.circular(
-              compact ? 16 : 18,
+              compact ? 15 : 18,
             ),
             onTap: () {
               _showLocationSheet(
@@ -43,15 +43,15 @@ class LocationSelector extends ConsumerWidget {
             },
             child: Container(
               constraints: BoxConstraints(
-                minHeight: compact ? 46 : 58,
+                minHeight: compact ? 52 : 58,
               ),
               padding: EdgeInsets.symmetric(
-                horizontal: compact ? 12 : 16,
-                vertical: compact ? 7 : 12,
+                horizontal: compact ? 14 : 16,
+                vertical: compact ? 8 : 12,
               ),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(
-                  compact ? 16 : 18,
+                  compact ? 15 : 18,
                 ),
                 border: Border.all(
                   color: const Color(0xFFD6E3DD),
@@ -60,8 +60,8 @@ class LocationSelector extends ConsumerWidget {
               child: Row(
                 children: [
                   Container(
-                    width: compact ? 30 : 40,
-                    height: compact ? 30 : 40,
+                    width: compact ? 24 : 40,
+                    height: compact ? 24 : 40,
                     decoration: BoxDecoration(
                       color: compact
                           ? Colors.transparent
@@ -71,12 +71,10 @@ class LocationSelector extends ConsumerWidget {
                     child: const Icon(
                       Icons.location_on_outlined,
                       color: RancoColors.forest,
-                      size: 19,
+                      size: 20,
                     ),
                   ),
-                  SizedBox(
-                    width: compact ? 6 : 10,
-                  ),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -101,19 +99,23 @@ class LocationSelector extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: compact
-                                ? const Color(0xFF31423A)
+                                ? RancoColors.textPrimary
                                 : RancoColors.forest,
-                            fontWeight: FontWeight.w700,
-                            fontSize: compact ? 14 : 15,
+                            fontWeight:
+                                compact ? FontWeight.w600 : FontWeight.w700,
+                            fontSize: 15,
                           ),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(width: 8),
-                  const Icon(
+                  Icon(
                     Icons.keyboard_arrow_down_rounded,
-                    color: Color(0xFF65766E),
+                    size: compact ? 20 : 24,
+                    color: compact
+                        ? const Color(0xFF8A9992)
+                        : const Color(0xFF65766E),
                   ),
                 ],
               ),
@@ -122,13 +124,18 @@ class LocationSelector extends ConsumerWidget {
         );
       },
       loading: () => Container(
-        height: compact ? 46 : 58,
+        height: compact ? 52 : 58,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: compact ? const Color(0xFFF4F8F6) : Colors.white,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(
-            compact ? 16 : 18,
+            compact ? 15 : 18,
           ),
+          border: compact
+              ? Border.all(
+                  color: const Color(0xFFD6E3DD),
+                )
+              : null,
         ),
         child: const Padding(
           padding: EdgeInsets.symmetric(
