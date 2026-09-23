@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/errors/failure_mapper.dart';
+import '../../../core/logging/app_logger.dart';
 import '../../../core/result/result.dart';
 import '../../../features/auth/data/supabase_auth_repository.dart';
 import '../../../shared/models/category.dart';
@@ -37,6 +38,11 @@ class SupabaseCategoryRepository implements CategoryRepository {
       return Success(
           rows.map((row) => CategoryDto.fromJson(row).toDomain()).toList());
     } catch (error) {
+      AppLogger.dataQueryFailure(
+        feature: 'categories',
+        endpoint: 'categories:listActiveCategories',
+        error: error,
+      );
       return Failure(mapSupabaseFailure(error,
           fallbackMessage: 'No pudimos cargar las categorías.'));
     }
@@ -58,6 +64,11 @@ class SupabaseCategoryRepository implements CategoryRepository {
       return Success(
           rows.map((row) => SubcategoryDto.fromJson(row).toDomain()).toList());
     } catch (error) {
+      AppLogger.dataQueryFailure(
+        feature: 'categories',
+        endpoint: 'subcategories:listActiveSubcategories',
+        error: error,
+      );
       return Failure(mapSupabaseFailure(error,
           fallbackMessage: 'No pudimos cargar los servicios.'));
     }

@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/errors/app_failure.dart';
 import '../../../core/errors/failure_mapper.dart';
+import '../../../core/logging/app_logger.dart';
 import '../../../core/result/result.dart';
 import '../../../features/auth/data/supabase_auth_repository.dart';
 import '../../../shared/models/business.dart';
@@ -185,6 +186,11 @@ business_media(
 
       return Success(businesses);
     } catch (error) {
+      AppLogger.dataQueryFailure(
+        feature: 'businesses',
+        endpoint: 'businesses:listPublishedBusinesses',
+        error: error,
+      );
       return Failure(
         mapSupabaseFailure(
           error,
@@ -217,6 +223,11 @@ business_media(
         BusinessDto.fromJson(row).toDomain(),
       );
     } catch (error) {
+      AppLogger.dataQueryFailure(
+        feature: 'businesses',
+        endpoint: 'businesses:getBusinessById',
+        error: error,
+      );
       return Failure(
         mapSupabaseFailure(
           error,

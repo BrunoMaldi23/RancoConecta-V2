@@ -1,16 +1,27 @@
 import 'package:flutter/material.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/ranco_error_state.dart';
+
 import '../../../core/widgets/ranco_skeleton.dart';
+
 import '../../../features/auth/data/supabase_auth_repository.dart';
+
 import '../../../features/businesses/application/business_providers.dart';
+
 import '../../../features/categories/application/category_providers.dart';
+
 import '../../../features/locations/application/location_providers.dart';
+
 import '../../../features/locations/presentation/location_selector.dart';
+
 import '../../../shared/models/category.dart';
+
 import '../../../theme/ranco_colors.dart';
+
 import '../../../theme/ranco_decoration.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -19,10 +30,13 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final categories = ref.watch(categoriesProvider);
+
     final businesses = ref.watch(publishedBusinessesProvider);
 
     final authRepository = ref.watch(authRepositoryProvider);
+
     final user = authRepository.currentUser();
+
     final isSignedIn = user != null;
 
     return Scaffold(
@@ -63,13 +77,13 @@ class HomeScreen extends ConsumerWidget {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 12, 8),
+                padding: const EdgeInsets.fromLTRB(20, 20, 12, 10),
                 child: _SectionTitle(
                   title: 'Explora por categoría',
-                  subtitle: 'Servicios, comercios y experiencias locales.',
-                  actionLabel: 'Ver todos',
+                  subtitle: 'Encuentra lo que necesitas cerca de ti.',
+                  actionLabel: 'Ver todas',
                   onAction: () {
-                    context.go('/explore');
+                    context.go('/categories');
                   },
                 ),
               ),
@@ -129,22 +143,8 @@ class HomeScreen extends ConsumerWidget {
                 );
               },
             ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                child: _HomeActionPanel(
-                  businesses: businesses,
-                  onExplore: () {
-                    context.go('/explore');
-                  },
-                  onPublish: () {
-                    context.go('/provider/join');
-                  },
-                ),
-              ),
-            ),
             const SliverToBoxAdapter(
-              child: SizedBox(height: 22),
+              child: SizedBox(height: 24),
             ),
           ],
         ),
@@ -161,7 +161,9 @@ class _HomeHeader extends StatelessWidget {
   });
 
   final VoidCallback onMenu;
+
   final VoidCallback onAccount;
+
   final bool isSignedIn;
 
   @override
@@ -256,7 +258,9 @@ class _HeaderButton extends StatelessWidget {
   });
 
   final IconData icon;
+
   final VoidCallback onTap;
+
   final bool accent;
 
   @override
@@ -291,7 +295,7 @@ class _HeaderButton extends StatelessWidget {
   }
 }
 
-class _HomeSearchPanel extends StatelessWidget {
+class _HomeSearchPanel extends ConsumerStatefulWidget {
   const _HomeSearchPanel({
     required this.businesses,
     required this.onSearch,
@@ -301,63 +305,95 @@ class _HomeSearchPanel extends StatelessWidget {
   final VoidCallback onSearch;
 
   @override
+  ConsumerState<_HomeSearchPanel> createState() => _HomeSearchPanelState();
+}
+
+class _HomeSearchPanelState extends ConsumerState<_HomeSearchPanel> {
+  late final TextEditingController _searchController;
+  final FocusNode _searchFocusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+
+    _searchController = TextEditingController(
+      text: ref.read(businessSearchQueryProvider),
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  void _submitSearch() {
+    final query = _searchController.text.trim();
+
+    ref.read(businessSearchQueryProvider.notifier).state = query;
+    ref.read(selectedCategoryIdProvider.notifier).state = null;
+    ref.read(verifiedOnlyProvider.notifier).state = false;
+    ref.read(featuredOnlyProvider.notifier).state = false;
+    ref.read(openNowOnlyProvider.notifier).state = false;
+
+    _searchFocusNode.unfocus();
+    widget.onSearch();
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    ref.read(businessSearchQueryProvider.notifier).state = '';
+
+    setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     final isWide = width >= 600;
+    final selectedLocation = ref.watch(selectedLocationProvider);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
       child: Align(
         alignment: Alignment.center,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
-          child: Container(
-            padding: EdgeInsets.fromLTRB(
-              isWide ? 24 : 20,
-              isWide ? 20 : 18,
-              isWide ? 24 : 20,
-              isWide ? 20 : 18,
-            ),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFBFEFC),
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: RancoDecoration.softBorder),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: isWide ? 8 : 0,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: RancoColors.primarySoft,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: RancoDecoration.softBorder),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.location_city_outlined,
-                        size: 14,
-                        color: RancoColors.primary,
-                      ),
-                      SizedBox(width: 6),
-                      Text(
-                        'Lago Ranco',
-                        style: TextStyle(
-                          color: RancoColors.pine,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.location_on_outlined,
+                      size: 16,
+                      color: RancoColors.primary,
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        selectedLocation?.name ?? 'Lago Ranco',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: RancoColors.textSecondary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Text(
                   '¿Qué necesitas hoy?',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         color: RancoColors.pine,
                         fontWeight: FontWeight.w800,
                         height: 1.08,
@@ -367,47 +403,61 @@ class _HomeSearchPanel extends StatelessWidget {
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 520),
                   child: Text(
-                    'Encuentra servicios, comercios, gastronomía, alojamientos y experiencias cerca de ti.',
+                    'Encuentra servicios, comercios, gastronomía, '
+                    'alojamientos y experiencias cerca de ti.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: RancoColors.textSecondary,
-                          height: 1.42,
+                          height: 1.4,
                         ),
-                    ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                Material(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(15),
-                  child: InkWell(
-                    onTap: onSearch,
-                    borderRadius: BorderRadius.circular(15),
-                    child: Container(
-                      constraints: const BoxConstraints(minHeight: 52),
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(15),
-                        border: Border.all(color: RancoDecoration.softBorder),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(
-                            Icons.search_rounded,
-                            size: 21,
-                            color: RancoColors.primary,
-                          ),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Buscar en Ranco Conecta',
-                              style: TextStyle(
-                                color: RancoColors.textPrimary,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                              ),
+                const SizedBox(height: 18),
+                TextField(
+                  controller: _searchController,
+                  focusNode: _searchFocusNode,
+                  textInputAction: TextInputAction.search,
+                  autocorrect: false,
+                  enableSuggestions: true,
+                  onChanged: (_) {
+                    setState(() {});
+                  },
+                  onSubmitted: (_) {
+                    _submitSearch();
+                  },
+                  decoration: InputDecoration(
+                    hintText: 'Buscar en Ranco Conecta',
+                    prefixIcon: const Icon(
+                      Icons.search_rounded,
+                      size: 21,
+                      color: RancoColors.primary,
+                    ),
+                    suffixIcon: _searchController.text.trim().isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: 'Limpiar búsqueda',
+                            onPressed: _clearSearch,
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              size: 19,
                             ),
                           ),
-                        ],
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 15,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: const BorderSide(
+                        color: RancoDecoration.softBorder,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: const BorderSide(
+                        color: RancoColors.primary,
+                        width: 1.4,
                       ),
                     ),
                   ),
@@ -415,61 +465,66 @@ class _HomeSearchPanel extends StatelessWidget {
                 const SizedBox(height: 12),
                 const LocationSelector(compact: true),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: onSearch,
-                        icon: const Icon(
-                          Icons.travel_explore_rounded,
-                          size: 18,
-                        ),
-                        label: const Text('Buscar'),
-                        style: FilledButton.styleFrom(
-                          minimumSize: const Size.fromHeight(50),
-                          backgroundColor: RancoColors.pine,
-                          foregroundColor: Colors.white,
-                          textStyle: Theme.of(context)
-                              .textTheme
-                              .labelLarge
-                              ?.copyWith(
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _submitSearch,
+                    icon: const Icon(
+                      Icons.search_rounded,
+                      size: 18,
+                    ),
+                    label: const Text('Buscar'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                      backgroundColor: RancoColors.pine,
+                      foregroundColor: Colors.white,
+                      textStyle:
+                          Theme.of(context).textTheme.labelLarge?.copyWith(
                                 fontWeight: FontWeight.w700,
                               ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                        ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Tooltip(
-                      message: 'Quiero ofrecer servicios',
-                      child: Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: RancoColors.primarySoft,
-                          borderRadius: BorderRadius.circular(15),
-                          border: Border.all(
-                            color: RancoDecoration.softBorder,
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.handshake_outlined,
-                          size: 22,
-                          color: RancoColors.primary,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-                const SizedBox(height: 12),
-                _LocalSummary(businesses: businesses),
+                const SizedBox(height: 10),
+                _LocalSummary(
+                  businesses: widget.businesses,
+                ),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _LocalSummary extends StatelessWidget {
+  const _LocalSummary({
+    required this.businesses,
+  });
+
+  final AsyncValue businesses;
+
+  @override
+  Widget build(BuildContext context) {
+    final count = businesses.maybeWhen(
+      data: (items) {
+        return (items as List).length;
+      },
+      orElse: () => 0,
+    );
+
+    return Text(
+      'Lago Ranco y sectores cercanos · $count prestadores',
+      overflow: TextOverflow.ellipsis,
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: RancoColors.textSecondary,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
     );
   }
 }
@@ -481,6 +536,7 @@ class _RancoDrawer extends StatelessWidget {
   });
 
   final bool isSignedIn;
+
   final String? userEmail;
 
   @override
@@ -799,6 +855,7 @@ class _RancoDrawer extends StatelessWidget {
     String route,
   ) {
     Navigator.of(context).pop();
+
     context.go(route);
   }
 }
@@ -831,8 +888,11 @@ class _DrawerItem extends StatelessWidget {
   });
 
   final IconData icon;
+
   final String label;
+
   final VoidCallback onTap;
+
   final bool selected;
 
   @override
@@ -887,70 +947,6 @@ class _DrawerItem extends StatelessWidget {
   }
 }
 
-class _LocalSummary extends StatelessWidget {
-  const _LocalSummary({
-    required this.businesses,
-  });
-
-  final AsyncValue businesses;
-
-  @override
-  Widget build(BuildContext context) {
-    final count = businesses.maybeWhen(
-      data: (items) {
-        return (items as List).length;
-      },
-      orElse: () => 0,
-    );
-
-    return Row(
-      children: [
-        Expanded(
-          child: Row(
-            children: [
-              const Icon(
-                Icons.near_me_outlined,
-                size: 14,
-                color: RancoColors.textSecondary,
-              ),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  'Lago Ranco y sectores cercanos',
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: RancoColors.textSecondary,
-                        fontSize: 12,
-                      ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        Row(
-          children: [
-            const Icon(
-              Icons.groups_outlined,
-              size: 14,
-              color: RancoColors.textSecondary,
-            ),
-            const SizedBox(width: 5),
-            Text(
-              '$count prestadores',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: RancoColors.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle({
     required this.title,
@@ -960,8 +956,11 @@ class _SectionTitle extends StatelessWidget {
   });
 
   final String title;
+
   final String subtitle;
+
   final String actionLabel;
+
   final VoidCallback onAction;
 
   @override
@@ -976,8 +975,8 @@ class _SectionTitle extends StatelessWidget {
               Text(
                 title,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: RancoColors.forest,
-                      fontWeight: FontWeight.w900,
+                      color: RancoColors.pine,
+                      fontWeight: FontWeight.w800,
                     ),
               ),
               const SizedBox(height: 4),
@@ -992,6 +991,12 @@ class _SectionTitle extends StatelessWidget {
         ),
         TextButton(
           onPressed: onAction,
+          style: TextButton.styleFrom(
+            foregroundColor: RancoColors.primary,
+            textStyle: const TextStyle(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           child: Text(actionLabel),
         ),
       ],
@@ -1011,7 +1016,9 @@ class _CategoryGrid extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) {
-    final visible = categories.take(6).toList();
+    // Mostramos hasta 8 categorías para dar más variedad en Home
+    // sin convertir Inicio en una segunda pantalla Explorar.
+    final visible = categories.take(8).toList();
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -1019,11 +1026,12 @@ class _CategoryGrid extends ConsumerWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final columns = constraints.maxWidth >= 700 ? 3 : 2;
-
+          final isVeryNarrow = constraints.maxWidth < 340;
+          final isDesktop = constraints.maxWidth >= 760;
+          final columns = isDesktop ? 4 : 2;
           const spacing = 10.0;
 
-          final width =
+          final itemWidth =
               (constraints.maxWidth - spacing * (columns - 1)) / columns;
 
           return Wrap(
@@ -1032,15 +1040,20 @@ class _CategoryGrid extends ConsumerWidget {
             children: [
               for (final category in visible)
                 SizedBox(
-                  width: width,
+                  width: itemWidth,
                   child: _CategoryCard(
                     category: category,
+                    compact: isVeryNarrow,
                     onTap: () {
-                      ref
-                          .read(
-                            selectedCategoryIdProvider.notifier,
-                          )
-                          .state = category.id;
+                      // Al entrar desde una categoría de Home iniciamos
+                      // una exploración nueva. Conservamos la localidad,
+                      // pero limpiamos búsqueda y filtros secundarios.
+                      ref.read(businessSearchQueryProvider.notifier).state = '';
+                      ref.read(selectedCategoryIdProvider.notifier).state =
+                          category.id;
+                      ref.read(verifiedOnlyProvider.notifier).state = false;
+                      ref.read(featuredOnlyProvider.notifier).state = false;
+                      ref.read(openNowOnlyProvider.notifier).state = false;
 
                       context.go('/explore');
                     },
@@ -1058,10 +1071,12 @@ class _CategoryCard extends StatelessWidget {
   const _CategoryCard({
     required this.category,
     required this.onTap,
+    this.compact = false,
   });
 
   final Category category;
   final VoidCallback onTap;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -1069,78 +1084,55 @@ class _CategoryCard extends StatelessWidget {
 
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(22),
-      shadowColor: RancoColors.ink.withValues(alpha: .08),
-      elevation: 1,
+      borderRadius: BorderRadius.circular(14),
+      elevation: 0,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(14),
         child: Container(
-          padding: const EdgeInsets.all(13),
+          height: 66,
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 9 : 11,
+            vertical: 9,
+          ),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: tone.withValues(alpha: .22),
+              color: RancoDecoration.softBorder,
             ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
               Container(
-                width: 38,
-                height: 38,
+                width: compact ? 32 : 34,
+                height: compact ? 32 : 34,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: tone.withValues(alpha: .13),
-                  borderRadius: BorderRadius.circular(13),
-                  border: Border.all(
-                    color: tone.withValues(alpha: .12),
-                  ),
+                  color: tone.withValues(alpha: .10),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   _categoryIcon(category),
+                  size: compact ? 18 : 19,
                   color: tone,
                 ),
               ),
-              const SizedBox(height: 10),
-              Text(
-                category.name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF31443B),
-                  fontWeight: FontWeight.w800,
-                  fontSize: 15,
-                ),
+              SizedBox(
+                width: compact ? 7 : 9,
               ),
-              const SizedBox(height: 3),
-              const Text(
-                'Ver opciones disponibles',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Color(0xFF71827A),
-                  fontSize: 12,
-                  height: 1.3,
+              Expanded(
+                child: Text(
+                  category.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                  style: TextStyle(
+                    color: RancoColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: compact ? 12.5 : 13.5,
+                    height: 1.1,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Text(
-                    'Explorar',
-                    style: TextStyle(
-                      color: tone,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
-                    ),
-                  ),
-                  const Spacer(),
-                  Icon(
-                    Icons.arrow_forward_rounded,
-                    size: 18,
-                    color: tone,
-                  ),
-                ],
               ),
             ],
           ),
@@ -1155,26 +1147,35 @@ IconData _categoryIcon(Category category) {
       '${category.iconKey} ${category.slug} ${category.name}'.toLowerCase();
 
   if (key.contains('emerg')) return Icons.emergency_outlined;
+
   if (key.contains('mecan') || key.contains('auto')) {
     return Icons.build_outlined;
   }
+
   if (key.contains('flete') || key.contains('trans')) {
     return Icons.local_shipping_outlined;
   }
+
   if (key.contains('jardin')) return Icons.yard_outlined;
+
   if (key.contains('aseo') || key.contains('limp')) {
     return Icons.cleaning_services_outlined;
   }
+
   if (key.contains('comput') || key.contains('tech')) {
     return Icons.computer_outlined;
   }
+
   if (key.contains('comerc')) return Icons.storefront_outlined;
+
   if (key.contains('gastr') || key.contains('comida')) {
     return Icons.restaurant_outlined;
   }
+
   if (key.contains('aloj') || key.contains('caban')) {
     return Icons.bed_outlined;
   }
+
   if (key.contains('turis')) return Icons.terrain_outlined;
 
   return Icons.home_repair_service_outlined;
@@ -1186,133 +1187,20 @@ Color _categoryTone(Category category) {
   if (key.contains('food') || key.contains('gastr')) {
     return RancoColors.primary;
   }
+
   if (key.contains('lake') || key.contains('tour')) {
     return RancoColors.lake;
   }
+
   if (key.contains('moss') || key.contains('garden')) {
     return RancoColors.moss;
   }
+
   if (key.contains('danger') || key.contains('emerg')) {
     return const Color(0xFFB4543F);
   }
 
   return RancoColors.forest;
-}
-
-class _HomeActionPanel extends StatelessWidget {
-  const _HomeActionPanel({
-    required this.businesses,
-    required this.onExplore,
-    required this.onPublish,
-  });
-
-  final AsyncValue businesses;
-  final VoidCallback onExplore;
-  final VoidCallback onPublish;
-
-  @override
-  Widget build(BuildContext context) {
-    final count = businesses.maybeWhen(
-      data: (items) => (items as List).length,
-      orElse: () => 0,
-    );
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: RancoDecoration.brandGradient,
-        borderRadius: BorderRadius.circular(26),
-        boxShadow: RancoDecoration.liftShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: .16),
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: .18),
-                  ),
-                ),
-                child: const Icon(
-                  Icons.explore_outlined,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Directorio local',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      count == 1
-                          ? '1 prestador publicado'
-                          : '$count prestadores publicados',
-                      style: const TextStyle(
-                        color: Color(0xFFDDEFE7),
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: onExplore,
-                  icon: const Icon(Icons.search_rounded),
-                  label: const Text('Ver prestadores'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: RancoColors.pine,
-                    minimumSize: const Size.fromHeight(44),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              SizedBox(
-                height: 44,
-                child: OutlinedButton(
-                  onPressed: onPublish,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: BorderSide(
-                      color: Colors.white.withValues(alpha: .72),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: const Icon(Icons.add_business_outlined),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _EmptySectionCard extends StatelessWidget {
@@ -1323,7 +1211,9 @@ class _EmptySectionCard extends StatelessWidget {
   });
 
   final IconData icon;
+
   final String title;
+
   final String message;
 
   @override

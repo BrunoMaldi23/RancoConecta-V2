@@ -1,31 +1,57 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:go_router/go_router.dart';
 
 import '../features/auth/data/supabase_auth_repository.dart';
+
 import '../features/auth/presentation/sign_in_screen.dart';
+
 import '../features/admin/presentation/admin_screens.dart';
+
 import '../features/businesses/data/business_repository.dart';
+
 import '../features/businesses/presentation/business_detail_screen.dart';
+
 import '../features/businesses/presentation/lodging_availability_screen.dart';
+
+import '../features/categories/presentation/categories_screen.dart';
+
 import '../features/discovery/presentation/explore_screen.dart';
+
 import '../features/favorites/presentation/saved_screen.dart';
+
 import '../features/home/presentation/home_screen.dart';
+
 import '../features/profile/presentation/account_screen.dart';
+
 import '../features/profile/presentation/edit_profile_screen.dart';
+
 import '../features/lodging_bookings/presentation/provider_bookings_screen.dart';
+
 import '../features/provider_dashboard/presentation/lodging_calendar_screen.dart';
+
 import '../features/provider_dashboard/presentation/lodging_information_screen.dart';
+
 import '../features/provider_dashboard/presentation/lodging_photos_screen.dart';
+
 import '../features/provider_dashboard/presentation/lodging_rates_screen.dart';
+
 import '../features/provider_dashboard/presentation/provider_dashboard_screen.dart';
+
 import '../features/provider_registration/presentation/provider_business_status_screen.dart';
+
 import '../features/provider_registration/presentation/provider_registration_screen.dart';
+
 import '../features/service_requests/presentation/create_request_screen.dart';
+
 import '../features/service_requests/presentation/requests_screen.dart';
+
 import '../router/app_shell.dart';
+
 import '../shared/models/business.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -48,6 +74,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final path = state.uri.path;
 
       final providerManagementRoute = _isProviderManagementRoute(path);
+
       final adminRoute = path.startsWith('/admin');
 
       final protected = (path.startsWith('/business/') &&
@@ -62,7 +89,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           adminRoute;
 
       if (protected && user == null) {
-        return '/sign-in';
+        final loginUri = Uri(
+          path: '/sign-in',
+          queryParameters: {
+            'next': state.uri.toString(),
+          },
+        );
+
+        return loginUri.toString();
       }
 
       return null;
@@ -85,6 +119,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: '/',
                 pageBuilder: (context, state) => const NoTransitionPage(
                   child: HomeScreen(),
+                ),
+              ),
+              GoRoute(
+                path: '/categories',
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: CategoriesScreen(),
                 ),
               ),
             ],
@@ -137,11 +177,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/sign-in',
-        builder: (context, state) => const SignInScreen(),
+        builder: (context, state) => SignInScreen(
+          nextRoute: state.uri.queryParameters['next'],
+        ),
       ),
       GoRoute(
         path: '/sign-up',
-        builder: (context, state) => const SignUpScreen(),
+        builder: (context, state) => SignUpScreen(
+          nextRoute: state.uri.queryParameters['next'],
+        ),
       ),
       GoRoute(
         path: '/provider/join',
@@ -181,7 +225,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/forgot-password',
-        builder: (context, state) => const ForgotPasswordScreen(),
+        builder: (context, state) => ForgotPasswordScreen(
+          nextRoute: state.uri.queryParameters['next'],
+        ),
       ),
       GoRoute(
         path: '/admin',
@@ -297,6 +343,7 @@ class GoRouterRefreshStream extends ChangeNotifier {
   @override
   void dispose() {
     _subscription.cancel();
+
     super.dispose();
   }
 }

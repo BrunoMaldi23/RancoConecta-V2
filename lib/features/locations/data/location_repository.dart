@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/errors/failure_mapper.dart';
+import '../../../core/logging/app_logger.dart';
 import '../../../core/result/result.dart';
 import '../../../features/auth/data/supabase_auth_repository.dart';
 import '../../../shared/models/location.dart';
@@ -81,6 +82,11 @@ business_coverage(
 
       return Success(locations);
     } catch (error) {
+      AppLogger.dataQueryFailure(
+        feature: 'locations',
+        endpoint: 'locations:listActiveLocations',
+        error: error,
+      );
       return Failure(
         mapSupabaseFailure(
           error,

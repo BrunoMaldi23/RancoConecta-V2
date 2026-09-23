@@ -29,16 +29,46 @@ Phase 2 adds the minimum admin review workflow. Admin/super admin users can revi
 flutter pub get
 ```
 
-Optional Supabase values are passed as Dart defines:
+## Desarrollo Local
+
+Local development uses the remote Supabase project through public Flutter
+defines loaded from `.env.local`. Do not put service role keys, payment secrets,
+private tokens, or Vercel tokens in this file.
+
+Create `.env.local` with only public values:
 
 ```powershell
-flutter run -d edge `
-  --dart-define=APP_ENVIRONMENT=development `
-  --dart-define=SUPABASE_URL="https://exdaagbftotnnoyetcpg.supabase.co" `
-  --dart-define=SUPABASE_PUBLISHABLE_KEY="your-publishable-key"
+APP_ENVIRONMENT=development
+SUPABASE_URL=https://exdaagbftotnnoyetcpg.supabase.co
+SUPABASE_ANON_KEY=your-public-anon-or-publishable-key
+CHAT_ENABLED=false
+PAYMENTS_ENABLED=false
+QUOTES_ENABLED=false
+LODGING_ENABLED=true
 ```
 
-Without Supabase config, the app starts in safe development mode.
+Run the app locally:
+
+```powershell
+.\scripts\run_local.ps1
+```
+
+Build a local release bundle with the same public config:
+
+```powershell
+.\scripts\build_web_local.ps1
+```
+
+The Flutter app still receives configuration through `--dart-define`; the local
+scripts only read `.env.local` and pass those values to Flutter without printing
+the secrets. `SUPABASE_PUBLISHABLE_KEY` is also supported for compatibility with
+the existing production deployment scripts.
+
+Without Supabase config, the app starts in safe development mode and returns
+empty lists for remote data. If Home shows `0 prestadores` or no categories in
+local development, confirm that `.env.local` contains `SUPABASE_URL` and either
+`SUPABASE_ANON_KEY` or `SUPABASE_PUBLISHABLE_KEY`, then run the app through
+`.\scripts\run_local.ps1`.
 
 ## Feature Flags
 

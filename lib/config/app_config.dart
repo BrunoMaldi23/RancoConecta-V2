@@ -30,12 +30,16 @@ class AppConfig {
     const supabasePublishableKey = String.fromEnvironment(
       'SUPABASE_PUBLISHABLE_KEY',
     );
+    const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+    const resolvedSupabasePublishableKey =
+        supabasePublishableKey == '' ? supabaseAnonKey : supabasePublishableKey;
 
     return AppConfig(
       environment: AppEnvironment.parse(environment),
       supabaseUrl: supabaseUrl.isEmpty ? null : supabaseUrl,
-      supabasePublishableKey:
-          supabasePublishableKey.isEmpty ? null : supabasePublishableKey,
+      supabasePublishableKey: resolvedSupabasePublishableKey.isEmpty
+          ? null
+          : resolvedSupabasePublishableKey,
       featureFlags: FeatureFlags.fromEnvironment(),
     );
   }
