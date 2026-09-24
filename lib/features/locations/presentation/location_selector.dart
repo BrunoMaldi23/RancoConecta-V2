@@ -43,11 +43,11 @@ class LocationSelector extends ConsumerWidget {
             },
             child: Container(
               constraints: BoxConstraints(
-                minHeight: compact ? 52 : 58,
+                minHeight: compact ? 50 : 56,
               ),
               padding: EdgeInsets.symmetric(
-                horizontal: compact ? 14 : 16,
-                vertical: compact ? 8 : 12,
+                horizontal: compact ? 13 : 16,
+                vertical: compact ? 7 : 11,
               ),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(

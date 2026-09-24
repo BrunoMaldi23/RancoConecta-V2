@@ -31,6 +31,7 @@ class BusinessDraft {
     required this.addressText,
     required this.coverage,
     required this.services,
+    this.hours = const [],
     required this.onboardingMetadata,
     required this.submittedAt,
     required this.changesRequestedNote,
@@ -87,6 +88,16 @@ class BusinessDraft {
             ),
           )
           .toList(),
+      hours: _list(json['business_hours'])
+          .map(
+            (item) => BusinessHour(
+              dayOfWeek: (item['day_of_week'] as num?)?.toInt() ?? 1,
+              openTime: item['open_time'] as String?,
+              closeTime: item['close_time'] as String?,
+              isClosed: item['is_closed'] as bool? ?? false,
+            ),
+          )
+          .toList(),
       onboardingMetadata: Map<String, dynamic>.from(
         json['onboarding_metadata'] as Map? ?? const {},
       ),
@@ -108,6 +119,7 @@ class BusinessDraft {
   final String? addressText;
   final List<Location> coverage;
   final List<BusinessDraftService> services;
+  final List<BusinessHour> hours;
   final Map<String, dynamic> onboardingMetadata;
   final DateTime? submittedAt;
   final String? changesRequestedNote;
@@ -236,6 +248,12 @@ business_services(
     description,
     icon_key
   )
+),
+business_hours(
+  day_of_week,
+  open_time,
+  close_time,
+  is_closed
 )
 ''';
 
@@ -326,6 +344,7 @@ business_services(
           )
           .eq('user_id', userId)
           .eq('status', 'active')
+          .inFilter('role', ['owner', 'manager'])
           .order('created_at', ascending: false);
 
       for (final row in rows) {
@@ -373,6 +392,7 @@ business_services(
           )
           .eq('user_id', userId)
           .eq('status', 'active')
+          .inFilter('role', ['owner', 'manager'])
           .order('created_at', ascending: false);
 
       return Success(

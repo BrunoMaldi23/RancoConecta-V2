@@ -32,6 +32,10 @@ import '../features/profile/presentation/edit_profile_screen.dart';
 
 import '../features/lodging_bookings/presentation/provider_bookings_screen.dart';
 
+import '../features/messaging/presentation/messages_screen.dart';
+
+import '../features/notifications/presentation/notifications_screen.dart';
+
 import '../features/provider_dashboard/presentation/lodging_calendar_screen.dart';
 
 import '../features/provider_dashboard/presentation/lodging_information_screen.dart';
@@ -42,11 +46,15 @@ import '../features/provider_dashboard/presentation/lodging_rates_screen.dart';
 
 import '../features/provider_dashboard/presentation/provider_dashboard_screen.dart';
 
+import '../features/provider_dashboard/presentation/service_management_screens.dart';
+
 import '../features/provider_registration/presentation/provider_business_status_screen.dart';
 
 import '../features/provider_registration/presentation/provider_registration_screen.dart';
 
 import '../features/service_requests/presentation/create_request_screen.dart';
+
+import '../features/service_requests/presentation/provider_requests_screen.dart';
 
 import '../features/service_requests/presentation/requests_screen.dart';
 
@@ -83,6 +91,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               )) ||
           path.startsWith(
             '/requests/',
+          ) ||
+          path.startsWith(
+            '/messages',
+          ) ||
+          path.startsWith(
+            '/notifications',
           ) ||
           path == '/account/edit' ||
           providerManagementRoute ||
@@ -204,6 +218,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ProviderDashboardScreen(),
       ),
       GoRoute(
+        path: '/provider/profile',
+        builder: (context, state) => const ProviderProfileScreen(),
+      ),
+      GoRoute(
+        path: '/provider/services',
+        builder: (context, state) => const ProviderServicesScreen(),
+      ),
+      GoRoute(
+        path: '/provider/coverage',
+        builder: (context, state) => const ProviderCoverageScreen(),
+      ),
+      GoRoute(
+        path: '/provider/hours',
+        builder: (context, state) => const ProviderHoursScreen(),
+      ),
+      GoRoute(
         path: '/provider/lodging',
         builder: (context, state) => const LodgingInformationScreen(),
       ),
@@ -222,6 +252,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/provider/rates',
         builder: (context, state) => const LodgingRatesScreen(),
+      ),
+      GoRoute(
+        path: '/provider/requests',
+        builder: (context, state) => const ProviderRequestsScreen(),
+      ),
+      GoRoute(
+        path: '/messages',
+        builder: (context, state) => const MessagesScreen(),
+      ),
+      GoRoute(
+        path: '/messages/:id',
+        builder: (context, state) => MessageDetailScreen(
+          conversationId: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationsScreen(),
       ),
       GoRoute(
         path: '/forgot-password',
@@ -318,10 +366,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
 bool _isProviderManagementRoute(String path) {
   return path == '/provider/dashboard' ||
+      path == '/provider/profile' ||
+      path == '/provider/services' ||
+      path == '/provider/coverage' ||
+      path == '/provider/hours' ||
       path == '/provider/register' ||
       path == '/provider/status' ||
       path == '/provider/lodging' ||
       path == '/provider/bookings' ||
+      path == '/provider/requests' ||
       path == '/provider/calendar' ||
       path == '/provider/photos' ||
       path == '/provider/rates';

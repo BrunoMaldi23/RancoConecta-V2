@@ -7,6 +7,7 @@ import '../../../shared/models/business.dart';
 import '../../../shared/models/business_capability.dart';
 import '../application/provider_dashboard_providers.dart';
 import '../data/provider_business_repository.dart';
+import '../data/service_business_management_repository.dart';
 import '../../../core/widgets/ranco_app_bar.dart';
 
 class ProviderDashboardScreen extends ConsumerWidget {
@@ -96,6 +97,7 @@ class ProviderDashboardScreen extends ConsumerWidget {
           final items = _dashboardItems(
             capabilitySet,
           );
+          final management = ref.watch(serviceBusinessManagementProvider);
 
           return ListView(
             padding: const EdgeInsets.all(
@@ -109,33 +111,17 @@ class ProviderDashboardScreen extends ConsumerWidget {
                   }
 
                   return Padding(
-                    padding: const EdgeInsets.only(
-                      bottom: 14,
-                    ),
-                    child: DropdownButtonFormField<String>(
-                      initialValue: business.id,
-                      decoration: const InputDecoration(
-                        labelText: 'Negocio activo',
-                        prefixIcon: Icon(
-                          Icons.storefront_outlined,
-                        ),
-                      ),
-                      items: items
-                          .map(
-                            (item) => DropdownMenuItem(
-                              value: item.id,
-                              child: Text(
-                                '${item.name} · ${item.businessType.label}',
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        if (value == null) return;
-
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _BusinessSwitcherButton(
+                      business: business,
+                      businesses: items,
+                      onSelected: (value) {
                         ref
                             .read(activeProviderBusinessIdProvider.notifier)
                             .state = value;
+                        ref.invalidate(activeProviderBusinessProvider);
+                        ref.invalidate(activeProviderCapabilitiesProvider);
+                        ref.invalidate(serviceBusinessManagementProvider);
                       },
                     ),
                   );
@@ -150,15 +136,24 @@ class ProviderDashboardScreen extends ConsumerWidget {
                   );
                 },
               ),
+              if (business.businessType == BusinessType.service) ...[
+                const SizedBox(height: 10),
+                management.maybeWhen(
+                  data: (state) => state == null
+                      ? const SizedBox.shrink()
+                      : _ServiceSummaryStrip(state: state),
+                  orElse: () => const SizedBox.shrink(),
+                ),
+              ],
               const SizedBox(
-                height: 22,
+                height: 18,
               ),
               Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Gestión',
-                      style: TextStyle(
+                      _sectionTitleFor(business.businessType),
+                      style: const TextStyle(
                         color: RancoColors.forest,
                         fontSize: 19,
                         fontWeight: FontWeight.w900,
@@ -212,45 +207,67 @@ class ProviderDashboardScreen extends ConsumerWidget {
 }
 
 List<_ProviderDashboardItem> _dashboardItems(
-  BusinessCapabilitySet capabilities,
-) {
+    BusinessCapabilitySet capabilities) {
   return [
     if (capabilities.can(BusinessCapability.profile))
       const _ProviderDashboardItem(
         icon: Icons.storefront_outlined,
-        title: 'Perfil público',
-        subtitle: 'Fotos e identidad visual del negocio',
+        title: 'Perfil',
+        subtitle: 'Nombre, descripción, contacto y dirección',
+        route: '/provider/profile',
+      ),
+    if (capabilities.can(BusinessCapability.photos))
+      const _ProviderDashboardItem(
+        icon: Icons.photo_library_outlined,
+        title: 'Fotos',
+        subtitle: 'Portada y galería pública',
         route: '/provider/photos',
       ),
     if (capabilities.can(BusinessCapability.services))
       const _ProviderDashboardItem(
         icon: Icons.home_repair_service_outlined,
         title: 'Servicios',
-        subtitle: 'Servicios y precios orientativos quedan en onboarding',
+        subtitle: 'Subcategorías, descripción y precio desde',
+        route: '/provider/services',
+      ),
+    if (capabilities.can(BusinessCapability.services))
+      const _ProviderDashboardItem(
+        icon: Icons.assignment_outlined,
+        title: 'Solicitudes',
+        subtitle: 'Solicitudes, cotizaciones y operaciones',
+        route: '/provider/requests',
       ),
     if (capabilities.can(BusinessCapability.coverage))
       const _ProviderDashboardItem(
         icon: Icons.map_outlined,
         title: 'Cobertura',
-        subtitle: 'Localidades cubiertas quedan en onboarding',
+        subtitle: 'Localidades donde atiende el negocio',
+        route: '/provider/coverage',
+      ),
+    if (capabilities.can(BusinessCapability.hours))
+      const _ProviderDashboardItem(
+        icon: Icons.schedule_outlined,
+        title: 'Horarios',
+        subtitle: 'Días y horas de atención',
+        route: '/provider/hours',
       ),
     if (capabilities.can(BusinessCapability.menu))
       const _ProviderDashboardItem(
         icon: Icons.restaurant_menu_outlined,
         title: 'Menú',
-        subtitle: 'Requiere módulo gastronómico dedicado',
+        subtitle: 'Base gastronómica; módulo de menú pendiente',
       ),
     if (capabilities.can(BusinessCapability.catalog))
       const _ProviderDashboardItem(
         icon: Icons.inventory_2_outlined,
         title: 'Catálogo',
-        subtitle: 'Requiere módulo comercial dedicado',
+        subtitle: 'Base comercial; catálogo dedicado pendiente',
       ),
     if (capabilities.can(BusinessCapability.rates))
       const _ProviderDashboardItem(
         icon: Icons.payments_outlined,
         title: 'Tarifas',
-        subtitle: 'Precio por noche, actividad o persona adicional',
+        subtitle: 'Precios y condiciones del alojamiento',
         route: '/provider/rates',
       ),
     if (capabilities.can(BusinessCapability.calendar))
@@ -264,14 +281,14 @@ List<_ProviderDashboardItem> _dashboardItems(
       const _ProviderDashboardItem(
         icon: Icons.event_available_outlined,
         title: 'Reservas',
-        subtitle: 'Solicitudes recibidas',
+        subtitle: 'Reservas recibidas para el alojamiento',
         route: '/provider/bookings',
       ),
     if (capabilities.can(BusinessCapability.emergencyAvailability))
       const _ProviderDashboardItem(
         icon: Icons.emergency_outlined,
         title: 'Disponibilidad de emergencia',
-        subtitle: 'Requiere módulo operacional dedicado',
+        subtitle: 'Base operacional de atención prioritaria',
       ),
     if (capabilities.can(BusinessCapability.promotions))
       const _ProviderDashboardItem(
@@ -280,6 +297,17 @@ List<_ProviderDashboardItem> _dashboardItems(
         subtitle: 'Requiere módulo de monetización visible',
       ),
   ];
+}
+
+String _sectionTitleFor(BusinessType type) {
+  return switch (type) {
+    BusinessType.lodging => 'Gestión de alojamiento',
+    BusinessType.service => 'Gestión de servicios',
+    BusinessType.commerce => 'Gestión comercial',
+    BusinessType.gastronomy => 'Gestión gastronómica',
+    BusinessType.tourism => 'Gestión turística',
+    BusinessType.emergency => 'Gestión de emergencia',
+  };
 }
 
 IconData _typeIcon(BusinessType type) {
@@ -307,6 +335,215 @@ class _ProviderDashboardItem {
   final String? route;
 }
 
+class _BusinessSwitcherButton extends StatelessWidget {
+  const _BusinessSwitcherButton({
+    required this.business,
+    required this.businesses,
+    required this.onSelected,
+  });
+
+  final ProviderBusinessSummary business;
+  final List<ProviderBusinessSummary> businesses;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(15),
+      child: InkWell(
+        onTap: () => _showSwitcher(context),
+        borderRadius: BorderRadius.circular(15),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 58),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: const Color(0xFFD4E0DA)),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                _typeIcon(business.businessType),
+                color: RancoColors.forest,
+                size: 22,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      business.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: RancoColors.textPrimary,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${business.businessType.label} · ${_statusText(business.publicationStatus)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: RancoColors.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: RancoColors.textSecondary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showSwitcher(BuildContext context) {
+    return showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            children: [
+              const Text(
+                'Cambiar negocio',
+                style: TextStyle(
+                  color: RancoColors.forest,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18,
+                ),
+              ),
+              const SizedBox(height: 8),
+              for (final item in businesses)
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                  leading: Icon(
+                    _typeIcon(item.businessType),
+                    color: RancoColors.forest,
+                  ),
+                  title: Text(
+                    item.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    '${item.businessType.label} · ${_statusText(item.publicationStatus)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: item.id == business.id
+                      ? const Icon(Icons.check_rounded)
+                      : null,
+                  onTap: () {
+                    onSelected(item.id);
+                    Navigator.of(context).pop();
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+String _statusText(String rawStatus) {
+  return BusinessPublicationStatus.parseOrDefault(rawStatus).label;
+}
+
+class _ServiceSummaryStrip extends StatelessWidget {
+  const _ServiceSummaryStrip({
+    required this.state,
+  });
+
+  final ServiceBusinessManagementState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final hours = state.draft.hours.where((hour) => !hour.isClosed).length;
+    return Row(
+      children: [
+        Expanded(
+          child: _SummaryChip(
+            value: state.draft.services.length.toString(),
+            label: 'servicios',
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _SummaryChip(
+            value: state.draft.coverage.length.toString(),
+            label: 'localidades',
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _SummaryChip(
+            value: hours.toString(),
+            label: 'días abiertos',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SummaryChip extends StatelessWidget {
+  const _SummaryChip({
+    required this.value,
+    required this.label,
+  });
+
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFD4E0DA)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              color: RancoColors.forest,
+              fontWeight: FontWeight.w900,
+              fontSize: 16,
+            ),
+          ),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: RancoColors.textSecondary,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ProviderHero extends StatelessWidget {
   const _ProviderHero({
     required this.business,
@@ -323,27 +560,28 @@ class _ProviderHero extends StatelessWidget {
     );
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: RancoColors.forest,
-        borderRadius: BorderRadius.circular(22),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFD4E0DA)),
       ),
       child: Row(
         children: [
           Container(
-            width: 58,
-            height: 58,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: .14),
-              borderRadius: BorderRadius.circular(16),
+              color: const Color(0xFFE4F3EC),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               _typeIcon(business.businessType),
-              color: Colors.white,
-              size: 30,
+              color: RancoColors.forest,
+              size: 22,
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -353,27 +591,32 @@ class _ProviderHero extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 21,
+                    color: RancoColors.textPrimary,
+                    fontSize: 17,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 4),
                 Text(
                   '${business.businessType.label} · ${status.label}',
-                  style: const TextStyle(color: Color(0xFFD8EBE3)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: RancoColors.textSecondary,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 12),
-          OutlinedButton.icon(
+          const SizedBox(width: 8),
+          IconButton.outlined(
             onPressed: onPreview,
-            icon: const Icon(Icons.visibility_outlined),
-            label: const Text('Ver'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.white,
-              side: const BorderSide(color: Color(0xFFD8EBE3)),
+            tooltip: 'Ver publicación',
+            icon: const Icon(
+              Icons.visibility_outlined,
+              size: 19,
             ),
           ),
         ],
@@ -400,13 +643,11 @@ class _DashboardTile extends StatelessWidget {
     BuildContext context,
   ) {
     return Container(
-      margin: const EdgeInsets.only(
-        bottom: 10,
-      ),
+      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(
-          17,
+          15,
         ),
         border: Border.all(
           color: const Color(
@@ -417,18 +658,18 @@ class _DashboardTile extends StatelessWidget {
       child: ListTile(
         onTap: onTap,
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 15,
-          vertical: 5,
+          horizontal: 12,
+          vertical: 2,
         ),
         leading: Container(
-          width: 44,
-          height: 44,
+          width: 40,
+          height: 40,
           decoration: BoxDecoration(
             color: const Color(
               0xFFE4F3EC,
             ),
             borderRadius: BorderRadius.circular(
-              13,
+              12,
             ),
           ),
           child: Icon(
@@ -444,6 +685,8 @@ class _DashboardTile extends StatelessWidget {
         ),
         subtitle: Text(
           subtitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         trailing: Icon(
           onTap == null

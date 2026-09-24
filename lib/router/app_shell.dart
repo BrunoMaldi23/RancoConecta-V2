@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/messaging/application/messaging_providers.dart';
+import '../features/notifications/application/notification_providers.dart';
 import '../theme/ranco_colors.dart';
 import '../theme/ranco_tokens.dart';
+import 'ranco_navigation_drawer.dart';
 
-class AppShell extends StatelessWidget {
+class AppShell extends ConsumerWidget {
   const AppShell({required this.navigationShell, super.key});
 
   final StatefulNavigationShell navigationShell;
@@ -20,11 +24,22 @@ class AppShell extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(messagingRealtimeProvider);
+    ref.watch(notificationsRealtimeProvider);
+
+    final unreadMessages =
+        ref.watch(unreadMessagesCountProvider).valueOrNull ?? 0;
+    final unreadNotifications =
+        ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
+    final unreadAccount = unreadMessages + unreadNotifications;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final useRail = constraints.maxWidth >= RancoBreakpoints.expanded;
         return Scaffold(
+          drawer: useRail ? null : const RancoNavigationDrawer(),
+          drawerScrimColor: Colors.black.withValues(alpha: .44),
           body: Row(
             children: [
               if (useRail)
@@ -50,11 +65,17 @@ class AppShell extends StatelessWidget {
                   ),
                   groupAlignment: -0.72,
                   destinations: [
-                    for (final destination in _destinations)
+                    for (final indexed in _destinations.indexed)
                       NavigationRailDestination(
-                        icon: Icon(destination.icon),
-                        selectedIcon: Icon(destination.selectedIcon),
-                        label: Text(destination.label),
+                        icon: _BadgedIcon(
+                          icon: indexed.$2.icon,
+                          count: indexed.$1 == 4 ? unreadAccount : 0,
+                        ),
+                        selectedIcon: _BadgedIcon(
+                          icon: indexed.$2.selectedIcon,
+                          count: indexed.$1 == 4 ? unreadAccount : 0,
+                        ),
+                        label: Text(indexed.$2.label),
                       ),
                   ],
                 ),
@@ -69,11 +90,17 @@ class AppShell extends StatelessWidget {
                     selectedIndex: navigationShell.currentIndex,
                     onDestinationSelected: _goBranch,
                     destinations: [
-                      for (final destination in _destinations)
+                      for (final indexed in _destinations.indexed)
                         NavigationDestination(
-                          icon: Icon(destination.icon),
-                          selectedIcon: Icon(destination.selectedIcon),
-                          label: destination.label,
+                          icon: _BadgedIcon(
+                            icon: indexed.$2.icon,
+                            count: indexed.$1 == 4 ? unreadAccount : 0,
+                          ),
+                          selectedIcon: _BadgedIcon(
+                            icon: indexed.$2.selectedIcon,
+                            count: indexed.$1 == 4 ? unreadAccount : 0,
+                          ),
+                          label: indexed.$2.label,
                         ),
                     ],
                   ),
@@ -97,4 +124,26 @@ class _Destination {
   final String label;
   final IconData icon;
   final IconData selectedIcon;
+}
+
+class _BadgedIcon extends StatelessWidget {
+  const _BadgedIcon({
+    required this.icon,
+    required this.count,
+  });
+
+  final IconData icon;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    if (count <= 0) {
+      return Icon(icon);
+    }
+
+    return Badge.count(
+      count: count > 99 ? 99 : count,
+      child: Icon(icon),
+    );
+  }
 }

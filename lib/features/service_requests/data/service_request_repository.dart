@@ -18,6 +18,7 @@ class CreateServiceRequestInput {
     required this.businessId,
     required this.categoryId,
     required this.subcategoryId,
+    required this.locationId,
     required this.description,
     required this.addressText,
     required this.urgency,
@@ -27,6 +28,7 @@ class CreateServiceRequestInput {
   final String businessId;
   final String categoryId;
   final String subcategoryId;
+  final String? locationId;
   final String description;
   final String addressText;
   final RequestUrgency urgency;
@@ -46,9 +48,11 @@ class SupabaseServiceRequestRepository implements ServiceRequestRepository {
   final SupabaseClient? _client;
 
   static const _select = '''
-id, public_code, business_id, category_id, subcategory_id, description, address_text, urgency, desired_date, status, created_at,
+id, public_code, business_id, category_id, subcategory_id, location_id, description, address_text, urgency, desired_date, status, created_at,
 businesses(name),
-subcategories(name)
+categories(name),
+subcategories(name),
+locations(name)
 ''';
 
   @override
@@ -64,21 +68,24 @@ subcategories(name)
       );
     }
     try {
+      final created = await client.rpc<Map<String, dynamic>>(
+        'create_direct_service_request',
+        params: {
+          'p_business_id': input.businessId,
+          'p_category_id': input.categoryId,
+          'p_subcategory_id': input.subcategoryId,
+          'p_description': input.description.trim(),
+          'p_address_text': input.addressText.trim(),
+          'p_urgency': input.urgency.name,
+          'p_desired_date':
+              input.desiredDate?.toIso8601String().split('T').first,
+          'p_location_id': input.locationId,
+        },
+      );
       final row = await client
           .from('service_requests')
-          .insert({
-            'customer_id': userId,
-            'business_id': input.businessId,
-            'category_id': input.categoryId,
-            'subcategory_id': input.subcategoryId,
-            'description': input.description.trim(),
-            'address_text': input.addressText.trim(),
-            'urgency': input.urgency.name,
-            'desired_date':
-                input.desiredDate?.toIso8601String().split('T').first,
-            'status': 'submitted',
-          })
           .select(_select)
+          .eq('id', created['id'] as String)
           .single();
       return Success(ServiceRequestDto.fromJson(row).toDomain());
     } catch (error) {

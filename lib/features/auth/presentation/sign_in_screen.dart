@@ -10,8 +10,6 @@ import '../../../core/widgets/ranco_app_bar.dart';
 
 import '../../../theme/ranco_colors.dart';
 
-import '../../../theme/ranco_decoration.dart';
-
 import '../data/supabase_auth_repository.dart';
 
 class SignInScreen extends ConsumerStatefulWidget {
@@ -123,9 +121,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                           onGuest: () {
                             context.go('/');
                           },
-                          providerFlow:
-                              _safeNextRoute(widget.nextRoute) ==
-                                  '/provider/register',
+                          providerFlow: _safeNextRoute(widget.nextRoute) ==
+                              '/provider/register',
                           onProvider: () {
                             context.go('/provider/join');
                           },
@@ -357,9 +354,7 @@ class _LoginCard extends StatelessWidget {
                       child: Text(
                         error!,
                         style: TextStyle(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onErrorContainer,
+                          color: Theme.of(context).colorScheme.onErrorContainer,
                           fontSize: 12.5,
                           height: 1.3,
                         ),
@@ -628,7 +623,6 @@ class _ProviderCta extends StatelessWidget {
     );
   }
 }
-
 
 class _CreateProviderAccessCta extends StatelessWidget {
   const _CreateProviderAccessCta({
@@ -1058,7 +1052,6 @@ class _JoinStep extends StatelessWidget {
 }
 
 class SignUpScreen extends ConsumerStatefulWidget {
-
   const SignUpScreen({
     this.nextRoute,
     super.key,
@@ -1067,13 +1060,10 @@ class SignUpScreen extends ConsumerStatefulWidget {
   final String? nextRoute;
 
   @override
-
   ConsumerState<SignUpScreen> createState() => _SignUpScreenState();
-
 }
 
 class _SignUpScreenState extends ConsumerState<SignUpScreen> {
-
   final _formKey = GlobalKey<FormState>();
 
   final _nameController = TextEditingController();
@@ -1093,9 +1083,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   String? _error;
 
   @override
-
   void dispose() {
-
     _nameController.dispose();
 
     _emailController.dispose();
@@ -1105,345 +1093,193 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     _confirmPasswordController.dispose();
 
     super.dispose();
-
   }
 
   @override
-
   Widget build(BuildContext context) {
     final providerFlow =
         _safeNextRoute(widget.nextRoute) == '/provider/register';
 
     return Scaffold(
-
       backgroundColor: RancoColors.canvas,
-
       appBar: RancoAppBar(
         title: providerFlow ? 'Crear acceso' : 'Crear cuenta',
       ),
-
       body: Center(
-
         child: ConstrainedBox(
-
           constraints: const BoxConstraints(maxWidth: 460),
-
           child: SingleChildScrollView(
-
             padding: const EdgeInsets.all(24),
-
             child: Form(
-
               key: _formKey,
-
               child: Column(
-
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-
                 children: [
-
                   Text(
-
                     providerFlow ? 'Crea tu acceso' : 'Crear cuenta',
-
                     style: Theme.of(context).textTheme.headlineSmall,
-
                   ),
-
                   const SizedBox(height: 6),
-
                   Text(
-
                     providerFlow
                         ? 'Necesitas un acceso para guardar tu publicación y administrar tu negocio.'
                         : 'Crea tu acceso para guardar favoritos, gestionar solicitudes y usar las funciones de Ranco Conecta.',
-
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
-
                         ),
-
                   ),
-
                   const SizedBox(height: 22),
-
                   TextFormField(
-
                     controller: _nameController,
-
                     textCapitalization: TextCapitalization.words,
-
                     decoration: const InputDecoration(
-
                       labelText: 'Nombre completo',
-
                       prefixIcon: Icon(
-
                         Icons.person_outline_rounded,
-
                       ),
-
                     ),
-
                     validator: (value) {
-
                       if (value == null || value.trim().isEmpty) {
-
                         return 'Ingresa tu nombre.';
-
                       }
 
                       return null;
-
                     },
-
                   ),
-
                   const SizedBox(height: 12),
-
                   TextFormField(
-
                     controller: _emailController,
-
                     keyboardType: TextInputType.emailAddress,
-
                     decoration: const InputDecoration(
-
                       labelText: 'Correo',
-
                       prefixIcon: Icon(
-
                         Icons.mail_outline_rounded,
-
                       ),
-
                     ),
-
                     validator: validateEmail,
-
                   ),
-
                   const SizedBox(height: 12),
-
                   TextFormField(
-
                     controller: _passwordController,
-
                     obscureText: _obscurePassword,
-
                     decoration: InputDecoration(
-
                       labelText: 'Contraseña',
-
                       prefixIcon: const Icon(
-
                         Icons.lock_outline_rounded,
-
                       ),
-
                       suffixIcon: IconButton(
-
                         onPressed: () {
-
                           setState(() {
-
                             _obscurePassword = !_obscurePassword;
-
                           });
-
                         },
-
                         icon: Icon(
-
                           _obscurePassword
-
                               ? Icons.visibility_outlined
-
                               : Icons.visibility_off_outlined,
-
                         ),
-
                       ),
-
                     ),
-
                     validator: (value) {
-
                       if (value == null || value.length < 8) {
-
                         return 'Usa al menos 8 caracteres.';
-
                       }
 
                       return null;
-
                     },
-
                   ),
-
                   const SizedBox(height: 12),
-
                   TextFormField(
-
                     controller: _confirmPasswordController,
-
                     obscureText: _obscurePassword,
-
                     decoration: const InputDecoration(
-
                       labelText: 'Confirmar contraseña',
-
                       prefixIcon: Icon(
-
                         Icons.lock_reset_outlined,
-
                       ),
-
                     ),
-
                     validator: (value) {
-
                       if (value != _passwordController.text) {
-
                         return 'Las contraseñas no coinciden.';
-
                       }
 
                       return null;
-
                     },
-
                   ),
-
                   if (_message != null) ...[
-
                     const SizedBox(height: 12),
-
                     _InfoBanner(
-
                       message: _message!,
-
                     ),
-
                   ],
-
                   if (_error != null) ...[
-
                     const SizedBox(height: 12),
-
                     Text(
-
                       _error!,
-
                       style: TextStyle(
-
                         color: Theme.of(context).colorScheme.error,
-
                       ),
-
                     ),
-
                   ],
-
                   const SizedBox(height: 20),
-
                   FilledButton.icon(
-
                     onPressed: _loading ? null : _signUp,
-
                     icon: _loading
-
                         ? const SizedBox.square(
-
                             dimension: 18,
-
                             child: CircularProgressIndicator(
-
                               strokeWidth: 2,
-
                             ),
-
                           )
-
                         : const Icon(
-
                             Icons.person_add_outlined,
-
                           ),
-
                     label: Text(
                       providerFlow ? 'Crear acceso' : 'Crear cuenta',
                     ),
-
                   ),
-
                   TextButton(
-
                     onPressed: () {
-
                       final next = _safeNextRoute(widget.nextRoute);
                       final uri = Uri(
                         path: '/sign-in',
-                        queryParameters:
-                            next == null ? null : {'next': next},
+                        queryParameters: next == null ? null : {'next': next},
                       );
                       context.go(uri.toString());
-
                     },
-
                     child: const Text('Volver'),
-
                   ),
-
                 ],
-
               ),
-
             ),
-
           ),
-
         ),
-
       ),
-
     );
-
   }
 
   Future<void> _signUp() async {
-
     if (!_formKey.currentState!.validate()) {
-
       return;
-
     }
 
     setState(() {
-
       _loading = true;
 
       _error = null;
 
       _message = null;
-
     });
 
     final result = await ref.read(authRepositoryProvider).signUp(
-
           fullName: _nameController.text.trim(),
-
           email: _emailController.text.trim(),
-
           password: _passwordController.text,
-
         );
 
     if (!mounted) return;
 
     result.when(
-
       success: (user) {
         final next = _safeNextRoute(widget.nextRoute);
 
@@ -1457,31 +1293,19 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               'Acceso creado. Revisa tu correo para confirmar la cuenta y luego inicia sesión para continuar.';
         });
       },
-
       failure: (failure) {
-
         setState(() {
-
           _error = failure.message;
-
         });
-
       },
-
     );
 
     if (mounted) {
-
       setState(() {
-
         _loading = false;
-
       });
-
     }
-
   }
-
 }
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
@@ -1497,8 +1321,7 @@ class ForgotPasswordScreen extends ConsumerStatefulWidget {
       _ForgotPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState
-    extends ConsumerState<ForgotPasswordScreen> {
+class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
 
@@ -1522,8 +1345,7 @@ class _ForgotPasswordScreenState
             final isNarrow = constraints.maxWidth < 370;
 
             return SingleChildScrollView(
-              keyboardDismissBehavior:
-                  ScrollViewKeyboardDismissBehavior.onDrag,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: EdgeInsets.fromLTRB(
                 isNarrow ? 16 : 20,
                 14,
@@ -1543,8 +1365,7 @@ class _ForgotPasswordScreenState
                           if (context.canPop()) {
                             context.pop();
                           } else {
-                            final next =
-                                _safeNextRoute(widget.nextRoute);
+                            final next = _safeNextRoute(widget.nextRoute);
                             final uri = Uri(
                               path: '/sign-in',
                               queryParameters:
@@ -1624,8 +1445,7 @@ class _ForgotPasswordScreenState
                         child: Form(
                           key: _formKey,
                           child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.stretch,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               const Text(
                                 'Correo',
@@ -1638,8 +1458,7 @@ class _ForgotPasswordScreenState
                               const SizedBox(height: 6),
                               TextFormField(
                                 controller: _emailController,
-                                keyboardType:
-                                    TextInputType.emailAddress,
+                                keyboardType: TextInputType.emailAddress,
                                 textInputAction: TextInputAction.done,
                                 autofillHints: const [
                                   AutofillHints.email,
@@ -1661,37 +1480,31 @@ class _ForgotPasswordScreenState
                                   filled: true,
                                   fillColor: Colors.white,
                                   isDense: true,
-                                  contentPadding:
-                                      const EdgeInsets.symmetric(
+                                  contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 12,
                                     vertical: 13,
                                   ),
                                   enabledBorder: OutlineInputBorder(
-                                    borderRadius:
-                                        BorderRadius.circular(13),
+                                    borderRadius: BorderRadius.circular(13),
                                     borderSide: const BorderSide(
                                       color: Color(0xFFD1E0D9),
                                     ),
                                   ),
                                   focusedBorder: OutlineInputBorder(
-                                    borderRadius:
-                                        BorderRadius.circular(13),
+                                    borderRadius: BorderRadius.circular(13),
                                     borderSide: const BorderSide(
                                       color: RancoColors.primary,
                                       width: 1.3,
                                     ),
                                   ),
                                   errorBorder: OutlineInputBorder(
-                                    borderRadius:
-                                        BorderRadius.circular(13),
+                                    borderRadius: BorderRadius.circular(13),
                                     borderSide: BorderSide(
                                       color: Colors.red.shade300,
                                     ),
                                   ),
-                                  focusedErrorBorder:
-                                      OutlineInputBorder(
-                                    borderRadius:
-                                        BorderRadius.circular(13),
+                                  focusedErrorBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(13),
                                     borderSide: BorderSide(
                                       color: Colors.red.shade400,
                                       width: 1.3,
@@ -1718,20 +1531,17 @@ class _ForgotPasswordScreenState
                               SizedBox(
                                 height: 48,
                                 child: FilledButton.icon(
-                                  onPressed:
-                                      _loading ? null : _submitReset,
+                                  onPressed: _loading ? null : _submitReset,
                                   icon: _loading
                                       ? const SizedBox.square(
                                           dimension: 18,
-                                          child:
-                                              CircularProgressIndicator(
+                                          child: CircularProgressIndicator(
                                             strokeWidth: 2,
                                             color: Colors.white,
                                           ),
                                         )
                                       : const Icon(
-                                          Icons
-                                              .mark_email_read_outlined,
+                                          Icons.mark_email_read_outlined,
                                           size: 18,
                                         ),
                                   label: Text(
@@ -1740,23 +1550,19 @@ class _ForgotPasswordScreenState
                                         : 'Enviar instrucciones',
                                   ),
                                   style: FilledButton.styleFrom(
-                                    backgroundColor:
-                                        RancoColors.forest,
+                                    backgroundColor: RancoColors.forest,
                                     foregroundColor: Colors.white,
                                     disabledBackgroundColor:
-                                        RancoColors.forest
-                                            .withValues(
+                                        RancoColors.forest.withValues(
                                       alpha: .6,
                                     ),
-                                    disabledForegroundColor:
-                                        Colors.white,
+                                    disabledForegroundColor: Colors.white,
                                     textStyle: const TextStyle(
                                       fontSize: 13.5,
                                       fontWeight: FontWeight.w800,
                                     ),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(13),
+                                      borderRadius: BorderRadius.circular(13),
                                     ),
                                   ),
                                 ),
@@ -1769,8 +1575,7 @@ class _ForgotPasswordScreenState
                       Center(
                         child: TextButton.icon(
                           onPressed: () {
-                            final next =
-                                _safeNextRoute(widget.nextRoute);
+                            final next = _safeNextRoute(widget.nextRoute);
                             final uri = Uri(
                               path: '/sign-in',
                               queryParameters:
@@ -1829,11 +1634,10 @@ class _ForgotPasswordScreenState
       _error = null;
     });
 
-    final result = await ref
-        .read(authRepositoryProvider)
-        .sendPasswordResetEmail(
-          _emailController.text.trim(),
-        );
+    final result =
+        await ref.read(authRepositoryProvider).sendPasswordResetEmail(
+              _emailController.text.trim(),
+            );
 
     if (!mounted) {
       return;
@@ -1968,49 +1772,29 @@ class _ResetMessage extends StatelessWidget {
 }
 
 class _InfoBanner extends StatelessWidget {
-
   const _InfoBanner({
-
     required this.message,
-
   });
 
   final String message;
 
   @override
-
   Widget build(BuildContext context) {
-
     return Material(
-
       color: const Color(0xFFE8F0ED),
-
       borderRadius: BorderRadius.circular(12),
-
       child: Padding(
-
         padding: const EdgeInsets.all(12),
-
         child: Text(
-
           message,
-
           style: const TextStyle(
-
             color: Color(0xFF486158),
-
           ),
-
         ),
-
       ),
-
     );
-
   }
-
 }
-
 
 String? _safeNextRoute(String? value) {
   final route = value?.trim();
@@ -2039,25 +1823,17 @@ String? _safeNextRoute(String? value) {
 }
 
 String? validateEmail(String? value) {
-
   final email = value?.trim() ?? '';
 
   if (email.isEmpty) {
-
     return 'Ingresa tu correo.';
-
   }
 
   if (!RegExp(
-
     r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-
   ).hasMatch(email)) {
-
     return 'Ingresa un correo válido.';
-
   }
 
   return null;
-
 }

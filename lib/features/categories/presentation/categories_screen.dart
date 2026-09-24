@@ -63,7 +63,6 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                 onClearSearch: _clearSearch,
               ),
             ),
-
             categories.when(
               data: (items) {
                 final filtered = _filterCategories(
@@ -139,7 +138,6 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                         query: _query,
                       ),
                     ),
-
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(
                         20,
@@ -374,7 +372,6 @@ class _Header extends StatelessWidget {
                     onTap: onBack,
                   ),
                   const SizedBox(width: 12),
-
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -383,12 +380,14 @@ class _Header extends StatelessWidget {
                           'Todas las categorías',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style:
-                              Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                    color: RancoColors.pine,
-                                    fontWeight: FontWeight.w800,
-                                    height: 1.05,
-                                  ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(
+                                color: RancoColors.pine,
+                                fontWeight: FontWeight.w800,
+                                height: 1.05,
+                              ),
                         ),
                         const SizedBox(height: 4),
                         const Text(
@@ -406,9 +405,7 @@ class _Header extends StatelessWidget {
                   ),
                 ],
               ),
-
               const SizedBox(height: 16),
-
               TextField(
                 controller: searchController,
                 focusNode: searchFocusNode,
@@ -441,7 +438,7 @@ class _Header extends StatelessWidget {
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(
+                    borderSide: const BorderSide(
                       color: RancoDecoration.softBorder,
                     ),
                   ),
@@ -504,7 +501,6 @@ class _ResultCount extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-
               if (hasQuery) ...[
                 const SizedBox(width: 6),
                 Expanded(
@@ -611,9 +607,7 @@ class _CategoryTile extends StatelessWidget {
                   color: tone,
                 ),
               ),
-
               const SizedBox(width: 12),
-
               Expanded(
                 child: Text(
                   category.name,
@@ -627,9 +621,7 @@ class _CategoryTile extends StatelessWidget {
                   ),
                 ),
               ),
-
               const SizedBox(width: 8),
-
               const Icon(
                 Icons.chevron_right_rounded,
                 size: 20,

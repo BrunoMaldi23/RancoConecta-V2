@@ -177,7 +177,7 @@ class AdminBusinessReviewRepository {
 
     try {
       final rows = await client.rpc<List<dynamic>>(
-        'admin_list_business_reviews',
+        'admin_business_review_queue',
         params: {
           'p_status': status.value,
           'p_business_type': businessType?.value,
@@ -225,7 +225,7 @@ class AdminBusinessReviewRepository {
 
     try {
       final row = await client.rpc<Map<String, dynamic>>(
-        'admin_get_business_review',
+        'admin_business_review_detail',
         params: {'p_business_id': businessId},
       );
 

@@ -3,8 +3,10 @@ import 'business.dart';
 
 enum BusinessCapability {
   profile,
+  photos,
   services,
   coverage,
+  hours,
   quotes,
   bookings,
   calendar,
@@ -148,40 +150,47 @@ class BusinessCapabilityResolver {
     return switch (type) {
       BusinessType.service => {
           ...shared,
+          BusinessCapability.photos,
           BusinessCapability.services,
           BusinessCapability.coverage,
+          BusinessCapability.hours,
           BusinessCapability.quotes,
         },
       BusinessType.commerce => {
           ...shared,
+          BusinessCapability.photos,
+          BusinessCapability.hours,
           BusinessCapability.catalog,
           BusinessCapability.orders,
           BusinessCapability.delivery,
         },
       BusinessType.gastronomy => {
           ...shared,
+          BusinessCapability.photos,
+          BusinessCapability.hours,
           BusinessCapability.menu,
-          BusinessCapability.calendar,
-          BusinessCapability.bookings,
           BusinessCapability.delivery,
           BusinessCapability.orders,
         },
       BusinessType.lodging => {
           ...shared,
+          BusinessCapability.photos,
           BusinessCapability.bookings,
           BusinessCapability.calendar,
           BusinessCapability.rates,
         },
       BusinessType.tourism => {
           ...shared,
+          BusinessCapability.photos,
           BusinessCapability.services,
-          BusinessCapability.bookings,
-          BusinessCapability.calendar,
-          BusinessCapability.rates,
+          BusinessCapability.coverage,
+          BusinessCapability.hours,
         },
       BusinessType.emergency => {
           ...shared,
+          BusinessCapability.photos,
           BusinessCapability.coverage,
+          BusinessCapability.hours,
           BusinessCapability.emergencyAvailability,
         },
     };

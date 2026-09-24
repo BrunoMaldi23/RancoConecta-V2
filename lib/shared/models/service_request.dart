@@ -22,8 +22,12 @@ class ServiceRequest {
     required this.publicCode,
     required this.businessId,
     required this.businessName,
+    required this.categoryId,
+    required this.categoryName,
     required this.subcategoryId,
     required this.subcategoryName,
+    required this.locationId,
+    required this.locationName,
     required this.description,
     required this.addressText,
     required this.urgency,
@@ -36,8 +40,12 @@ class ServiceRequest {
   final String publicCode;
   final String? businessId;
   final String? businessName;
+  final String categoryId;
+  final String categoryName;
   final String subcategoryId;
   final String subcategoryName;
+  final String? locationId;
+  final String? locationName;
   final String description;
   final String? addressText;
   final RequestUrgency urgency;

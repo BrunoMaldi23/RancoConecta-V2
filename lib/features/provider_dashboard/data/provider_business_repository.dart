@@ -39,6 +39,27 @@ class ProviderBusinessSummary {
     );
   }
 
+  factory ProviderBusinessSummary.fromManageableJson(
+    Map<String, dynamic> json,
+  ) {
+    return ProviderBusinessSummary(
+      id: json['id'] as String,
+      name: json['name'] as String? ?? 'Mi negocio',
+      businessType: BusinessType.parseOrDefault(
+        json['business_type'] as String? ?? 'service',
+      ),
+      publicationStatus: json['publication_status'] as String? ?? 'draft',
+      submittedAt: DateTime.tryParse(json['submitted_at']?.toString() ?? ''),
+      changesRequestedNote: json['changes_requested_note'] as String?,
+      membershipRole: BusinessMemberRole.parse(
+        json['membership_role'] as String? ?? 'staff',
+      ),
+      membershipStatus: BusinessMemberStatus.parse(
+        json['membership_status'] as String? ?? 'active',
+      ),
+    );
+  }
+
   final String id;
   final String name;
   final BusinessType businessType;
@@ -81,85 +102,24 @@ class ProviderBusinessRepository {
 
   Future<List<ProviderBusinessSummary>> getMyBusinesses() async {
     final client = _client;
-    final userId = client?.auth.currentUser?.id;
 
-    if (client == null || userId == null) {
+    if (client == null || client.auth.currentUser == null) {
       return const [];
     }
 
-    try {
-      final rows = await client
-          .from('business_members')
-          .select(
-            '''
-            id,
-            business_id,
-            user_id,
-            role,
-            status,
-            created_at,
-            updated_at,
-            businesses (
-              id,
-              name,
-              business_type,
-              publication_status,
-              submitted_at,
-              changes_requested_note,
-              created_at
-            )
-            ''',
-          )
-          .eq('user_id', userId)
-          .eq('status', 'active')
-          .order(
-            'created_at',
-            ascending: false,
-          );
+    final rows = await client.rpc<List<dynamic>>(
+      'my_manageable_businesses',
+    );
 
-      return rows
-          .map<ProviderBusinessSummary?>(
-            (row) {
-              final membershipRow = Map<String, dynamic>.from(row);
-              final businessRow = membershipRow['businesses'];
-
-              if (businessRow is! Map) {
-                return null;
-              }
-
-              final business = Map<String, dynamic>.from(businessRow);
-
-              return ProviderBusinessSummary(
-                id: business['id'] as String,
-                name: business['name'] as String? ?? 'Mi negocio',
-                businessType: BusinessType.parseOrDefault(
-                  business['business_type'] as String? ?? 'service',
-                ),
-                publicationStatus:
-                    business['publication_status'] as String? ?? 'draft',
-                submittedAt: DateTime.tryParse(
-                    business['submitted_at']?.toString() ?? ''),
-                changesRequestedNote:
-                    business['changes_requested_note'] as String?,
-                membershipRole: BusinessMemberRole.parse(
-                  membershipRow['role'] as String? ?? 'staff',
-                ),
-                membershipStatus: BusinessMemberStatus.parse(
-                  membershipRow['status'] as String? ?? 'active',
-                ),
-              );
-            },
-          )
-          .whereType<ProviderBusinessSummary>()
-          .toList();
-    } on PostgrestException {
-      final legacyBusiness = await _getLegacyOwnerBusiness(
-        client,
-        userId,
-      );
-
-      return legacyBusiness == null ? const [] : [legacyBusiness];
-    }
+    return rows
+        .whereType<Map>()
+        .map(
+          (row) => ProviderBusinessSummary.fromManageableJson(
+            Map<String, dynamic>.from(row),
+          ),
+        )
+        .where((business) => business.canManage)
+        .toList();
   }
 
   Future<List<ProviderBusinessMembership>> getBusinessMemberships() async {
@@ -249,27 +209,26 @@ class ProviderBusinessRepository {
     String businessId,
   ) async {
     final client = _client;
-    final userId = client?.auth.currentUser?.id;
 
-    if (client == null || userId == null) {
+    if (client == null || client.auth.currentUser == null) {
       return null;
     }
 
-    final row = await client
-        .from('businesses')
-        .select(
-          'id,name,business_type,publication_status,submitted_at,changes_requested_note,created_at',
-        )
-        .eq('id', businessId)
-        .maybeSingle();
+    final rows = await client.rpc<List<dynamic>>(
+      'my_manageable_business',
+      params: {'p_business_id': businessId},
+    );
 
+    final row = rows.whereType<Map>().firstOrNull;
     if (row == null) {
       return null;
     }
 
-    return ProviderBusinessSummary.fromJson(
+    final business = ProviderBusinessSummary.fromManageableJson(
       Map<String, dynamic>.from(row),
     );
+
+    return business.canManage ? business : null;
   }
 
   Future<ProviderBusinessSummary?> getMyBusiness() async {
@@ -280,31 +239,5 @@ class ProviderBusinessRepository {
     }
 
     return businesses.first;
-  }
-
-  Future<ProviderBusinessSummary?> _getLegacyOwnerBusiness(
-    SupabaseClient client,
-    String userId,
-  ) async {
-    final row = await client
-        .from('businesses')
-        .select(
-          'id,name,business_type,publication_status,submitted_at,changes_requested_note,created_at',
-        )
-        .eq('owner_id', userId)
-        .order(
-          'created_at',
-          ascending: false,
-        )
-        .limit(1)
-        .maybeSingle();
-
-    if (row == null) {
-      return null;
-    }
-
-    return ProviderBusinessSummary.fromJson(
-      Map<String, dynamic>.from(row),
-    );
   }
 }

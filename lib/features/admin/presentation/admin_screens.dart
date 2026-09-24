@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/result/result.dart';
+import '../../../features/businesses/application/business_providers.dart';
 import '../../../shared/models/business.dart';
 import '../../../shared/models/profile.dart';
 import '../../../theme/ranco_colors.dart';
@@ -796,6 +797,9 @@ class _BusinessDetailContentState
       success: (_) {
         ref.invalidate(adminBusinessReviewDetailProvider(widget.detail.id));
         ref.invalidate(adminReviewStatsProvider);
+        ref.invalidate(adminBusinessReviewPageProvider);
+        ref.invalidate(publishedBusinessesProvider);
+        ref.invalidate(businessDetailProvider(widget.detail.id));
         setState(() {
           _loading = false;
           _message = 'Acción realizada.';

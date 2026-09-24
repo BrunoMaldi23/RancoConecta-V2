@@ -46,7 +46,6 @@ class SavedScreen extends ConsumerWidget {
                       child: _SavedHeader(),
                     ),
                   ),
-
                   if (items.isEmpty)
                     SliverFillRemaining(
                       hasScrollBody: false,
@@ -73,7 +72,6 @@ class SavedScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
-
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(
                         18,
@@ -97,13 +95,11 @@ class SavedScreen extends ConsumerWidget {
                 ],
               );
             },
-
             loading: () {
               return const Center(
                 child: CircularProgressIndicator(),
               );
             },
-
             error: (error, stackTrace) {
               return RancoErrorState(
                 message: favoritesFailureMessage(
@@ -118,13 +114,11 @@ class SavedScreen extends ConsumerWidget {
             },
           );
         },
-
         loading: () {
           return const Center(
             child: CircularProgressIndicator(),
           );
         },
-
         error: (error, stackTrace) {
           return const RancoErrorState(
             message: 'No pudimos leer la sesión.',
@@ -163,7 +157,6 @@ class _GuestSaved extends StatelessWidget {
             child: _SavedHeader(),
           ),
         ),
-
         SliverFillRemaining(
           hasScrollBody: false,
           child: _GuestSavedState(
@@ -215,28 +208,22 @@ class _SavedHeader extends StatelessWidget {
                   color: RancoColors.forest,
                 ),
               ),
-
               const SizedBox(width: 12),
-
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Guardados',
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineMedium
-                          ?.copyWith(
-                            color: RancoColors.forest,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.4,
-                            height: 1.0,
-                          ),
+                      style:
+                          Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                color: RancoColors.forest,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.4,
+                                height: 1.0,
+                              ),
                     ),
-
                     const SizedBox(height: 5),
-
                     const Text(
                       'Tus negocios y lugares favoritos, siempre a mano.',
                       style: TextStyle(
@@ -297,9 +284,7 @@ class _GuestSavedState extends StatelessWidget {
                   color: RancoColors.forest,
                 ),
               ),
-
               const SizedBox(height: 18),
-
               const Text(
                 'Inicia sesión para guardar favoritos',
                 textAlign: TextAlign.center,
@@ -310,9 +295,7 @@ class _GuestSavedState extends StatelessWidget {
                   height: 1.15,
                 ),
               ),
-
               const SizedBox(height: 8),
-
               const Text(
                 'Guarda negocios, alojamientos y servicios para encontrarlos fácilmente más tarde.',
                 textAlign: TextAlign.center,
@@ -322,9 +305,7 @@ class _GuestSavedState extends StatelessWidget {
                   height: 1.4,
                 ),
               ),
-
               const SizedBox(height: 20),
-
               SizedBox(
                 width: 220,
                 child: FilledButton.icon(
@@ -346,9 +327,7 @@ class _GuestSavedState extends StatelessWidget {
                   ),
                 ),
               ),
-
               const SizedBox(height: 6),
-
               TextButton.icon(
                 onPressed: onExplore,
                 icon: const Icon(
@@ -406,9 +385,7 @@ class _EmptySavedState extends StatelessWidget {
                   color: RancoColors.forest,
                 ),
               ),
-
               const SizedBox(height: 18),
-
               const Text(
                 'Aún no tienes guardados',
                 textAlign: TextAlign.center,
@@ -419,9 +396,7 @@ class _EmptySavedState extends StatelessWidget {
                   height: 1.15,
                 ),
               ),
-
               const SizedBox(height: 8),
-
               const Text(
                 'Guarda negocios, alojamientos o servicios para volver a encontrarlos rápidamente.',
                 textAlign: TextAlign.center,
@@ -431,9 +406,7 @@ class _EmptySavedState extends StatelessWidget {
                   height: 1.4,
                 ),
               ),
-
               const SizedBox(height: 20),
-
               FilledButton.icon(
                 onPressed: onExplore,
                 icon: const Icon(
@@ -486,7 +459,6 @@ class _SavedToolbar extends StatelessWidget {
             ),
           ),
         ),
-
         TextButton.icon(
           onPressed: onExplore,
           icon: const Icon(

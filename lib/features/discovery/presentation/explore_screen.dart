@@ -128,9 +128,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                                 height: 1.02,
                               ),
                         ),
-
                         const SizedBox(height: 3),
-
                         const Text(
                           'Encuentra negocios y servicios cerca de ti.',
                           style: TextStyle(
@@ -139,9 +137,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                             height: 1.3,
                           ),
                         ),
-
                         const SizedBox(height: 12),
-
                         _CompactSearchBar(
                           controller: _searchController,
                           focusNode: _searchFocusNode,
@@ -157,9 +153,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                           onSearch: _submitSearch,
                           onClear: _clearSearch,
                         ),
-
                         const SizedBox(height: 10),
-
                         _FilterStrip(
                           location: selectedLocation,
                           categoryName: selectedCategoryName,
@@ -192,9 +186,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                             _showFilters(context);
                           },
                         ),
-
                         const SizedBox(height: 10),
-
                         businesses.maybeWhen(
                           data: (items) {
                             return _ResultsHeader(
@@ -211,7 +203,6 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               ),
             ),
           ),
-
           businesses.when(
             data: (items) {
               if (items.isEmpty) {
@@ -473,9 +464,7 @@ class _CompactSearchBar extends StatelessWidget {
             ),
           ),
         ),
-
         const SizedBox(width: 8),
-
         SizedBox(
           width: 46,
           height: 46,
@@ -538,9 +527,7 @@ class _FilterStrip extends StatelessWidget {
             onTap: onLocationTap,
             onClear: onLocationClear,
           ),
-
           const SizedBox(width: 7),
-
           _FilterPill(
             icon: Icons.category_outlined,
             label: categoryName ?? 'Categoría',
@@ -548,9 +535,7 @@ class _FilterStrip extends StatelessWidget {
             onTap: onCategoryTap,
             onClear: onCategoryClear,
           ),
-
           const SizedBox(width: 7),
-
           _FilterPill(
             icon: Icons.tune_rounded,
             label: advancedFilterCount == 0
@@ -583,9 +568,7 @@ class _FilterPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected
-          ? const Color(0xFFE7F2ED)
-          : Colors.white,
+      color: selected ? const Color(0xFFE7F2ED) : Colors.white,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
@@ -601,9 +584,8 @@ class _FilterPill extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: selected
-                  ? const Color(0xFFBDD8CB)
-                  : const Color(0xFFD4E2DC),
+              color:
+                  selected ? const Color(0xFFBDD8CB) : const Color(0xFFD4E2DC),
             ),
           ),
           child: Row(
@@ -614,9 +596,7 @@ class _FilterPill extends StatelessWidget {
                 size: 16,
                 color: RancoColors.forest,
               ),
-
               const SizedBox(width: 6),
-
               ConstrainedBox(
                 constraints: const BoxConstraints(
                   maxWidth: 120,
@@ -626,18 +606,15 @@ class _FilterPill extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: selected
-                        ? RancoColors.forest
-                        : RancoColors.textPrimary,
+                    color:
+                        selected ? RancoColors.forest : RancoColors.textPrimary,
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-
               if (onClear != null) ...[
                 const SizedBox(width: 2),
-
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: onClear,
@@ -682,10 +659,8 @@ class _ResultsHeader extends StatelessWidget {
             fontWeight: FontWeight.w800,
           ),
         ),
-
         if (location != null && location.isNotEmpty) ...[
           const SizedBox(width: 5),
-
           Expanded(
             child: Text(
               'en $location',
@@ -744,9 +719,7 @@ class _CompactEmptyState extends StatelessWidget {
             color: RancoColors.forest,
           ),
         ),
-
         const SizedBox(height: 12),
-
         const Text(
           'No encontramos resultados',
           textAlign: TextAlign.center,
@@ -756,9 +729,7 @@ class _CompactEmptyState extends StatelessWidget {
             fontWeight: FontWeight.w800,
           ),
         ),
-
         const SizedBox(height: 5),
-
         Text(
           message,
           textAlign: TextAlign.center,
@@ -768,9 +739,7 @@ class _CompactEmptyState extends StatelessWidget {
             height: 1.35,
           ),
         ),
-
         const SizedBox(height: 14),
-
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -841,7 +810,6 @@ class _LocationPickerSheet extends ConsumerWidget {
                   Navigator.of(context).pop();
                 },
               ),
-
               for (final location in items)
                 _LocationOption(
                   label: location.name,
@@ -898,9 +866,7 @@ class _LocationOption extends StatelessWidget {
         bottom: 6,
       ),
       child: Material(
-        color: selected
-            ? const Color(0xFFE7F2ED)
-            : Colors.white,
+        color: selected ? const Color(0xFFE7F2ED) : Colors.white,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: onTap,
@@ -925,9 +891,7 @@ class _LocationOption extends StatelessWidget {
                   size: 18,
                   color: RancoColors.forest,
                 ),
-
                 const SizedBox(width: 9),
-
                 Expanded(
                   child: Text(
                     label,
@@ -937,7 +901,6 @@ class _LocationOption extends StatelessWidget {
                     ),
                   ),
                 ),
-
                 if (selected)
                   const Icon(
                     Icons.check_rounded,
@@ -996,9 +959,7 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
                 ),
               ),
             ),
-
             const SizedBox(width: 9),
-
             Expanded(
               flex: 2,
               child: FilledButton(
@@ -1036,9 +997,7 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
                 });
               },
             ),
-
             const SizedBox(height: 7),
-
             _PreferenceRow(
               icon: Icons.star_outline_rounded,
               title: 'Destacados',
@@ -1050,9 +1009,7 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
                 });
               },
             ),
-
             const SizedBox(height: 7),
-
             _PreferenceRow(
               icon: Icons.access_time_rounded,
               title: 'Disponibles ahora',
@@ -1142,9 +1099,7 @@ class _PreferenceRow extends StatelessWidget {
                   color: RancoColors.forest,
                 ),
               ),
-
               const SizedBox(width: 10),
-
               Expanded(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -1158,9 +1113,7 @@ class _PreferenceRow extends StatelessWidget {
                         fontSize: 13.5,
                       ),
                     ),
-
                     const SizedBox(height: 1),
-
                     Text(
                       subtitle,
                       maxLines: 1,
@@ -1173,9 +1126,7 @@ class _PreferenceRow extends StatelessWidget {
                   ],
                 ),
               ),
-
               const SizedBox(width: 8),
-
               Switch(
                 value: value,
                 onChanged: onChanged,
@@ -1220,7 +1171,6 @@ class _BottomSheetFrame extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 9),
-
               Container(
                 width: 38,
                 height: 4,
@@ -1229,7 +1179,6 @@ class _BottomSheetFrame extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                   16,
@@ -1251,9 +1200,7 @@ class _BottomSheetFrame extends StatelessWidget {
                               fontWeight: FontWeight.w900,
                             ),
                           ),
-
                           const SizedBox(height: 2),
-
                           Text(
                             subtitle,
                             style: const TextStyle(
@@ -1264,7 +1211,6 @@ class _BottomSheetFrame extends StatelessWidget {
                         ],
                       ),
                     ),
-
                     IconButton(
                       tooltip: 'Cerrar',
                       onPressed: () {
@@ -1277,11 +1223,9 @@ class _BottomSheetFrame extends StatelessWidget {
                   ],
                 ),
               ),
-
               Flexible(
                 child: child,
               ),
-
               if (footer != null) footer!,
             ],
           ),

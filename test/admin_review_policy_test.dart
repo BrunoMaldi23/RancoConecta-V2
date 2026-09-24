@@ -32,6 +32,65 @@ void main() {
     );
   });
 
+  test('review transitions match the admin workflow contract', () {
+    expect(
+      policy.canPerform(
+        role: ProfileRole.admin,
+        status: BusinessPublicationStatus.pendingReview,
+        action: AdminReviewAction.requestChanges,
+      ),
+      isTrue,
+    );
+    expect(
+      policy.canPerform(
+        role: ProfileRole.admin,
+        status: BusinessPublicationStatus.changesRequested,
+        action: AdminReviewAction.requestChanges,
+      ),
+      isFalse,
+    );
+    expect(
+      policy.canPerform(
+        role: ProfileRole.admin,
+        status: BusinessPublicationStatus.changesRequested,
+        action: AdminReviewAction.publish,
+      ),
+      isFalse,
+    );
+    expect(
+      policy.canPerform(
+        role: ProfileRole.admin,
+        status: BusinessPublicationStatus.pendingReview,
+        action: AdminReviewAction.publish,
+      ),
+      isTrue,
+    );
+    expect(
+      policy.canPerform(
+        role: ProfileRole.admin,
+        status: BusinessPublicationStatus.published,
+        action: AdminReviewAction.suspend,
+      ),
+      isTrue,
+    );
+    expect(
+      policy.canPerform(
+        role: ProfileRole.admin,
+        status: BusinessPublicationStatus.pendingReview,
+        action: AdminReviewAction.suspend,
+      ),
+      isFalse,
+    );
+    expect(
+      policy.canPerform(
+        role: ProfileRole.admin,
+        status: BusinessPublicationStatus.suspended,
+        action: AdminReviewAction.restore,
+      ),
+      isTrue,
+    );
+  });
+
   test('normal providers cannot publish or suspend businesses', () {
     expect(
       policy.canPerform(

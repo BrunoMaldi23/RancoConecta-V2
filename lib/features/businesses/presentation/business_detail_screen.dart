@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -103,6 +105,7 @@ class _BusinessDetail extends ConsumerWidget {
     final serviceName = business.services.isNotEmpty
         ? business.services.first.subcategory.name
         : business.type.label;
+    final primaryAction = _primaryActionFor(business);
 
     return Scaffold(
       backgroundColor: const Color(0xFFEAF4F0),
@@ -587,34 +590,35 @@ class _BusinessDetail extends ConsumerWidget {
                     // SOLICITAR SERVICIO
                     // =============================================
 
-                    FilledButton.icon(
-                      onPressed: business.acceptsRequests
-                          ? () {
-                              _requestService(
-                                context,
-                                ref,
-                              );
-                            }
-                          : null,
-                      icon: const Icon(
-                        Icons.assignment_outlined,
-                      ),
-                      label: const Text(
-                        'Solicitar servicio',
-                      ),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(
-                          54,
+                    if (primaryAction != null)
+                      FilledButton.icon(
+                        onPressed: primaryAction.enabled
+                            ? () {
+                                primaryAction.run(
+                                  context,
+                                  ref,
+                                );
+                              }
+                            : null,
+                        icon: Icon(
+                          primaryAction.icon,
                         ),
-                        backgroundColor: RancoColors.forest,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            16,
+                        label: Text(
+                          primaryAction.label,
+                        ),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(
+                            54,
+                          ),
+                          backgroundColor: RancoColors.forest,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              16,
+                            ),
                           ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -731,6 +735,68 @@ class _BusinessDetail extends ConsumerWidget {
     );
   }
 
+  _BusinessPrimaryAction? _primaryActionFor(
+    Business business,
+  ) {
+    if (business.type == BusinessType.service && business.acceptsRequests) {
+      return _BusinessPrimaryAction(
+        label: 'Solicitar servicio',
+        icon: Icons.assignment_outlined,
+        enabled: true,
+        run: _requestService,
+      );
+    }
+
+    if (business.type == BusinessType.tourism && business.acceptsRequests) {
+      return _BusinessPrimaryAction(
+        label: 'Solicitar actividad',
+        icon: Icons.assignment_outlined,
+        enabled: true,
+        run: _requestService,
+      );
+    }
+
+    if (business.type == BusinessType.emergency) {
+      if (business.whatsapp?.trim().isNotEmpty == true) {
+        return _BusinessPrimaryAction(
+          label: 'WhatsApp urgente',
+          icon: Icons.chat_outlined,
+          enabled: true,
+          run: (context, ref) => _launchWhatsApp(business.whatsapp!),
+        );
+      }
+
+      if (business.phone?.trim().isNotEmpty == true) {
+        return _BusinessPrimaryAction(
+          label: 'Llamar ahora',
+          icon: Icons.call_outlined,
+          enabled: true,
+          run: (context, ref) => _launchPhone(business.phone!),
+        );
+      }
+    }
+
+    if (business.whatsapp?.trim().isNotEmpty == true) {
+      return _BusinessPrimaryAction(
+        label: 'Contactar',
+        icon: Icons.chat_outlined,
+        enabled: true,
+        run: (context, ref) => _launchWhatsApp(business.whatsapp!),
+      );
+    }
+
+    if (business.phone?.trim().isNotEmpty == true) {
+      return _BusinessPrimaryAction(
+        label: 'Contactar',
+        icon: Icons.call_outlined,
+        enabled: true,
+        run: (context, ref) => _launchPhone(business.phone!),
+      );
+    }
+
+    return null;
+  }
+
   Future<void> _launchPhone(
     String phone,
   ) async {
@@ -796,6 +862,20 @@ class _BusinessDetail extends ConsumerWidget {
       _ => 'Día',
     };
   }
+}
+
+class _BusinessPrimaryAction {
+  const _BusinessPrimaryAction({
+    required this.label,
+    required this.icon,
+    required this.enabled,
+    required this.run,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool enabled;
+  final FutureOr<void> Function(BuildContext context, WidgetRef ref) run;
 }
 
 class _BusinessStatsCard extends StatelessWidget {

@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
+import '../../../core/result/result.dart';
 import '../../../core/widgets/ranco_app_bar.dart';
+import '../../../features/locations/application/location_providers.dart';
+import '../../../shared/models/location.dart';
 import '../../../shared/models/service_request.dart';
 import '../../businesses/application/business_providers.dart';
 import '../application/service_request_providers.dart';
+import '../data/request_attachment_repository.dart';
 import '../data/service_request_repository.dart';
 
 class CreateRequestScreen extends ConsumerStatefulWidget {
@@ -23,10 +28,12 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
   final _descriptionController = TextEditingController();
   final _addressController = TextEditingController();
   String? _selectedSubcategoryId;
+  String? _selectedLocationId;
   RequestUrgency _urgency = RequestUrgency.normal;
   DateTime? _desiredDate;
   bool _saving = false;
   String? _error;
+  final List<PendingRequestAttachment> _attachments = [];
 
   @override
   void dispose() {
@@ -38,11 +45,22 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
   @override
   Widget build(BuildContext context) {
     final business = ref.watch(businessDetailProvider(widget.businessId));
+    final locations = ref.watch(locationsProvider);
     return Scaffold(
       appBar: const RancoAppBar(title: 'Solicitar servicio'),
       body: business.when(
         data: (business) {
           final services = business.services;
+          final activeLocations = locations.valueOrNull;
+          final availableLocations = activeLocations == null
+              ? business.coverage
+              : activeLocations
+                  .where(
+                    (location) => business.coverage.any(
+                      (covered) => covered.id == location.id,
+                    ),
+                  )
+                  .toList();
           return Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 560),
@@ -102,16 +120,33 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
                                   : null,
                         ),
                         const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          initialValue: _selectedLocationId,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Localidad',
+                            prefixIcon: Icon(Icons.place_outlined),
+                          ),
+                          items: [
+                            for (final location in availableLocations)
+                              DropdownMenuItem(
+                                value: location.id,
+                                child: Text(_locationLabel(location)),
+                              ),
+                          ],
+                          onChanged: (value) =>
+                              setState(() => _selectedLocationId = value),
+                          validator: (value) => value == null
+                              ? 'Selecciona una localidad.'
+                              : null,
+                        ),
+                        const SizedBox(height: 12),
                         TextFormField(
                           controller: _addressController,
                           decoration: const InputDecoration(
-                            labelText: 'Dirección o referencia',
+                            labelText: 'Dirección o referencia opcional',
                             prefixIcon: Icon(Icons.location_on_outlined),
                           ),
-                          validator: (value) =>
-                              (value == null || value.trim().isEmpty)
-                                  ? 'Ingresa una dirección o referencia.'
-                                  : null,
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<RequestUrgency>(
@@ -137,6 +172,16 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
                                 ? 'Elegir fecha deseada'
                                 : '${_desiredDate!.day}/${_desiredDate!.month}/${_desiredDate!.year}',
                           ),
+                        ),
+                        const SizedBox(height: 12),
+                        _AttachmentPicker(
+                          attachments: _attachments,
+                          onAddImages: _pickImages,
+                          onRemove: (index) {
+                            setState(() {
+                              _attachments.removeAt(index);
+                            });
+                          },
                         ),
                         if (_error != null) ...[
                           const SizedBox(height: 12),
@@ -208,6 +253,7 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
                 businessId: businessId,
                 categoryId: service.subcategory.categoryId,
                 subcategoryId: service.subcategory.id,
+                locationId: _selectedLocationId,
                 description: _descriptionController.text,
                 addressText: _addressController.text,
                 urgency: _urgency,
@@ -217,17 +263,97 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
     if (!mounted) {
       return;
     }
-    result.when(
-      success: (request) {
+    switch (result) {
+      case Success(:final value):
+        final request = value;
+        for (final attachment in _attachments) {
+          final upload =
+              await ref.read(requestAttachmentRepositoryProvider).upload(
+                    requestId: request.id,
+                    attachment: attachment,
+                  );
+
+          if (!mounted) {
+            return;
+          }
+
+          final failed = upload.when(
+            success: (_) => false,
+            failure: (failure) {
+              setState(() => _error = failure.message);
+              return true;
+            },
+          );
+
+          if (failed) {
+            setState(() => _saving = false);
+            return;
+          }
+        }
+
         ref.invalidate(myRequestsProvider);
+        ref.invalidate(requestAttachmentsProvider(request.id));
         context.go('/requests/${request.id}');
-      },
-      failure: (failure) => setState(() => _error = failure.message),
-    );
+      case Failure(:final error):
+        setState(() => _error = error.message);
+    }
     if (mounted) {
       setState(() => _saving = false);
     }
   }
+
+  Future<void> _pickImages() async {
+    final picker = ImagePicker();
+    final images = await picker.pickMultiImage(
+      imageQuality: 82,
+      maxWidth: 1800,
+    );
+
+    if (images.isEmpty) {
+      return;
+    }
+
+    final next = <PendingRequestAttachment>[];
+
+    for (final image in images) {
+      final bytes = await image.readAsBytes();
+      next.add(
+        PendingRequestAttachment(
+          fileName: image.name,
+          mimeType: _mimeForName(image.name),
+          bytes: bytes,
+        ),
+      );
+    }
+
+    setState(() {
+      _attachments.addAll(next);
+    });
+  }
+}
+
+String _locationLabel(Location location) {
+  final commune = location.communeName;
+
+  if (commune == null || commune.isEmpty) {
+    return location.name;
+  }
+
+  return '${location.name} · $commune';
+}
+
+String _mimeForName(String fileName) {
+  final lower = fileName.toLowerCase();
+
+  if (lower.endsWith('.png')) {
+    return 'image/png';
+  }
+
+  if (lower.endsWith('.webp')) {
+    return 'image/webp';
+  }
+
+  return 'image/jpeg';
 }
 
 class _RequestHeader extends StatelessWidget {
@@ -304,6 +430,71 @@ class _UnavailablePanel extends StatelessWidget {
               'Este prestador todavía no tiene servicios publicados para recibir solicitudes directas.',
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AttachmentPicker extends StatelessWidget {
+  const _AttachmentPicker({
+    required this.attachments,
+    required this.onAddImages,
+    required this.onRemove,
+  });
+
+  final List<PendingRequestAttachment> attachments;
+  final VoidCallback onAddImages;
+  final ValueChanged<int> onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Adjuntos',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: onAddImages,
+                icon: const Icon(Icons.attach_file_rounded),
+                label: const Text('Agregar fotos'),
+              ),
+            ],
+          ),
+          if (attachments.isEmpty)
+            const Text(
+              'Puedes agregar fotos para explicar mejor la solicitud.',
+            )
+          else
+            ...attachments.asMap().entries.map(
+                  (entry) => ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.image_outlined),
+                    title: Text(
+                      entry.value.fileName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: IconButton(
+                      onPressed: () => onRemove(entry.key),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ),
+                ),
         ],
       ),
     );

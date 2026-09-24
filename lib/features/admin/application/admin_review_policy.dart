@@ -23,16 +23,13 @@ class AdminReviewPolicy {
 
     return switch (action) {
       AdminReviewAction.requestChanges =>
-        status == BusinessPublicationStatus.pendingReview ||
-            status == BusinessPublicationStatus.rejected,
+        status == BusinessPublicationStatus.pendingReview,
       AdminReviewAction.reject =>
         status == BusinessPublicationStatus.pendingReview,
       AdminReviewAction.publish =>
-        status == BusinessPublicationStatus.pendingReview ||
-            status == BusinessPublicationStatus.changesRequested,
+        status == BusinessPublicationStatus.pendingReview,
       AdminReviewAction.suspend =>
-        status != BusinessPublicationStatus.suspended &&
-            status != BusinessPublicationStatus.archived,
+        status == BusinessPublicationStatus.published,
       AdminReviewAction.restore =>
         status == BusinessPublicationStatus.suspended,
     };
