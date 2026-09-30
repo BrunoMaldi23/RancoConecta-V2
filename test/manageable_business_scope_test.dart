@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ranco_conecta_2/config/app_config.dart';
+import 'package:ranco_conecta_2/features/provider_dashboard/application/provider_context_state.dart';
 import 'package:ranco_conecta_2/features/provider_dashboard/application/provider_dashboard_providers.dart';
 import 'package:ranco_conecta_2/features/provider_dashboard/data/provider_business_repository.dart';
 import 'package:ranco_conecta_2/shared/models/business.dart';
@@ -20,6 +21,29 @@ void main() {
     expect(sql, contains("bm.status = 'active'"));
     expect(sql, contains("bm.role in ('owner', 'manager')"));
     expect(sql, isNot(contains('p_user_id')));
+  });
+
+  test('failed queue migration can replace changed return signature safely',
+      () {
+    final sql = File(
+      'supabase/migrations/20260923170000_request_location_attachments_reject_quote.sql',
+    ).readAsStringSync();
+    final grantSql = File(
+      'supabase/migrations/20260923220000_restore_provider_queue_grant.sql',
+    ).readAsStringSync();
+
+    expect(
+      sql,
+      contains(
+        'drop function if exists public.provider_service_request_queue(uuid, text);',
+      ),
+    );
+    expect(
+      grantSql,
+      contains(
+        'grant execute on function public.provider_service_request_queue(uuid, text)',
+      ),
+    );
   });
 
   test('provider repository uses canonical rpc and not public catalog fallback',
@@ -51,6 +75,35 @@ void main() {
 
     expect(selected?.id, 'own-1');
     expect(container.read(activeProviderBusinessIdProvider), isNull);
+  });
+
+  test(
+      'provider context maps publication status without treating errors as empty',
+      () {
+    expect(
+      providerContextStatusForPublication('draft'),
+      ProviderContextStatus.hasDraft,
+    );
+    expect(
+      providerContextStatusForPublication('pending_review'),
+      ProviderContextStatus.pendingReview,
+    );
+    expect(
+      providerContextStatusForPublication('changes_requested'),
+      ProviderContextStatus.changesRequested,
+    );
+    expect(
+      providerContextStatusForPublication('published'),
+      ProviderContextStatus.published,
+    );
+    expect(
+      providerContextStatusForPublication('suspended'),
+      ProviderContextStatus.suspended,
+    );
+    expect(
+      providerContextStatusForPublication('rejected'),
+      ProviderContextStatus.rejected,
+    );
   });
 
   test('capabilities separate lodging from service dashboard features', () {

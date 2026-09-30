@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/layout/ranco_responsive.dart';
+import '../../../core/widgets/ranco_app_bar.dart';
 import '../../../theme/ranco_colors.dart';
 import '../../../shared/models/business.dart';
 import '../../../shared/models/business_capability.dart';
 import '../application/provider_dashboard_providers.dart';
 import '../data/provider_business_repository.dart';
 import '../data/service_business_management_repository.dart';
-import '../../../core/widgets/ranco_app_bar.dart';
 
 class ProviderDashboardScreen extends ConsumerWidget {
   const ProviderDashboardScreen({
@@ -96,94 +97,115 @@ class ProviderDashboardScreen extends ConsumerWidget {
               );
           final items = _dashboardItems(
             capabilitySet,
+            business.businessType,
           );
           final management = ref.watch(serviceBusinessManagementProvider);
 
           return ListView(
-            padding: const EdgeInsets.all(
-              18,
-            ),
+            padding: const EdgeInsets.symmetric(vertical: 20),
             children: [
-              businesses.maybeWhen(
-                data: (items) {
-                  if (items.length < 2) {
-                    return const SizedBox.shrink();
-                  }
+              RancoContentContainer(
+                width: RancoContainerWidth.standard,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    businesses.maybeWhen(
+                      data: (items) {
+                        if (items.length < 2) {
+                          return const SizedBox.shrink();
+                        }
 
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _BusinessSwitcherButton(
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: SizedBox(
+                              width: context.isRancoDesktop ? 360 : null,
+                              child: _BusinessSwitcherButton(
+                                business: business,
+                                businesses: items,
+                                onSelected: (value) {
+                                  ref
+                                      .read(
+                                        activeProviderBusinessIdProvider
+                                            .notifier,
+                                      )
+                                      .state = value;
+                                  ref.invalidate(
+                                      activeProviderBusinessProvider);
+                                  ref.invalidate(
+                                      activeProviderCapabilitiesProvider);
+                                  ref.invalidate(
+                                      serviceBusinessManagementProvider);
+                                },
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      orElse: () => const SizedBox.shrink(),
+                    ),
+                    _ProviderHero(
                       business: business,
-                      businesses: items,
-                      onSelected: (value) {
-                        ref
-                            .read(activeProviderBusinessIdProvider.notifier)
-                            .state = value;
-                        ref.invalidate(activeProviderBusinessProvider);
-                        ref.invalidate(activeProviderCapabilitiesProvider);
-                        ref.invalidate(serviceBusinessManagementProvider);
+                      onPreview: () {
+                        context.go(
+                          '/business/${business.id}',
+                        );
                       },
                     ),
-                  );
-                },
-                orElse: () => const SizedBox.shrink(),
-              ),
-              _ProviderHero(
-                business: business,
-                onPreview: () {
-                  context.go(
-                    '/business/${business.id}',
-                  );
-                },
-              ),
-              if (business.businessType == BusinessType.service) ...[
-                const SizedBox(height: 10),
-                management.maybeWhen(
-                  data: (state) => state == null
-                      ? const SizedBox.shrink()
-                      : _ServiceSummaryStrip(state: state),
-                  orElse: () => const SizedBox.shrink(),
-                ),
-              ],
-              const SizedBox(
-                height: 18,
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _sectionTitleFor(business.businessType),
-                      style: const TextStyle(
-                        color: RancoColors.forest,
-                        fontSize: 19,
-                        fontWeight: FontWeight.w900,
+                    if (business.businessType == BusinessType.service) ...[
+                      const SizedBox(height: 10),
+                      management.maybeWhen(
+                        data: (state) => state == null
+                            ? const SizedBox.shrink()
+                            : _ServiceSummaryStrip(state: state),
+                        orElse: () => const SizedBox.shrink(),
                       ),
+                    ],
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _sectionTitleFor(business.businessType),
+                            style: const TextStyle(
+                              color: RancoColors.forest,
+                              fontSize: 19,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${items.where((item) => item.route != null).length} activos',
+                          style: const TextStyle(
+                            color: Color(0xFF61736A),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  Text(
-                    '${items.where((item) => item.route != null).length} activos',
-                    style: const TextStyle(
-                      color: Color(0xFF61736A),
-                      fontWeight: FontWeight.w700,
+                    const SizedBox(height: 10),
+                    RancoResponsiveGrid(
+                      minItemWidth: 310,
+                      maxColumns: 3,
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        for (final item in items)
+                          _DashboardTile(
+                            icon: item.icon,
+                            title: item.title,
+                            subtitle: item.subtitle,
+                            locked: item.locked,
+                            onTap: item.route == null
+                                ? null
+                                : () {
+                                    context.go(item.route!);
+                                  },
+                          ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(
-                height: 10,
-              ),
-              ...items.map(
-                (item) => _DashboardTile(
-                  icon: item.icon,
-                  title: item.title,
-                  subtitle: item.subtitle,
-                  onTap: item.route == null
-                      ? null
-                      : () {
-                          context.go(
-                            item.route!,
-                          );
-                        },
+                  ],
                 ),
               ),
             ],
@@ -207,96 +229,222 @@ class ProviderDashboardScreen extends ConsumerWidget {
 }
 
 List<_ProviderDashboardItem> _dashboardItems(
-    BusinessCapabilitySet capabilities) {
-  return [
-    if (capabilities.can(BusinessCapability.profile))
-      const _ProviderDashboardItem(
-        icon: Icons.storefront_outlined,
-        title: 'Perfil',
-        subtitle: 'Nombre, descripción, contacto y dirección',
-        route: '/provider/profile',
-      ),
-    if (capabilities.can(BusinessCapability.photos))
-      const _ProviderDashboardItem(
-        icon: Icons.photo_library_outlined,
-        title: 'Fotos',
-        subtitle: 'Portada y galería pública',
-        route: '/provider/photos',
-      ),
-    if (capabilities.can(BusinessCapability.services))
-      const _ProviderDashboardItem(
-        icon: Icons.home_repair_service_outlined,
-        title: 'Servicios',
-        subtitle: 'Subcategorías, descripción y precio desde',
-        route: '/provider/services',
-      ),
-    if (capabilities.can(BusinessCapability.services))
-      const _ProviderDashboardItem(
-        icon: Icons.assignment_outlined,
-        title: 'Solicitudes',
-        subtitle: 'Solicitudes, cotizaciones y operaciones',
-        route: '/provider/requests',
-      ),
-    if (capabilities.can(BusinessCapability.coverage))
-      const _ProviderDashboardItem(
-        icon: Icons.map_outlined,
-        title: 'Cobertura',
-        subtitle: 'Localidades donde atiende el negocio',
-        route: '/provider/coverage',
-      ),
-    if (capabilities.can(BusinessCapability.hours))
-      const _ProviderDashboardItem(
-        icon: Icons.schedule_outlined,
-        title: 'Horarios',
-        subtitle: 'Días y horas de atención',
-        route: '/provider/hours',
-      ),
-    if (capabilities.can(BusinessCapability.menu))
-      const _ProviderDashboardItem(
-        icon: Icons.restaurant_menu_outlined,
-        title: 'Menú',
-        subtitle: 'Base gastronómica; módulo de menú pendiente',
-      ),
-    if (capabilities.can(BusinessCapability.catalog))
-      const _ProviderDashboardItem(
-        icon: Icons.inventory_2_outlined,
-        title: 'Catálogo',
-        subtitle: 'Base comercial; catálogo dedicado pendiente',
-      ),
-    if (capabilities.can(BusinessCapability.rates))
-      const _ProviderDashboardItem(
-        icon: Icons.payments_outlined,
-        title: 'Tarifas',
-        subtitle: 'Precios y condiciones del alojamiento',
-        route: '/provider/rates',
-      ),
-    if (capabilities.can(BusinessCapability.calendar))
-      const _ProviderDashboardItem(
-        icon: Icons.calendar_month_outlined,
-        title: 'Calendario',
-        subtitle: 'Disponibilidad y bloqueos',
-        route: '/provider/calendar',
-      ),
-    if (capabilities.can(BusinessCapability.bookings))
-      const _ProviderDashboardItem(
-        icon: Icons.event_available_outlined,
-        title: 'Reservas',
-        subtitle: 'Reservas recibidas para el alojamiento',
-        route: '/provider/bookings',
-      ),
-    if (capabilities.can(BusinessCapability.emergencyAvailability))
-      const _ProviderDashboardItem(
-        icon: Icons.emergency_outlined,
-        title: 'Disponibilidad de emergencia',
-        subtitle: 'Base operacional de atención prioritaria',
-      ),
-    if (capabilities.can(BusinessCapability.promotions))
-      const _ProviderDashboardItem(
-        icon: Icons.campaign_outlined,
-        title: 'Promociones',
-        subtitle: 'Requiere módulo de monetización visible',
-      ),
-  ];
+  BusinessCapabilitySet capabilities,
+  BusinessType type,
+) {
+  if (type == BusinessType.commerce) {
+    return [
+      if (capabilities.can(BusinessCapability.profile))
+        const _ProviderDashboardItem(
+          icon: Icons.storefront_outlined,
+          title: 'Perfil comercial',
+          subtitle: 'Nombre y descripción pública del comercio',
+          route: '/provider/profile',
+        ),
+      if (capabilities.can(BusinessCapability.photos))
+        const _ProviderDashboardItem(
+          icon: Icons.photo_library_outlined,
+          title: 'Fotos',
+          subtitle: 'Foto de perfil, portada y galería pública',
+          route: '/provider/photos',
+        ),
+      if (capabilities.can(BusinessCapability.catalog))
+        _ProviderDashboardItem(
+          icon: Icons.inventory_2_outlined,
+          title: 'Productos',
+          subtitle:
+              'Puedes publicar hasta ${capabilities.limit(BusinessLimit.maxProducts) ?? 15} productos referenciales',
+        ),
+      if (capabilities.can(BusinessCapability.hours))
+        const _ProviderDashboardItem(
+          icon: Icons.schedule_outlined,
+          title: 'Horarios',
+          subtitle: 'Días y horas de atención',
+          route: '/provider/hours',
+        ),
+      if (capabilities.can(BusinessCapability.location))
+        const _ProviderDashboardItem(
+          icon: Icons.location_on_outlined,
+          title: 'Ubicación',
+          subtitle: 'Dirección y localidad del comercio',
+          route: '/provider/location',
+        ),
+      if (capabilities.can(BusinessCapability.contact))
+        const _ProviderDashboardItem(
+          icon: Icons.contact_phone_outlined,
+          title: 'Contacto',
+          subtitle: 'Teléfono, WhatsApp, correo y sitio web',
+          route: '/provider/profile',
+        ),
+    ];
+  }
+
+  return switch (type) {
+    BusinessType.service => [
+        if (capabilities.can(BusinessCapability.profile))
+          const _ProviderDashboardItem(
+            icon: Icons.storefront_outlined,
+            title: 'Perfil',
+            subtitle: 'Nombre, descripción, contacto y dirección',
+            route: '/provider/profile',
+          ),
+        if (capabilities.can(BusinessCapability.services))
+          _ProviderDashboardItem(
+            icon: Icons.home_repair_service_outlined,
+            title: 'Servicios',
+            subtitle:
+                'Puedes publicar hasta ${capabilities.limit(BusinessLimit.maxServices) ?? 5} servicios',
+            route: '/provider/services',
+          ),
+        if (capabilities.can(BusinessCapability.services))
+          const _ProviderDashboardItem(
+            icon: Icons.assignment_outlined,
+            title: 'Solicitudes',
+            subtitle: 'Nuevas, pendientes, aceptadas y finalizadas',
+            route: '/provider/requests',
+          ),
+        if (capabilities.can(BusinessCapability.coverage))
+          _ProviderDashboardItem(
+            icon: Icons.map_outlined,
+            title: 'Cobertura',
+            subtitle:
+                'Puedes publicar hasta ${capabilities.limit(BusinessLimit.maxLocations) ?? 1} localidades',
+            route: '/provider/coverage',
+          ),
+        if (capabilities.can(BusinessCapability.photos))
+          _photosItem(capabilities),
+      ],
+    BusinessType.lodging => [
+        const _ProviderDashboardItem(
+          icon: Icons.insights_outlined,
+          title: 'Resumen',
+          subtitle: 'Estado general del alojamiento',
+          route: '/provider/dashboard',
+        ),
+        if (capabilities.can(BusinessCapability.bookings))
+          const _ProviderDashboardItem(
+            icon: Icons.event_available_outlined,
+            title: 'Reservas',
+            subtitle: 'Pendientes, confirmadas, rechazadas e historial',
+            route: '/provider/bookings',
+          ),
+        if (capabilities.can(BusinessCapability.calendar))
+          const _ProviderDashboardItem(
+            icon: Icons.calendar_month_outlined,
+            title: 'Calendario',
+            subtitle: 'Disponibilidad y bloqueos',
+            route: '/provider/calendar',
+          ),
+        if (capabilities.can(BusinessCapability.rates))
+          const _ProviderDashboardItem(
+            icon: Icons.tune_outlined,
+            title: 'Configuración',
+            subtitle: 'Tarifas, capacidad, horarios y políticas de estadía',
+            route: '/provider/lodging',
+          ),
+        if (capabilities.can(BusinessCapability.rates))
+          const _ProviderDashboardItem(
+            icon: Icons.payments_outlined,
+            title: 'Tarifas',
+            subtitle: 'Precio por noche y huéspedes adicionales',
+            route: '/provider/rates',
+          ),
+        if (capabilities.can(BusinessCapability.photos))
+          _photosItem(capabilities),
+      ],
+    BusinessType.gastronomy => [
+        if (capabilities.can(BusinessCapability.profile))
+          const _ProviderDashboardItem(
+            icon: Icons.restaurant_outlined,
+            title: 'Perfil',
+            subtitle: 'Descripción, ubicación, horarios y contacto',
+            route: '/provider/profile',
+          ),
+        _ProviderDashboardItem(
+          icon: Icons.event_seat_outlined,
+          title: 'Reservas',
+          subtitle: capabilities.can(BusinessCapability.tableReservations)
+              ? 'Solicitudes de mesa pendientes y confirmadas'
+              : 'Disponible en Plan Pro',
+          locked: !capabilities.can(BusinessCapability.tableReservations),
+          route: capabilities.can(BusinessCapability.tableReservations)
+              ? '/provider/table-reservations'
+              : null,
+        ),
+        if (capabilities.can(BusinessCapability.menu))
+          _ProviderDashboardItem(
+            icon: Icons.restaurant_menu_outlined,
+            title: 'Menú',
+            subtitle:
+                'Puedes publicar hasta ${capabilities.limit(BusinessLimit.maxMenuItems) ?? 15} elementos',
+            route: '/provider/menu',
+          ),
+        if (capabilities.can(BusinessCapability.photos))
+          _photosItem(capabilities),
+      ],
+    BusinessType.tourism => [
+        if (capabilities.can(BusinessCapability.profile))
+          const _ProviderDashboardItem(
+            icon: Icons.terrain_outlined,
+            title: 'Perfil',
+            subtitle: 'Descripción, contacto y ubicación',
+            route: '/provider/profile',
+          ),
+        if (capabilities.can(BusinessCapability.experiences))
+          _ProviderDashboardItem(
+            icon: Icons.hiking_outlined,
+            title: 'Experiencias',
+            subtitle:
+                'Puedes publicar hasta ${capabilities.limit(BusinessLimit.maxExperiences) ?? 3} experiencias',
+          ),
+        _ProviderDashboardItem(
+          icon: Icons.event_available_outlined,
+          title: 'Reservas',
+          subtitle: capabilities.can(BusinessCapability.bookings)
+              ? 'Solicitudes simples de experiencias'
+              : 'Disponible en Plan Pro',
+          locked: !capabilities.can(BusinessCapability.bookings),
+        ),
+        if (capabilities.can(BusinessCapability.photos))
+          _photosItem(capabilities),
+      ],
+    BusinessType.emergency => [
+        if (capabilities.can(BusinessCapability.profile))
+          const _ProviderDashboardItem(
+            icon: Icons.local_hospital_outlined,
+            title: 'Perfil',
+            subtitle: 'Información pública del prestador de salud',
+            route: '/provider/profile',
+          ),
+        if (capabilities.can(BusinessCapability.emergencyAvailability))
+          const _ProviderDashboardItem(
+            icon: Icons.emergency_outlined,
+            title: 'Disponibilidad',
+            subtitle: 'Base operacional para atención prioritaria de salud',
+          ),
+        if (capabilities.can(BusinessCapability.coverage))
+          _ProviderDashboardItem(
+            icon: Icons.map_outlined,
+            title: 'Cobertura',
+            subtitle:
+                'Puedes publicar hasta ${capabilities.limit(BusinessLimit.maxLocations) ?? 1} zonas',
+            route: '/provider/coverage',
+          ),
+        if (capabilities.can(BusinessCapability.photos))
+          _photosItem(capabilities),
+      ],
+    BusinessType.commerce => [],
+  };
+}
+
+_ProviderDashboardItem _photosItem(BusinessCapabilitySet capabilities) {
+  return _ProviderDashboardItem(
+    icon: Icons.photo_library_outlined,
+    title: 'Fotos',
+    subtitle:
+        'Puedes publicar hasta ${capabilities.limit(BusinessLimit.maxPhotos) ?? 5} fotos de galería',
+    route: '/provider/photos',
+  );
 }
 
 String _sectionTitleFor(BusinessType type) {
@@ -326,12 +474,14 @@ class _ProviderDashboardItem {
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.locked = false,
     this.route,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
+  final bool locked;
   final String? route;
 }
 
@@ -409,9 +559,9 @@ class _BusinessSwitcherButton extends StatelessWidget {
   }
 
   Future<void> _showSwitcher(BuildContext context) {
-    return showModalBottomSheet<void>(
+    return showRancoAdaptiveModal<void>(
       context: context,
-      showDragHandle: true,
+      maxWidth: 520,
       builder: (context) {
         return SafeArea(
           child: ListView(
@@ -630,12 +780,14 @@ class _DashboardTile extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    required this.locked,
     required this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
+  final bool locked;
   final VoidCallback? onTap;
 
   @override
@@ -674,7 +826,7 @@ class _DashboardTile extends StatelessWidget {
           ),
           child: Icon(
             icon,
-            color: RancoColors.forest,
+            color: locked ? const Color(0xFF7D8D85) : RancoColors.forest,
           ),
         ),
         title: Text(
@@ -689,10 +841,14 @@ class _DashboardTile extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         ),
         trailing: Icon(
-          onTap == null
-              ? Icons.info_outline_rounded
-              : Icons.chevron_right_rounded,
-          color: onTap == null ? const Color(0xFF9AA8A2) : RancoColors.forest,
+          locked
+              ? Icons.lock_outline_rounded
+              : onTap == null
+                  ? Icons.info_outline_rounded
+                  : Icons.chevron_right_rounded,
+          color: locked || onTap == null
+              ? const Color(0xFF9AA8A2)
+              : RancoColors.forest,
         ),
       ),
     );

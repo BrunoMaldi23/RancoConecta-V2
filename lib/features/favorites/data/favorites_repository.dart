@@ -49,6 +49,7 @@ businesses(
   whatsapp,
   email,
   website,
+  address_text,
   verification_status,
   is_featured,
   accepts_requests,

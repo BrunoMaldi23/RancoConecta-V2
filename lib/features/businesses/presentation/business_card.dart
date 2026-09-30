@@ -64,6 +64,7 @@ class BusinessCard extends ConsumerWidget {
         22,
       ),
       child: InkWell(
+        mouseCursor: SystemMouseCursors.click,
         onTap: () {
           context.go(
             '/business/${business.id}',

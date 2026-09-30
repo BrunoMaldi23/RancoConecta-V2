@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../config/app_config.dart';
 import '../features/admin/application/admin_providers.dart';
 import '../features/auth/application/auth_controller.dart';
-import '../features/auth/data/supabase_auth_repository.dart';
 import '../features/locations/presentation/location_selector.dart';
 import '../features/messaging/application/messaging_providers.dart';
 import '../features/notifications/application/notification_providers.dart';
@@ -14,14 +13,20 @@ import '../features/provider_dashboard/application/provider_dashboard_providers.
 import '../features/provider_dashboard/data/provider_business_repository.dart';
 import '../theme/ranco_colors.dart';
 
+import 'session_actions.dart';
+
 class RancoNavigationDrawer extends ConsumerWidget {
   const RancoNavigationDrawer({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final path = GoRouterState.of(context).uri.path;
-    final user = ref.watch(authStateProvider).valueOrNull;
+    // Fuente de verdad: estado real de Supabase. Mientras la sesión está en
+    // loading no se muestra ninguna acción de sesión.
+    final auth = ref.watch(authStateProvider);
+    final user = auth.valueOrNull;
     final isSignedIn = user != null;
+    final showLoginAction = !isSignedIn && !auth.isLoading;
     final profile = isSignedIn ? ref.watch(currentProfileProvider) : null;
     final businesses =
         isSignedIn ? ref.watch(myProviderBusinessesProvider) : null;
@@ -138,17 +143,12 @@ class RancoNavigationDrawer extends ConsumerWidget {
               if (isSignedIn)
                 _LogoutAction(
                   onPressed: () async {
-                    await ref.read(authRepositoryProvider).signOut();
-                    ref.invalidate(currentProfileProvider);
-                    ref.invalidate(myProviderBusinessProvider);
-                    ref.invalidate(myProviderBusinessesProvider);
-                    ref.invalidate(activeProviderBusinessProvider);
-                    ref.read(activeProviderBusinessIdProvider.notifier).state =
-                        null;
-                    if (context.mounted) {
-                      _go(context, '/sign-in');
-                    }
+                    await signOutAndGoToSignIn(context, ref);
                   },
+                )
+              else if (showLoginAction)
+                _LoginAction(
+                  onPressed: () => _go(context, '/sign-in'),
                 ),
             ],
           ),
@@ -687,6 +687,34 @@ class _LogoutAction extends StatelessWidget {
         onPressed: onPressed,
         icon: const Icon(Icons.logout_rounded, size: 18),
         label: const Text('Cerrar sesión'),
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size.fromHeight(44),
+          foregroundColor: RancoColors.forest,
+          side: const BorderSide(color: Color(0xFFC7D8D0)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(13),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LoginAction extends StatelessWidget {
+  const _LoginAction({
+    required this.onPressed,
+  });
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: const Icon(Icons.login_rounded, size: 18),
+        label: const Text('Ingresar'),
         style: OutlinedButton.styleFrom(
           minimumSize: const Size.fromHeight(44),
           foregroundColor: RancoColors.forest,

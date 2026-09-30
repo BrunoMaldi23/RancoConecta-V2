@@ -20,8 +20,13 @@ abstract final class RancoRadius {
 abstract final class RancoBreakpoints {
   static const compact = 0.0;
   static const medium = 600.0;
-  static const expanded = 840.0;
-  static const large = 1200.0;
+  static const expanded = 1024.0;
+  static const large = 1440.0;
+
+  static bool isCompact(double width) => width < medium;
+  static bool isMedium(double width) => width >= medium && width < expanded;
+  static bool isExpanded(double width) => width >= expanded && width < large;
+  static bool isLarge(double width) => width >= large;
 }
 
 abstract final class RancoDurations {

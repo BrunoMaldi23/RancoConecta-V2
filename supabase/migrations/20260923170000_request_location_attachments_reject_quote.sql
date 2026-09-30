@@ -437,6 +437,8 @@ end;
 $$;
 
 
+drop function if exists public.provider_service_request_queue(uuid, text);
+
 create or replace function public.provider_service_request_queue(
   p_business_id uuid,
   p_status text default null

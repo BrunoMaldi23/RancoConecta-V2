@@ -63,6 +63,7 @@ phone,
 whatsapp,
 email,
 website,
+address_text,
 verification_status,
 is_featured,
 accepts_requests,
@@ -216,8 +217,12 @@ business_media(
     }
 
     try {
-      final row =
-          await client.from('businesses').select(_select).eq('id', id).single();
+      final row = await client
+          .from('businesses')
+          .select(_select)
+          .eq('id', id)
+          .eq('publication_status', 'published')
+          .single();
 
       return Success(
         BusinessDto.fromJson(row).toDomain(),

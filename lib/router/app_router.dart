@@ -1,13 +1,12 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:go_router/go_router.dart';
 
-import '../features/auth/data/supabase_auth_repository.dart';
-
+import '../config/app_build_info.dart';
+import '../core/debug/bootstrap_debug_logger.dart';
+import '../features/auth/application/auth_controller.dart';
 import '../features/auth/presentation/sign_in_screen.dart';
 
 import '../features/admin/presentation/admin_screens.dart';
@@ -25,6 +24,9 @@ import '../features/discovery/presentation/explore_screen.dart';
 import '../features/favorites/presentation/saved_screen.dart';
 
 import '../features/home/presentation/home_screen.dart';
+
+import '../features/gastronomy/presentation/provider_gastronomy_screens.dart';
+import '../features/gastronomy/presentation/table_reservation_screen.dart';
 
 import '../features/profile/presentation/account_screen.dart';
 
@@ -48,6 +50,9 @@ import '../features/provider_dashboard/presentation/provider_dashboard_screen.da
 
 import '../features/provider_dashboard/presentation/service_management_screens.dart';
 
+import '../features/provider_dashboard/application/provider_context.dart';
+import '../features/provider_dashboard/application/provider_context_state.dart';
+
 import '../features/provider_registration/presentation/provider_business_status_screen.dart';
 
 import '../features/provider_registration/presentation/provider_registration_screen.dart';
@@ -63,11 +68,7 @@ import '../router/app_shell.dart';
 import '../shared/models/business.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final authRepository = ref.watch(authRepositoryProvider);
-
-  final refreshListenable = GoRouterRefreshStream(
-    authRepository.observeAuthState(),
-  );
+  final refreshListenable = GoRouterRefreshNotifier(ref);
 
   ref.onDispose(
     refreshListenable.dispose,
@@ -77,9 +78,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: '/sign-in',
     refreshListenable: refreshListenable,
     redirect: (context, state) {
-      final user = authRepository.currentUser();
-
       final path = state.uri.path;
+      final auth = ref.read(authStateProvider);
+      final user = auth.valueOrNull;
 
       final providerManagementRoute = _isProviderManagementRoute(path);
 
@@ -88,6 +89,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final protected = (path.startsWith('/business/') &&
               path.endsWith(
                 '/request',
+              )) ||
+          (path.startsWith('/business/') &&
+              path.endsWith(
+                '/table-reservation',
               )) ||
           path.startsWith(
             '/requests/',
@@ -102,6 +107,36 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           providerManagementRoute ||
           adminRoute;
 
+      if (auth.isLoading &&
+          !auth.hasValue &&
+          (protected || path == '/bootstrap')) {
+        logBootstrapEvent('AUTH_BOOTSTRAP_START');
+        return _bootstrapRoute(state);
+      }
+
+      if (auth.hasError) {
+        logBootstrapEvent(
+          'ROUTER_REDIRECT_DECISION',
+          {
+            'path': path,
+            'decision': 'auth_error',
+          },
+        );
+
+        return path == '/bootstrap' ? null : _bootstrapRoute(state);
+      }
+
+      logBootstrapEvent(user == null ? 'NO_SESSION' : 'AUTH_SESSION_FOUND');
+
+      if (path == '/bootstrap') {
+        logBootstrapEvent('BOOTSTRAP_READY');
+        return _nextOrHome(state);
+      }
+
+      if (path == '/sign-in' && user != null) {
+        return _nextOrHome(state);
+      }
+
       if (protected && user == null) {
         final loginUri = Uri(
           path: '/sign-in',
@@ -113,9 +148,58 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return loginUri.toString();
       }
 
+      if (providerManagementRoute && user != null) {
+        final providerContext = ref.read(providerContextProvider);
+
+        if (providerContext.isLoading && !providerContext.hasValue) {
+          logBootstrapEvent(
+            'ROUTER_REDIRECT_DECISION',
+            {
+              'path': path,
+              'decision': 'provider_loading',
+            },
+          );
+
+          return _bootstrapRoute(state);
+        }
+
+        if (providerContext.hasError) {
+          logBootstrapEvent(
+            'ROUTER_REDIRECT_DECISION',
+            {
+              'path': path,
+              'decision': 'provider_error',
+            },
+          );
+
+          return path == '/provider/status' ? null : '/provider/status';
+        }
+
+        final contextState = providerContext.valueOrNull;
+        final decision = _providerRedirectDecision(
+          path: path,
+          contextState: contextState,
+        );
+
+        logBootstrapEvent(
+          'ROUTER_REDIRECT_DECISION',
+          {
+            'path': path,
+            'providerStatus': contextState?.status.name,
+            'decision': decision ?? 'allow',
+          },
+        );
+
+        return decision;
+      }
+
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/bootstrap',
+        builder: (context, state) => const BootstrapScreen(),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (
           context,
@@ -230,6 +314,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ProviderCoverageScreen(),
       ),
       GoRoute(
+        path: '/provider/location',
+        builder: (context, state) => const ProviderLocationScreen(),
+      ),
+      GoRoute(
         path: '/provider/hours',
         builder: (context, state) => const ProviderHoursScreen(),
       ),
@@ -256,6 +344,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/provider/requests',
         builder: (context, state) => const ProviderRequestsScreen(),
+      ),
+      GoRoute(
+        path: '/provider/menu',
+        builder: (context, state) => const ProviderMenuScreen(),
+      ),
+      GoRoute(
+        path: '/provider/table-reservations',
+        builder: (context, state) => const ProviderTableReservationsScreen(),
       ),
       GoRoute(
         path: '/messages',
@@ -334,6 +430,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
+        path: '/business/:id/table-reservation',
+        builder: (context, state) => TableReservationScreen(
+          businessId: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
         path: '/business/:id',
         builder: (context, state) => BusinessDetailScreen(
           businessId: state.pathParameters['id']!,
@@ -369,6 +471,7 @@ bool _isProviderManagementRoute(String path) {
       path == '/provider/profile' ||
       path == '/provider/services' ||
       path == '/provider/coverage' ||
+      path == '/provider/location' ||
       path == '/provider/hours' ||
       path == '/provider/register' ||
       path == '/provider/status' ||
@@ -377,27 +480,153 @@ bool _isProviderManagementRoute(String path) {
       path == '/provider/requests' ||
       path == '/provider/calendar' ||
       path == '/provider/photos' ||
-      path == '/provider/rates';
+      path == '/provider/rates' ||
+      path == '/provider/menu' ||
+      path == '/provider/table-reservations';
 }
 
-class GoRouterRefreshStream extends ChangeNotifier {
-  GoRouterRefreshStream(
-    Stream<dynamic> stream,
-  ) {
-    notifyListeners();
-
-    _subscription = stream.asBroadcastStream().listen(
-          (_) => notifyListeners(),
-        );
+String _bootstrapRoute(GoRouterState state) {
+  if (state.uri.path == '/bootstrap') {
+    return '/bootstrap';
   }
 
-  late final StreamSubscription<dynamic> _subscription;
+  return Uri(
+    path: '/bootstrap',
+    queryParameters: {
+      'next': state.uri.toString(),
+    },
+  ).toString();
+}
+
+String _nextOrHome(GoRouterState state) {
+  final next = state.uri.queryParameters['next'];
+  if (next == null || next.isEmpty || !next.startsWith('/')) {
+    return '/';
+  }
+  return next;
+}
+
+String? _providerRedirectDecision({
+  required String path,
+  required ProviderContextState? contextState,
+}) {
+  final status = contextState?.status;
+
+  if (status == null ||
+      status == ProviderContextStatus.loading ||
+      status == ProviderContextStatus.unauthenticated) {
+    return null;
+  }
+
+  if (status == ProviderContextStatus.noBusiness) {
+    return _isProviderOnboardingRoute(path) ? null : '/provider/status';
+  }
+
+  if (status == ProviderContextStatus.published) {
+    return null;
+  }
+
+  if (_isProviderOnboardingRoute(path)) {
+    return null;
+  }
+
+  return '/provider/status';
+}
+
+bool _isProviderOnboardingRoute(String path) {
+  return path == '/provider/status' ||
+      path == '/provider/register' ||
+      path == '/provider/join';
+}
+
+class GoRouterRefreshNotifier extends ChangeNotifier {
+  GoRouterRefreshNotifier(this.ref) {
+    notifyListeners();
+
+    _authSubscription = ref.listen<AsyncValue<Object?>>(
+      authStateProvider,
+      (_, __) => notifyListeners(),
+    );
+
+    _providerSubscription = ref.listen<AsyncValue<Object?>>(
+      providerContextProvider,
+      (_, __) => notifyListeners(),
+    );
+  }
+
+  final Ref ref;
+  late final ProviderSubscription<AsyncValue<Object?>> _authSubscription;
+  late final ProviderSubscription<AsyncValue<Object?>> _providerSubscription;
 
   @override
   void dispose() {
-    _subscription.cancel();
+    _authSubscription.close();
+    _providerSubscription.close();
 
     super.dispose();
+  }
+}
+
+class BootstrapScreen extends ConsumerWidget {
+  const BootstrapScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authStateProvider);
+    final providerContext = ref.watch(providerContextProvider);
+    final hasError = auth.hasError || providerContext.hasError;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFEAF4F0),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (hasError)
+                const Icon(
+                  Icons.error_outline_rounded,
+                  color: Color(0xFF2F6F4E),
+                  size: 34,
+                )
+              else
+                const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                hasError
+                    ? 'No pudimos preparar tu sesión.'
+                    : 'Preparando Ranco Conecta...',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: const Color(0xFF1B3D2F),
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                hasError
+                    ? 'Reintenta iniciar sesión para continuar.'
+                    : 'Estamos sincronizando tu acceso.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: const Color(0xFF557065),
+                    ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'build ${AppBuildInfo.version} · ${AppBuildInfo.gitSha} · ${AppBuildInfo.buildTime}',
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: const Color(0xFF6F8178),
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

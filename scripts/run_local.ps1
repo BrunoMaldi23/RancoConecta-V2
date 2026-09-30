@@ -1,3 +1,18 @@
+﻿
+# RANCO_UTF8_CHECK
+$encodingCheck = Join-Path $PSScriptRoot "check_text_encoding.ps1"
+
+if (Test-Path $encodingCheck) {
+    & $encodingCheck
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "Inicio cancelado por problemas de texto/UTF-8."
+        exit $LASTEXITCODE
+    }
+}
+# /RANCO_UTF8_CHECK
+
 param(
   [string]$Device = "chrome"
 )

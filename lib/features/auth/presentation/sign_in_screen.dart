@@ -52,10 +52,198 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             final width = constraints.maxWidth;
             final height = constraints.maxHeight;
 
+            final isDesktop = width >= 1024;
             final isNarrow = width < 370;
             final isShort = height < 720;
 
+            final providerFlow =
+                _safeNextRoute(widget.nextRoute) == '/provider/register';
+
+            void forgotPassword() {
+              final next = _safeNextRoute(widget.nextRoute);
+
+              final uri = Uri(
+                path: '/forgot-password',
+                queryParameters: next == null ? null : {'next': next},
+              );
+
+              context.go(uri.toString());
+            }
+
+            void createProviderAccess() {
+              final uri = Uri(
+                path: '/sign-up',
+                queryParameters: const {
+                  'next': '/provider/register',
+                },
+              );
+
+              context.go(uri.toString());
+            }
+
+            // ==================================================
+            // DESKTOP
+            // ==================================================
+
+            if (isDesktop) {
+              final availableWidth = width - 64;
+              final availableHeight = height - 48;
+
+              final desktopWidth =
+                  availableWidth > 1220 ? 1220.0 : availableWidth;
+
+              final desktopHeight =
+                  availableHeight > 700 ? 700.0 : availableHeight;
+
+              return AutofillGroup(
+                child: Center(
+                  child: SizedBox(
+                    width: desktopWidth,
+                    height: desktopHeight,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(28),
+                        border: Border.all(
+                          color: const Color(0xFFD9E6E0),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color:
+                                const Color(0xFF173E31).withValues(alpha: .09),
+                            blurRadius: 48,
+                            offset: const Offset(0, 20),
+                          ),
+                        ],
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // =====================================
+                          // FOTO
+                          // =====================================
+
+                          const Expanded(
+                            flex: 55,
+                            child: _DesktopLoginVisualPanel(),
+                          ),
+
+                          // =====================================
+                          // LOGIN
+                          // =====================================
+
+                          Expanded(
+                            flex: 45,
+                            child: Container(
+                              color: const Color(0xFFFCFEFD),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 46,
+                              ),
+                              child: Center(
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 430,
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      Center(
+                                        child: Image.asset(
+                                          'assets/branding/'
+                                          'ranco_logo_login.png',
+                                          width: 205,
+                                          fit: BoxFit.contain,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 22),
+                                      const Text(
+                                        'Bienvenido',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: RancoColors.textPrimary,
+                                          fontSize: 30,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: -.65,
+                                          height: 1,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 9),
+                                      const Text(
+                                        'Ingresa a tu cuenta para '
+                                        'continuar en Ranco Conecta.',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: RancoColors.textSecondary,
+                                          fontSize: 14,
+                                          height: 1.4,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 30),
+                                      _LoginCard(
+                                        formKey: _formKey,
+                                        emailController: _emailController,
+                                        passwordController: _passwordController,
+                                        obscurePassword: _obscurePassword,
+                                        loading: _loading,
+                                        error: _error,
+                                        compact: false,
+                                        desktop: true,
+                                        onTogglePassword: () {
+                                          setState(() {
+                                            _obscurePassword =
+                                                !_obscurePassword;
+                                          });
+                                        },
+                                        onForgotPassword: forgotPassword,
+                                        onSubmit: _loading ? null : _submit,
+                                        onGuest: () {
+                                          context.go('/');
+                                        },
+                                        providerFlow: providerFlow,
+                                        onProvider: () {
+                                          context.go(
+                                            '/provider/join',
+                                          );
+                                        },
+                                        onCreateProviderAccess:
+                                            createProviderAccess,
+                                      ),
+                                      if (!config.hasSupabaseConfig &&
+                                          config.environment ==
+                                              AppEnvironment.development) ...[
+                                        const SizedBox(height: 12),
+                                        const _InfoBanner(
+                                          message: 'Modo desarrollo: '
+                                              'falta configurar '
+                                              'Supabase para '
+                                              'iniciar sesión.',
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            // ==================================================
+            // MOBILE / TABLET
+            // Se conserva el diseño compacto actual.
+            // ==================================================
+
             final horizontalPadding = isNarrow ? 14.0 : 20.0;
+
             final verticalPadding = isShort ? 10.0 : 18.0;
 
             final logoWidth = isNarrow
@@ -103,42 +291,26 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                           loading: _loading,
                           error: _error,
                           compact: isNarrow || isShort,
+                          desktop: false,
                           onTogglePassword: () {
                             setState(() {
                               _obscurePassword = !_obscurePassword;
                             });
                           },
-                          onForgotPassword: () {
-                            final next = _safeNextRoute(widget.nextRoute);
-                            final uri = Uri(
-                              path: '/forgot-password',
-                              queryParameters:
-                                  next == null ? null : {'next': next},
-                            );
-                            context.go(uri.toString());
-                          },
+                          onForgotPassword: forgotPassword,
                           onSubmit: _loading ? null : _submit,
                           onGuest: () {
                             context.go('/');
                           },
-                          providerFlow: _safeNextRoute(widget.nextRoute) ==
-                              '/provider/register',
+                          providerFlow: providerFlow,
                           onProvider: () {
                             context.go('/provider/join');
                           },
-                          onCreateProviderAccess: () {
-                            final uri = Uri(
-                              path: '/sign-up',
-                              queryParameters: const {
-                                'next': '/provider/register',
-                              },
-                            );
-                            context.go(uri.toString());
-                          },
+                          onCreateProviderAccess: createProviderAccess,
                         ),
                         const SizedBox(height: 13),
                         const Text(
-                          'Ranco Conecta · Lago Ranco',
+                          'Ranco Conecta ? Lago Ranco',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Color(0xFF718078),
@@ -151,8 +323,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                                 AppEnvironment.development) ...[
                           const SizedBox(height: 12),
                           const _InfoBanner(
-                            message:
-                                'Modo desarrollo: falta configurar Supabase para iniciar sesión.',
+                            message: 'Modo desarrollo: falta configurar '
+                                'Supabase para iniciar sesión.',
                           ),
                         ],
                         if (!isShort) const SizedBox(height: 8),
@@ -208,6 +380,154 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   }
 }
 
+class _DesktopLoginVisualPanel extends StatelessWidget {
+  const _DesktopLoginVisualPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // FOTO LIMPIA
+        Image.asset(
+          'assets/branding/fondo-hero.png',
+          fit: BoxFit.cover,
+          alignment: Alignment.center,
+        ),
+
+        // SOMBRA SOLO ABAJO.
+        // La parte superior conserva cielo y paisaje naturales.
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.transparent,
+                Color(0x00112821),
+                Color(0x33112821),
+                Color(0xC9143027),
+              ],
+              stops: [
+                0.0,
+                .48,
+                .68,
+                1.0,
+              ],
+            ),
+          ),
+        ),
+
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            42,
+            36,
+            42,
+            40,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // UBICACION
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 13,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(
+                    alpha: .94,
+                  ),
+                  borderRadius: BorderRadius.circular(99),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(
+                        alpha: .06,
+                      ),
+                      blurRadius: 12,
+                    ),
+                  ],
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.location_on_rounded,
+                      size: 17,
+                      color: RancoColors.primary,
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      'Lago Ranco',
+                      style: TextStyle(
+                        color: RancoColors.forest,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const Spacer(),
+
+              // TITULO
+              ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 480,
+                ),
+                child: const Text(
+                  'Todo lo local,\nen un solo lugar.',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 43,
+                    fontWeight: FontWeight.w900,
+                    height: 1.01,
+                    letterSpacing: -1.2,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // PEQUEÑA LINEA VISUAL
+              Container(
+                width: 44,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF59B68B),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 500,
+                ),
+                child: Text(
+                  'Encuentra servicios, comercios, '
+                  'gastronomía, alojamientos y experiencias '
+                  'de la comunidad.',
+                  style: TextStyle(
+                    color: Colors.white.withValues(
+                      alpha: .94,
+                    ),
+                    fontSize: 14.5,
+                    height: 1.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _LoginCard extends StatelessWidget {
   const _LoginCard({
     required this.formKey,
@@ -217,6 +537,7 @@ class _LoginCard extends StatelessWidget {
     required this.loading,
     required this.error,
     required this.compact,
+    required this.desktop,
     required this.onTogglePassword,
     required this.onForgotPassword,
     required this.onSubmit,
@@ -232,6 +553,7 @@ class _LoginCard extends StatelessWidget {
   final bool obscurePassword;
   final bool loading;
   final bool compact;
+  final bool desktop;
   final String? error;
   final VoidCallback onTogglePassword;
   final VoidCallback onForgotPassword;
@@ -244,23 +566,27 @@ class _LoginCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(
-        compact ? 17 : 20,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFFD4E2DC),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: RancoColors.forest.withValues(alpha: .055),
-            blurRadius: 22,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
+      padding: desktop
+          ? EdgeInsets.zero
+          : EdgeInsets.all(
+              compact ? 17 : 20,
+            ),
+      decoration: desktop
+          ? null
+          : BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFFD4E2DC),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: RancoColors.forest.withValues(alpha: .055),
+                  blurRadius: 22,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
       child: Form(
         key: formKey,
         child: Column(
@@ -367,7 +693,7 @@ class _LoginCard extends StatelessWidget {
             ] else
               const SizedBox(height: 4),
             SizedBox(
-              height: 48,
+              height: desktop ? 54 : 48,
               child: FilledButton.icon(
                 onPressed: onSubmit,
                 icon: loading
@@ -396,7 +722,7 @@ class _LoginCard extends StatelessWidget {
                     fontSize: 14,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(13),
+                    borderRadius: BorderRadius.circular(desktop ? 14 : 13),
                   ),
                 ),
               ),
@@ -455,31 +781,31 @@ class _LoginCard extends StatelessWidget {
       filled: true,
       fillColor: Colors.white,
       isDense: true,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 13,
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: desktop ? 16 : 12,
+        vertical: desktop ? 16 : 13,
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(desktop ? 14 : 13),
         borderSide: const BorderSide(
           color: Color(0xFFD1E0D9),
         ),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(desktop ? 14 : 13),
         borderSide: const BorderSide(
           color: RancoColors.primary,
           width: 1.3,
         ),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(desktop ? 14 : 13),
         borderSide: BorderSide(
           color: Colors.red.shade300,
         ),
       ),
       focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(desktop ? 14 : 13),
         borderSide: BorderSide(
           color: Colors.red.shade400,
           width: 1.3,

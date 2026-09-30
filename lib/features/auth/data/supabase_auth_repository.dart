@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthUser;
 
@@ -47,13 +49,37 @@ class SupabaseAuthRepository implements AuthRepository {
       return Stream<AuthUser?>.value(null);
     }
 
-    return client.auth.onAuthStateChange.map((event) {
-      final user = event.session?.user;
-      if (user == null) {
-        return null;
-      }
-      return _mapUser(user);
-    });
+    late final StreamController<AuthUser?> controller;
+    late final StreamSubscription<AuthState> subscription;
+
+    controller = StreamController<AuthUser?>(
+      onListen: () {
+        scheduleMicrotask(() {
+          if (controller.isClosed) {
+            return;
+          }
+
+          final user =
+              client.auth.currentSession?.user ?? client.auth.currentUser;
+          controller.add(user == null ? null : _mapUser(user));
+        });
+
+        subscription = client.auth.onAuthStateChange.listen(
+          (event) {
+            final user = event.session?.user;
+            controller.add(user == null ? null : _mapUser(user));
+          },
+          onError: controller.addError,
+        );
+      },
+      onCancel: () async {
+        await subscription.cancel();
+      },
+    );
+
+    return controller.stream.distinct(
+      (previous, next) => previous?.id == next?.id,
+    );
   }
 
   @override

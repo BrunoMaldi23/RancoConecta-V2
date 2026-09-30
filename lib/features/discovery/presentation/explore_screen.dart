@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/layout/ranco_responsive.dart';
 import '../../../core/widgets/ranco_error_state.dart';
 import '../../../core/widgets/ranco_skeleton.dart';
 import '../../../features/businesses/application/business_providers.dart';
 import '../../../features/businesses/presentation/business_card.dart';
 import '../../../features/categories/application/category_providers.dart';
 import '../../../features/locations/application/location_providers.dart';
+import '../../../shared/models/business.dart';
 import '../../../shared/models/location.dart';
 import '../../../theme/ranco_colors.dart';
 
@@ -91,88 +93,65 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         selectedCategoryId != null ||
         advancedFilterCount > 0 ||
         searchQuery.trim().isNotEmpty;
+    final desktop = MediaQuery.sizeOf(context).width >= 1200;
 
-    return ColoredBox(
-      color: RancoColors.canvas,
-      child: CustomScrollView(
-        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        slivers: [
-          SliverToBoxAdapter(
-            child: SafeArea(
-              bottom: false,
-              child: Align(
-                alignment: Alignment.center,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: 780,
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      18,
-                      14,
-                      18,
-                      6,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Explorar',
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineMedium
-                              ?.copyWith(
-                                color: RancoColors.forest,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -0.5,
-                                height: 1.02,
-                              ),
-                        ),
-                        const SizedBox(height: 3),
-                        const Text(
-                          'Encuentra negocios y servicios cerca de ti.',
-                          style: TextStyle(
-                            color: RancoColors.textSecondary,
-                            fontSize: 13,
-                            height: 1.3,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _CompactSearchBar(
-                          controller: _searchController,
-                          focusNode: _searchFocusNode,
-                          onChanged: (value) {
-                            ref
-                                .read(
-                                  businessSearchQueryProvider.notifier,
-                                )
-                                .state = value.trimLeft();
-
-                            setState(() {});
-                          },
-                          onSearch: _submitSearch,
-                          onClear: _clearSearch,
-                        ),
-                        const SizedBox(height: 10),
-                        _FilterStrip(
+    if (desktop) {
+      return ColoredBox(
+        color: RancoColors.canvas,
+        child: SafeArea(
+          child: Column(
+            children: [
+              _ExploreWideContainer(
+                child: _ExploreHeader(
+                  searchController: _searchController,
+                  searchFocusNode: _searchFocusNode,
+                  selectedLocation: selectedLocation,
+                  selectedCategoryName: selectedCategoryName,
+                  advancedFilterCount: advancedFilterCount,
+                  onSearchChanged: (value) {
+                    ref.read(businessSearchQueryProvider.notifier).state =
+                        value.trimLeft();
+                    setState(() {});
+                  },
+                  onSearch: _submitSearch,
+                  onClearSearch: _clearSearch,
+                  onLocationTap: () => _showLocationPicker(context),
+                  onLocationClear: selectedLocation == null
+                      ? null
+                      : () {
+                          ref.read(selectedLocationProvider.notifier).state =
+                              null;
+                        },
+                  onCategoryTap: () => context.push('/categories'),
+                  onCategoryClear: selectedCategoryId == null
+                      ? null
+                      : () {
+                          ref.read(selectedCategoryIdProvider.notifier).state =
+                              null;
+                        },
+                  onFiltersTap: () => _showFilters(context),
+                ),
+              ),
+              Expanded(
+                child: _ExploreWideContainer(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 256,
+                        child: _DesktopFiltersPanel(
                           location: selectedLocation,
                           categoryName: selectedCategoryName,
                           advancedFilterCount: advancedFilterCount,
-                          onLocationTap: () {
-                            _showLocationPicker(context);
-                          },
+                          onLocationTap: () => _showLocationPicker(context),
                           onLocationClear: selectedLocation == null
                               ? null
                               : () {
                                   ref
-                                      .read(
-                                        selectedLocationProvider.notifier,
-                                      )
+                                      .read(selectedLocationProvider.notifier)
                                       .state = null;
                                 },
-                          onCategoryTap: () {
-                            context.push('/categories');
-                          },
+                          onCategoryTap: () => context.push('/categories'),
                           onCategoryClear: selectedCategoryId == null
                               ? null
                               : () {
@@ -182,23 +161,113 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                                       )
                                       .state = null;
                                 },
-                          onFiltersTap: () {
-                            _showFilters(context);
-                          },
+                          onClearAll: _clearAll,
                         ),
-                        const SizedBox(height: 10),
-                        businesses.maybeWhen(
+                      ),
+                      const SizedBox(width: 22),
+                      Expanded(
+                        child: businesses.when(
                           data: (items) {
-                            return _ResultsHeader(
-                              count: items.length,
-                              locationName: selectedLocation?.name,
+                            if (items.isEmpty) {
+                              return _CompactEmptyState(
+                                query: searchQuery,
+                                hasFilters: hasAnyFilter,
+                                onClear: _clearAll,
+                                onCategories: () => context.push('/categories'),
+                              );
+                            }
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 14),
+                                  child: _ResultsHeader(
+                                    count: items.length,
+                                    locationName: selectedLocation?.name,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: _BusinessResultsGrid(
+                                    businesses: items,
+                                  ),
+                                ),
+                              ],
                             );
                           },
-                          orElse: () => const SizedBox.shrink(),
+                          loading: () => const Column(
+                            children: [
+                              RancoSkeleton(height: 190),
+                              SizedBox(height: 10),
+                              RancoSkeleton(height: 190),
+                            ],
+                          ),
+                          error: (error, stackTrace) => RancoErrorState(
+                            message: businessFailureMessage(error),
+                            onRetry: () {
+                              ref.invalidate(publishedBusinessesProvider);
+                            },
+                          ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ColoredBox(
+      color: RancoColors.canvas,
+      child: CustomScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        slivers: [
+          SliverToBoxAdapter(
+            child: SafeArea(
+              bottom: false,
+              child: RancoContentContainer(
+                width: RancoContainerWidth.form,
+                child: _ExploreHeader(
+                  searchController: _searchController,
+                  searchFocusNode: _searchFocusNode,
+                  selectedLocation: selectedLocation,
+                  selectedCategoryName: selectedCategoryName,
+                  advancedFilterCount: advancedFilterCount,
+                  resultHeader: businesses.maybeWhen(
+                    data: (items) {
+                      return _ResultsHeader(
+                        count: items.length,
+                        locationName: selectedLocation?.name,
+                      );
+                    },
+                    orElse: () => const SizedBox.shrink(),
+                  ),
+                  onSearchChanged: (value) {
+                    ref.read(businessSearchQueryProvider.notifier).state =
+                        value.trimLeft();
+
+                    setState(() {});
+                  },
+                  onSearch: _submitSearch,
+                  onClearSearch: _clearSearch,
+                  onLocationTap: () => _showLocationPicker(context),
+                  onLocationClear: selectedLocation == null
+                      ? null
+                      : () {
+                          ref.read(selectedLocationProvider.notifier).state =
+                              null;
+                        },
+                  onCategoryTap: () => context.push('/categories'),
+                  onCategoryClear: selectedCategoryId == null
+                      ? null
+                      : () {
+                          ref.read(selectedCategoryIdProvider.notifier).state =
+                              null;
+                        },
+                  onFiltersTap: () => _showFilters(context),
                 ),
               ),
             ),
@@ -246,7 +315,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                   builder: (context, constraints) {
                     final width = constraints.crossAxisExtent;
 
-                    if (width < 980) {
+                    if (width < 800) {
                       return SliverList.separated(
                         itemCount: items.length,
                         separatorBuilder: (_, __) {
@@ -271,9 +340,9 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: 0.84,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                        childAspectRatio: 0.9,
                       ),
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
@@ -353,6 +422,24 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   Future<void> _showLocationPicker(
     BuildContext context,
   ) async {
+    final width = MediaQuery.sizeOf(context).width;
+
+    if (width >= 800) {
+      await showDialog<void>(
+        context: context,
+        builder: (_) {
+          return const Dialog(
+            insetPadding: EdgeInsets.all(24),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            child: _LocationPickerSheet(),
+          );
+        },
+      );
+
+      return;
+    }
+
     await showModalBottomSheet<void>(
       context: context,
       useSafeArea: true,
@@ -367,11 +454,9 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   Future<void> _showFilters(
     BuildContext context,
   ) async {
-    await showModalBottomSheet<void>(
+    await showRancoAdaptiveModal<void>(
       context: context,
-      useSafeArea: true,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      maxWidth: 560,
       builder: (_) {
         return const _FiltersSheet();
       },
@@ -388,6 +473,32 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     _searchFocusNode.unfocus();
 
     setState(() {});
+  }
+}
+
+class _ExploreWideContainer extends StatelessWidget {
+  const _ExploreWideContainer({
+    required this.child,
+  });
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 24,
+        ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: 1480,
+          ),
+          child: child,
+        ),
+      ),
+    );
   }
 }
 
@@ -485,6 +596,1104 @@ class _CompactSearchBar extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ExploreHeader extends StatelessWidget {
+  const _ExploreHeader({
+    required this.searchController,
+    required this.searchFocusNode,
+    required this.selectedLocation,
+    required this.selectedCategoryName,
+    required this.advancedFilterCount,
+    required this.onSearchChanged,
+    required this.onSearch,
+    required this.onClearSearch,
+    required this.onLocationTap,
+    required this.onLocationClear,
+    required this.onCategoryTap,
+    required this.onCategoryClear,
+    required this.onFiltersTap,
+    this.resultHeader,
+  });
+
+  final TextEditingController searchController;
+  final FocusNode searchFocusNode;
+  final Location? selectedLocation;
+  final String? selectedCategoryName;
+  final int advancedFilterCount;
+  final ValueChanged<String> onSearchChanged;
+  final VoidCallback onSearch;
+  final VoidCallback onClearSearch;
+  final VoidCallback onLocationTap;
+  final VoidCallback? onLocationClear;
+  final VoidCallback onCategoryTap;
+  final VoidCallback? onCategoryClear;
+  final VoidCallback onFiltersTap;
+  final Widget? resultHeader;
+
+  @override
+  Widget build(BuildContext context) {
+    final desktop = MediaQuery.sizeOf(context).width >= 1200;
+
+    if (desktop) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(
+          0,
+          22,
+          0,
+          18,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Explorar',
+              style: TextStyle(
+                color: RancoColors.forest,
+                fontSize: 31,
+                height: 1.05,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Encuentra negocios y servicios cerca de ti.',
+              style: TextStyle(
+                color: Color(0xFF71827A),
+                fontSize: 14,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 18),
+            _ExploreDesktopSearchPanel(
+              searchController: searchController,
+              searchFocusNode: searchFocusNode,
+              selectedLocation: selectedLocation,
+              onSearchChanged: onSearchChanged,
+              onSearch: onSearch,
+              onClearSearch: onClearSearch,
+              onLocationTap: onLocationTap,
+              onCategoryTap: onCategoryTap,
+            ),
+            const SizedBox(height: 12),
+            _DesktopQuickCategories(
+              onMoreTap: onCategoryTap,
+            ),
+            if (resultHeader != null) ...[
+              const SizedBox(height: 14),
+              resultHeader!,
+            ],
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(0, desktop ? 22 : 14, 0, desktop ? 18 : 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Explorar',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  color: RancoColors.forest,
+                  fontWeight: FontWeight.w900,
+                  height: 1.02,
+                ),
+          ),
+          const SizedBox(height: 3),
+          const Text(
+            'Encuentra negocios y servicios cerca de ti.',
+            style: TextStyle(
+              color: RancoColors.textSecondary,
+              fontSize: 13,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _CompactSearchBar(
+            controller: searchController,
+            focusNode: searchFocusNode,
+            onChanged: onSearchChanged,
+            onSearch: onSearch,
+            onClear: onClearSearch,
+          ),
+          if (!desktop) ...[
+            const SizedBox(height: 10),
+            _FilterStrip(
+              location: selectedLocation,
+              categoryName: selectedCategoryName,
+              advancedFilterCount: advancedFilterCount,
+              onLocationTap: onLocationTap,
+              onLocationClear: onLocationClear,
+              onCategoryTap: onCategoryTap,
+              onCategoryClear: onCategoryClear,
+              onFiltersTap: onFiltersTap,
+            ),
+          ],
+          if (resultHeader != null) ...[
+            const SizedBox(height: 10),
+            resultHeader!,
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ExploreDesktopSearchPanel extends StatelessWidget {
+  const _ExploreDesktopSearchPanel({
+    required this.searchController,
+    required this.searchFocusNode,
+    required this.selectedLocation,
+    required this.onSearchChanged,
+    required this.onSearch,
+    required this.onClearSearch,
+    required this.onLocationTap,
+    required this.onCategoryTap,
+  });
+
+  final TextEditingController searchController;
+  final FocusNode searchFocusNode;
+  final Location? selectedLocation;
+  final ValueChanged<String> onSearchChanged;
+  final VoidCallback onSearch;
+  final VoidCallback onClearSearch;
+  final VoidCallback onLocationTap;
+  final VoidCallback onCategoryTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFFDCE7E1),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(
+              alpha: .025,
+            ),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 48,
+              child: TextField(
+                controller: searchController,
+                focusNode: searchFocusNode,
+                textInputAction: TextInputAction.search,
+                autocorrect: false,
+                enableSuggestions: true,
+                onChanged: onSearchChanged,
+                onSubmitted: (_) {
+                  onSearch();
+                },
+                decoration: InputDecoration(
+                  hintText: 'Buscar negocio o servicio...',
+                  hintStyle: const TextStyle(
+                    color: Color(0xFF7A8A82),
+                    fontSize: 13.5,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    size: 19,
+                    color: RancoColors.primary,
+                  ),
+                  suffixIcon: searchController.text.isNotEmpty
+                      ? IconButton(
+                          tooltip: 'Limpiar',
+                          onPressed: onClearSearch,
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            size: 18,
+                          ),
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: const Color(0xFFFBFDFC),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: Color(0xFFD9E5DE),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: RancoColors.primary,
+                      width: 1.3,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 240,
+            child: _ExploreDesktopSelector(
+              icon: Icons.location_on_outlined,
+              label: selectedLocation?.name ?? 'Todas las localidades',
+              onTap: onLocationTap,
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 126,
+            height: 48,
+            child: FilledButton.icon(
+              onPressed: onSearch,
+              icon: const Icon(
+                Icons.search_rounded,
+                size: 18,
+              ),
+              label: const Text('Buscar'),
+              style: FilledButton.styleFrom(
+                elevation: 0,
+                backgroundColor: RancoColors.forest,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExploreDesktopSelector extends StatelessWidget {
+  const _ExploreDesktopSelector({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFFFBFDFC),
+      borderRadius: BorderRadius.circular(13),
+      child: InkWell(
+        onTap: onTap,
+        mouseCursor: SystemMouseCursors.click,
+        borderRadius: BorderRadius.circular(13),
+        child: Container(
+          height: 48,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(
+              13,
+            ),
+            border: Border.all(
+              color: const Color(
+                0xFFD9E5DE,
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(
+                    0xFFEAF4EF,
+                  ),
+                  borderRadius: BorderRadius.circular(
+                    9,
+                  ),
+                ),
+                child: Icon(
+                  icon,
+                  size: 17,
+                  color: RancoColors.primary,
+                ),
+              ),
+              const SizedBox(
+                width: 8,
+              ),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: RancoColors.textPrimary,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(
+                width: 4,
+              ),
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 18,
+                color: Color(0xFF75867E),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DesktopQuickCategories extends ConsumerWidget {
+  const _DesktopQuickCategories({
+    required this.onMoreTap,
+  });
+
+  final VoidCallback onMoreTap;
+
+  IconData _iconFor(String name) {
+    final n = name.toLowerCase();
+
+    if (n.contains('aloj')) {
+      return Icons.home_work_outlined;
+    }
+
+    if (n.contains('gastro') || n.contains('rest') || n.contains('comida')) {
+      return Icons.restaurant_outlined;
+    }
+
+    if (n.contains('turis') || n.contains('exper')) {
+      return Icons.explore_outlined;
+    }
+
+    if (n.contains('comerc') || n.contains('tienda')) {
+      return Icons.storefront_outlined;
+    }
+
+    if (n.contains('ofic') || n.contains('carpin') || n.contains('constru')) {
+      return Icons.handyman_outlined;
+    }
+
+    if (n.contains('serv') || n.contains('mec') || n.contains('aseo')) {
+      return Icons.build_outlined;
+    }
+
+    return Icons.grid_view_rounded;
+  }
+
+  @override
+  Widget build(
+    BuildContext context,
+    WidgetRef ref,
+  ) {
+    final categories = ref.watch(categoriesProvider);
+
+    final selectedId = ref.watch(
+      selectedCategoryIdProvider,
+    );
+
+    return categories.when(
+      loading: () {
+        return const SizedBox(
+          height: 36,
+        );
+      },
+      error: (_, __) {
+        return const SizedBox.shrink();
+      },
+      data: (items) {
+        return LayoutBuilder(
+          builder: (
+            context,
+            constraints,
+          ) {
+            final width = constraints.maxWidth;
+
+            final visibleCount = width >= 1250
+                ? 9
+                : width >= 1080
+                    ? 8
+                    : width >= 900
+                        ? 7
+                        : 6;
+
+            final visible = items.take(visibleCount).toList();
+
+            return SizedBox(
+              width: double.infinity,
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.start,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  _DesktopCategoryChip(
+                    icon: Icons.apps_rounded,
+                    label: 'Todas',
+                    selected: selectedId == null,
+                    onTap: () {
+                      ref
+                          .read(
+                            selectedCategoryIdProvider.notifier,
+                          )
+                          .state = null;
+                    },
+                  ),
+                  for (final category in visible)
+                    _DesktopCategoryChip(
+                      icon: _iconFor(
+                        category.name,
+                      ),
+                      label: category.name,
+                      selected: selectedId == category.id,
+                      onTap: () {
+                        ref
+                            .read(
+                              selectedCategoryIdProvider.notifier,
+                            )
+                            .state = category.id;
+                      },
+                    ),
+                  if (items.length > visibleCount)
+                    _DesktopCategoryChip(
+                      icon: Icons.more_horiz_rounded,
+                      label: 'Más',
+                      selected: false,
+                      onTap: onMoreTap,
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _DesktopCategoryChip extends StatelessWidget {
+  const _DesktopCategoryChip({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final background = selected ? RancoColors.forest : Colors.white;
+
+    final foreground = selected ? Colors.white : RancoColors.textPrimary;
+
+    return Material(
+      color: background,
+      borderRadius: BorderRadius.circular(99),
+      child: InkWell(
+        onTap: onTap,
+        hoverColor: selected
+            ? Colors.white.withValues(
+                alpha: .08,
+              )
+            : const Color(0xFFEFF7F3),
+        borderRadius: BorderRadius.circular(99),
+        child: AnimatedContainer(
+          duration: const Duration(
+            milliseconds: 150,
+          ),
+          height: 40,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 15,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(99),
+            border: Border.all(
+              color: selected
+                  ? RancoColors.forest
+                  : const Color(
+                      0xFFD8E4DE,
+                    ),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 16.5,
+                color: foreground,
+              ),
+              const SizedBox(width: 7),
+              Text(
+                label,
+                style: TextStyle(
+                  color: foreground,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DesktopFiltersPanel extends ConsumerWidget {
+  const _DesktopFiltersPanel({
+    required this.location,
+    required this.categoryName,
+    required this.advancedFilterCount,
+    required this.onLocationTap,
+    required this.onLocationClear,
+    required this.onCategoryTap,
+    required this.onCategoryClear,
+    required this.onClearAll,
+  });
+
+  final Location? location;
+  final String? categoryName;
+  final int advancedFilterCount;
+
+  final VoidCallback onLocationTap;
+  final VoidCallback? onLocationClear;
+
+  final VoidCallback onCategoryTap;
+  final VoidCallback? onCategoryClear;
+
+  final VoidCallback onClearAll;
+
+  @override
+  Widget build(
+    BuildContext context,
+    WidgetRef ref,
+  ) {
+    final verified = ref.watch(verifiedOnlyProvider);
+
+    final featured = ref.watch(featuredOnlyProvider);
+
+    final openNow = ref.watch(openNowOnlyProvider);
+    final hasAnyFilter =
+        location != null || categoryName != null || advancedFilterCount > 0;
+
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(
+          16,
+          14,
+          16,
+          13,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(19),
+          border: Border.all(
+            color: const Color(
+              0xFFDCE6E1,
+            ),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(
+                alpha: .015,
+              ),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Filtros',
+                    style: TextStyle(
+                      color: RancoColors.forest,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                if (advancedFilterCount > 0)
+                  Container(
+                    height: 23,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                    ),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: const Color(
+                        0xFFEAF4EF,
+                      ),
+                      borderRadius: BorderRadius.circular(
+                        99,
+                      ),
+                    ),
+                    child: Text(
+                      '$advancedFilterCount',
+                      style: const TextStyle(
+                        color: RancoColors.forest,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 4),
+                TextButton(
+                  onPressed: hasAnyFilter ? onClearAll : null,
+                  style: TextButton.styleFrom(
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 4,
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  child: const Text('Limpiar'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 13),
+            const _ExploreFilterLabel(
+              'UBICACIÓN',
+            ),
+            const SizedBox(height: 6),
+            _DesktopFilterButton(
+              icon: Icons.location_on_outlined,
+              label: location?.name ?? 'Todas las localidades',
+              selected: location != null,
+              onTap: onLocationTap,
+              onClear: onLocationClear,
+            ),
+            const SizedBox(height: 12),
+            const Divider(
+              height: 1,
+              color: Color(
+                0xFFE8EFEB,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const _ExploreFilterLabel(
+              'CATEGORÍA',
+            ),
+            const SizedBox(height: 6),
+            _DesktopFilterButton(
+              icon: Icons.category_outlined,
+              label: categoryName ?? 'Todas las categorías',
+              selected: categoryName != null,
+              onTap: onCategoryTap,
+              onClear: onCategoryClear,
+            ),
+            const SizedBox(height: 13),
+            const Divider(
+              height: 1,
+              color: Color(
+                0xFFE8EFEB,
+              ),
+            ),
+            const SizedBox(height: 10),
+            const _ExploreFilterLabel(
+              'PREFERENCIAS',
+            ),
+            const SizedBox(height: 2),
+            _DesktopSwitch(
+              icon: Icons.verified_outlined,
+              title: 'Verificados',
+              value: verified,
+              onChanged: (value) {
+                ref
+                    .read(
+                      verifiedOnlyProvider.notifier,
+                    )
+                    .state = value;
+              },
+            ),
+            _DesktopSwitch(
+              icon: Icons.star_outline_rounded,
+              title: 'Destacados',
+              value: featured,
+              onChanged: (value) {
+                ref
+                    .read(
+                      featuredOnlyProvider.notifier,
+                    )
+                    .state = value;
+              },
+            ),
+            _DesktopSwitch(
+              icon: Icons.schedule_rounded,
+              title: 'Disponibles ahora',
+              value: openNow,
+              onChanged: (value) {
+                ref
+                    .read(
+                      openNowOnlyProvider.notifier,
+                    )
+                    .state = value;
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ExploreFilterLabel extends StatelessWidget {
+  const _ExploreFilterLabel(
+    this.text,
+  );
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: Color(
+          0xFF899890,
+        ),
+        fontSize: 9,
+        letterSpacing: .75,
+        fontWeight: FontWeight.w800,
+      ),
+    );
+  }
+}
+
+class _DesktopFilterButton extends StatelessWidget {
+  const _DesktopFilterButton({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.onClear,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? const Color(0xFFF2F8F5) : const Color(0xFFFCFDFC),
+      borderRadius: BorderRadius.circular(11),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(11),
+        child: Container(
+          height: 46,
+          padding: const EdgeInsets.fromLTRB(
+            10,
+            0,
+            7,
+            0,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(11),
+            border: Border.all(
+              color: selected
+                  ? const Color(
+                      0xFFAFD0BE,
+                    )
+                  : const Color(
+                      0xFFDCE7E1,
+                    ),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 15.5,
+                color: RancoColors.primary,
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: RancoColors.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              if (selected && onClear != null)
+                IconButton(
+                  onPressed: onClear,
+                  tooltip: 'Quitar filtro',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 27,
+                    minHeight: 27,
+                  ),
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    size: 15,
+                  ),
+                )
+              else
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 16,
+                  color: Color(0xFF829189),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DesktopSwitch extends StatelessWidget {
+  const _DesktopSwitch({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final IconData icon;
+  final String title;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          onChanged(!value);
+        },
+        borderRadius: BorderRadius.circular(11),
+        child: SizedBox(
+          height: 42,
+          child: Row(
+            children: [
+              Container(
+                width: 25,
+                height: 25,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: value
+                      ? const Color(
+                          0xFFE2F1E9,
+                        )
+                      : const Color(
+                          0xFFF1F5F3,
+                        ),
+                  borderRadius: BorderRadius.circular(
+                    8,
+                  ),
+                ),
+                child: Icon(
+                  icon,
+                  size: 14,
+                  color: RancoColors.primary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: RancoColors.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Transform.scale(
+                scale: .67,
+                child: Switch(
+                  value: value,
+                  onChanged: onChanged,
+                  activeTrackColor: RancoColors.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BusinessResultsGrid extends StatelessWidget {
+  const _BusinessResultsGrid({
+    required this.businesses,
+  });
+
+  final List<Business> businesses;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (
+        context,
+        constraints,
+      ) {
+        final columns = rancoGridColumns(
+          constraints.maxWidth,
+          minItemWidth: 280,
+          spacing: 18,
+          maxColumns: 3,
+        );
+
+        return GridView.builder(
+          padding: const EdgeInsets.only(
+            bottom: 28,
+          ),
+          itemCount: businesses.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            crossAxisSpacing: 18,
+            mainAxisSpacing: 18,
+            childAspectRatio: 0.94,
+          ),
+          itemBuilder: (
+            context,
+            index,
+          ) {
+            return _ExploreBusinessCardShell(
+              child: BusinessCard(
+                business: businesses[index],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _ExploreBusinessCardShell extends StatefulWidget {
+  const _ExploreBusinessCardShell({
+    required this.child,
+  });
+
+  final Widget child;
+
+  @override
+  State<_ExploreBusinessCardShell> createState() =>
+      _ExploreBusinessCardShellState();
+}
+
+class _ExploreBusinessCardShellState extends State<_ExploreBusinessCardShell> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) {
+        setState(() {
+          _hovered = true;
+        });
+      },
+      onExit: (_) {
+        setState(() {
+          _hovered = false;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(
+          milliseconds: 160,
+        ),
+        transform: Matrix4.translationValues(
+          0,
+          _hovered ? -2 : 0,
+          0,
+        ),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: _hovered
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(
+                      alpha: .045,
+                    ),
+                    blurRadius: 18,
+                    offset: const Offset(
+                      0,
+                      7,
+                    ),
+                  ),
+                ]
+              : null,
+        ),
+        child: AnimatedContainer(
+          duration: const Duration(
+            milliseconds: 160,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: _hovered
+                  ? const Color(
+                      0xFFAED1BE,
+                    )
+                  : Colors.transparent,
+              width: _hovered ? 1.1 : 1,
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: widget.child,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -648,6 +1857,60 @@ class _ResultsHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final location = locationName?.trim();
+    final desktop = MediaQuery.sizeOf(context).width >= 1200;
+
+    if (desktop) {
+      return Container(
+        height: 38,
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: const Color(0xFFDCE6E1),
+          ),
+        ),
+        child: Row(
+          children: [
+            Text(
+              '$count ${count == 1 ? 'resultado' : 'resultados'}',
+              style: const TextStyle(
+                color: RancoColors.textPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            if (location != null && location.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              Container(
+                width: 4,
+                height: 4,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFB5C5BD),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'en $location',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: RancoColors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ] else
+              const Spacer(),
+          ],
+        ),
+      );
+    }
 
     return Row(
       children: [
@@ -772,77 +2035,258 @@ class _CompactEmptyState extends StatelessWidget {
   }
 }
 
-class _LocationPickerSheet extends ConsumerWidget {
+class _LocationPickerSheet extends ConsumerStatefulWidget {
   const _LocationPickerSheet();
+
+  @override
+  ConsumerState<_LocationPickerSheet> createState() =>
+      _LocationPickerSheetState();
+}
+
+class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
+  late final TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(
     BuildContext context,
-    WidgetRef ref,
   ) {
+    final desktop = MediaQuery.sizeOf(context).width >= 800;
     final locations = ref.watch(locationsProvider);
     final selected = ref.watch(selectedLocationProvider);
 
-    return _BottomSheetFrame(
-      title: 'Ubicación',
-      subtitle: 'Elige dónde quieres buscar.',
-      child: locations.when(
-        data: (items) {
-          return ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(
-              16,
-              4,
-              16,
-              18,
-            ),
-            children: [
-              _LocationOption(
-                label: 'Todas las localidades',
-                selected: selected == null,
-                onTap: () {
-                  ref
-                      .read(
-                        selectedLocationProvider.notifier,
-                      )
-                      .state = null;
+    final content = locations.when(
+      data: (items) {
+        final query = _searchController.text.trim().toLowerCase();
+        final filtered = query.isEmpty
+            ? items
+            : items
+                .where(
+                  (location) => location.name.toLowerCase().contains(query),
+                )
+                .toList();
 
-                  Navigator.of(context).pop();
-                },
-              ),
-              for (final location in items)
-                _LocationOption(
-                  label: location.name,
-                  selected: selected?.id == location.id,
-                  onTap: () {
-                    ref
-                        .read(
-                          selectedLocationProvider.notifier,
-                        )
-                        .state = location;
-
-                    Navigator.of(context).pop();
-                  },
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _searchController,
+              textInputAction: TextInputAction.search,
+              onChanged: (_) {
+                setState(() {});
+              },
+              decoration: InputDecoration(
+                hintText: 'Buscar localidad...',
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  size: 19,
+                  color: RancoColors.primary,
                 ),
-            ],
-          );
-        },
-        loading: () {
-          return const Padding(
-            padding: EdgeInsets.all(24),
-            child: Center(
-              child: CircularProgressIndicator(),
+                suffixIcon: query.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Limpiar búsqueda',
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {});
+                        },
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          size: 18,
+                        ),
+                      ),
+                filled: true,
+                fillColor: const Color(0xFFFBFDFC),
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(13),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFD5E3DD),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(13),
+                  borderSide: const BorderSide(
+                    color: RancoColors.primary,
+                    width: 1.25,
+                  ),
+                ),
+              ),
             ),
-          );
-        },
-        error: (_, __) {
-          return const Padding(
-            padding: EdgeInsets.all(24),
-            child: Text(
-              'No pudimos cargar las localidades.',
+            const SizedBox(height: 12),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                children: [
+                  _LocationOption(
+                    label: 'Todas las localidades',
+                    selected: selected == null,
+                    onTap: () {
+                      ref.read(selectedLocationProvider.notifier).state = null;
+
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                  for (final location in filtered)
+                    _LocationOption(
+                      label: location.name,
+                      selected: selected?.id == location.id,
+                      onTap: () {
+                        ref.read(selectedLocationProvider.notifier).state =
+                            location;
+
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                ],
+              ),
             ),
-          );
-        },
+          ],
+        );
+      },
+      loading: () {
+        return const Padding(
+          padding: EdgeInsets.symmetric(
+            vertical: 30,
+          ),
+          child: Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
+      },
+      error: (_, __) {
+        return const Padding(
+          padding: EdgeInsets.symmetric(
+            vertical: 20,
+          ),
+          child: Text(
+            'No pudimos cargar las localidades.',
+          ),
+        );
+      },
+    );
+
+    return _LocationPickerFrame(
+      desktop: desktop,
+      child: content,
+    );
+  }
+}
+
+class _LocationPickerFrame extends StatelessWidget {
+  const _LocationPickerFrame({
+    required this.desktop,
+    required this.child,
+  });
+
+  final bool desktop;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final maxHeight = MediaQuery.sizeOf(context).height * .8;
+
+    return Align(
+      alignment: desktop ? Alignment.center : Alignment.bottomCenter,
+      child: SafeArea(
+        top: desktop,
+        child: Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(desktop ? 22 : 24),
+            bottom: Radius.circular(desktop ? 22 : 0),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 520,
+              maxHeight: desktop ? 680 : maxHeight,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                20,
+                10,
+                20,
+                18,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (!desktop) ...[
+                    Center(
+                      child: Container(
+                        width: 38,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD6E2DD),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Ubicación',
+                              style: TextStyle(
+                                color: RancoColors.forest,
+                                fontSize: 21,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Elige dónde quieres buscar.',
+                              style: TextStyle(
+                                color: RancoColors.textSecondary,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Cerrar',
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        icon: const Icon(
+                          Icons.close_rounded,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Flexible(
+                    child: child,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

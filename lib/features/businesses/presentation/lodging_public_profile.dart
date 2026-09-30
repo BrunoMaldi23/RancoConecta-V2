@@ -464,8 +464,19 @@ class LodgingPublicProfile extends ConsumerWidget {
                                   _InfoRow(
                                     icon: Icons.nights_stay_outlined,
                                     label: 'Estadía mínima',
-                                    value:
-                                        '${lodging.minNights} ${lodging.minNights == 1 ? 'noche' : 'noches'}',
+                                    value: _nightsLabel(
+                                      lodging.minNights,
+                                    ),
+                                  ),
+                                  const Divider(),
+                                  _InfoRow(
+                                    icon: Icons.event_busy_outlined,
+                                    label: 'Estadía máxima',
+                                    value: lodging.maxNights == null
+                                        ? 'Sin límite'
+                                        : _nightsLabel(
+                                            lodging.maxNights!,
+                                          ),
                                   ),
                                 ],
                               ),
@@ -847,6 +858,12 @@ class LodgingPublicProfile extends ConsumerWidget {
     return value.toStringAsFixed(
       1,
     );
+  }
+
+  static String _nightsLabel(
+    int value,
+  ) {
+    return '$value ${value == 1 ? 'noche' : 'noches'}';
   }
 }
 

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/layout/ranco_responsive.dart';
 import '../../../core/errors/app_failure.dart';
 import '../../../core/widgets/ranco_app_bar.dart';
 import '../../../core/widgets/ranco_error_state.dart';
@@ -38,17 +39,20 @@ class NotificationsScreen extends ConsumerWidget {
             return const _EmptyNotifications();
           }
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(18),
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (context, index) {
-              final item = items[index];
-              return _NotificationTile(
-                notification: item,
-                onTap: () => _openNotification(context, ref, item),
-              );
-            },
+          return RancoContentContainer(
+            width: RancoContainerWidth.form,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final item = items[index];
+                return _NotificationTile(
+                  notification: item,
+                  onTap: () => _openNotification(context, ref, item),
+                );
+              },
+            ),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),

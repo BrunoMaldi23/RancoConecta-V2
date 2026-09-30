@@ -65,7 +65,7 @@ class _LodgingAvailabilityScreenState
 
     return Scaffold(
       backgroundColor: const Color(
-        0xFFEAF4F0,
+        0xFFF3F7F5,
       ),
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -103,47 +103,332 @@ class _LodgingAvailabilityScreenState
             ),
           ),
         ),
-        title: const Text(
-          'Reservar',
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Reservar alojamiento',
+              style: TextStyle(
+                color: Color(
+                  0xFF263E34,
+                ),
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            Text(
+              'Completa los datos de tu solicitud',
+              style: TextStyle(
+                color: Color(
+                  0xFF718078,
+                ),
+                fontSize: 10.5,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
       body: details.when(
         data: (lodging) {
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(
-              18,
-              12,
-              18,
-              32,
-            ),
+          final screenWidth = MediaQuery.sizeOf(context).width;
+
+          final desktop = screenWidth >= 980;
+
+          Widget bookingStatus() {
+            if (_range == null) {
+              return _BookingSummaryIdle(
+                pricePerNight: lodging.pricePerNight,
+                guests: _guests,
+              );
+            }
+
+            return FutureBuilder<List<LodgingCalendarDay>>(
+              future: ref
+                  .read(
+                    lodgingCalendarRepositoryProvider,
+                  )
+                  .listRange(
+                    businessId: widget.business.id,
+                    from: _range!.start,
+                    to: _range!.end,
+                  ),
+              builder: (
+                context,
+                snapshot,
+              ) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const _BookingAsideCard(
+                    child: SizedBox(
+                      height: 180,
+                      child: Center(
+                        child: CircularProgressIndicator(),
+                      ),
+                    ),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return _BookingAsideCard(
+                    child: _MessageCard(
+                      icon: Icons.error_outline,
+                      title: 'No pudimos revisar las fechas',
+                      message: '${snapshot.error}',
+                      error: true,
+                    ),
+                  );
+                }
+
+                final entries = snapshot.data ?? const <LodgingCalendarDay>[];
+
+                final nights = _range!.end
+                    .difference(
+                      _range!.start,
+                    )
+                    .inDays;
+
+                final blocked = _hasBlockedNight(
+                  entries,
+                  _range!.start,
+                  nights,
+                );
+
+                if (blocked) {
+                  return const _BookingAsideCard(
+                    child: _MessageCard(
+                      icon: Icons.block_outlined,
+                      title: 'Fechas no disponibles',
+                      message:
+                          'Una o m\u00e1s noches seleccionadas est\u00e1n bloqueadas.',
+                      error: true,
+                    ),
+                  );
+                }
+
+                if (nights < lodging.minNights) {
+                  return _BookingAsideCard(
+                    child: _MessageCard(
+                      icon: Icons.nights_stay_outlined,
+                      title: 'Estad\u00eda m\u00ednima',
+                      message:
+                          'Este alojamiento requiere una estad\u00eda m\u00ednima de ${lodging.minNights} noches.',
+                      error: true,
+                    ),
+                  );
+                }
+
+                if (lodging.maxNights != null && nights > lodging.maxNights!) {
+                  return _BookingAsideCard(
+                    child: _MessageCard(
+                      icon: Icons.event_busy_outlined,
+                      title: 'Estad\u00eda m\u00e1xima',
+                      message:
+                          'Este alojamiento permite una estad\u00eda m\u00e1xima de ${lodging.maxNights} noches.',
+                      error: true,
+                    ),
+                  );
+                }
+
+                final baseTotal = _calculateBaseTotal(
+                  entries: entries,
+                  start: _range!.start,
+                  nights: nights,
+                  standardPrice: lodging.pricePerNight,
+                );
+
+                final extraGuests = math.max(
+                  _guests - lodging.includedGuests,
+                  0,
+                );
+
+                final extraTotal =
+                    extraGuests * lodging.extraGuestPrice * nights;
+
+                final total = baseTotal + extraTotal;
+
+                return _BookingAsideCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 34,
+                            height: 34,
+                            decoration: const BoxDecoration(
+                              color: Color(
+                                0xFFE3F2EA,
+                              ),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.check_rounded,
+                              color: RancoColors.forest,
+                              size: 19,
+                            ),
+                          ),
+                          const SizedBox(
+                            width: 10,
+                          ),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Fechas disponibles',
+                                  style: TextStyle(
+                                    color: Color(
+                                      0xFF2C4439,
+                                    ),
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                Text(
+                                  'Tu selecci\u00f3n est\u00e1 disponible.',
+                                  style: TextStyle(
+                                    color: Color(
+                                      0xFF718078,
+                                    ),
+                                    fontSize: 10.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(
+                        height: 18,
+                      ),
+                      _SummaryCard(
+                        range: _range!,
+                        nights: nights,
+                        baseTotal: baseTotal,
+                        extraTotal: extraTotal,
+                        total: total,
+                      ),
+                      const SizedBox(
+                        height: 14,
+                      ),
+                      FilledButton.icon(
+                        onPressed: _creating ? null : _confirmBooking,
+                        icon: _creating
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.event_available_outlined,
+                              ),
+                        label: Text(
+                          _creating
+                              ? 'Enviando solicitud...'
+                              : 'Solicitar reserva',
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: RancoColors.forest,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size.fromHeight(
+                            54,
+                          ),
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              14,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(
+                        height: 11,
+                      ),
+                      const Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.verified_user_outlined,
+                            size: 15,
+                            color: Color(
+                              0xFF718078,
+                            ),
+                          ),
+                          SizedBox(
+                            width: 6,
+                          ),
+                          Expanded(
+                            child: Text(
+                              'No se realizar\u00e1 ning\u00fan cobro ahora. El anfitri\u00f3n debe aceptar la solicitud.',
+                              style: TextStyle(
+                                color: Color(
+                                  0xFF718078,
+                                ),
+                                fontSize: 10.5,
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          }
+
+          final form = Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _PropertyHeader(
-                name: widget.business.name,
-                coverUrl: coverUrl,
-                price: lodging.pricePerNight,
-                maxGuests: lodging.maxGuests,
+              const Text(
+                'Completa tu reserva',
+                style: TextStyle(
+                  color: Color(
+                    0xFF263E34,
+                  ),
+                  fontSize: 23,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -.3,
+                ),
               ),
               const SizedBox(
-                height: 16,
+                height: 5,
+              ),
+              const Text(
+                'Selecciona las fechas y quienes viajar\u00e1n.',
+                style: TextStyle(
+                  color: Color(
+                    0xFF718078,
+                  ),
+                  fontSize: 12.5,
+                ),
+              ),
+              const SizedBox(
+                height: 18,
               ),
               _BookingSection(
                 number: '1',
                 title: 'Elige tus fechas',
-                subtitle: 'Selecciona la entrada y la salida.',
+                primary: true,
+                subtitle: 'Selecciona entrada y salida.',
                 child: _DateSelectionBox(
                   range: _range,
-                  onTap: () {
-                    _openDateSelector();
-                  },
+                  onTap: _openDateSelector,
                 ),
               ),
               const SizedBox(
-                height: 14,
+                height: 12,
               ),
               _BookingSection(
                 number: '2',
-                title: 'Huéspedes',
-                subtitle: 'Máximo ${lodging.maxGuests} personas.',
+                title: 'Hu\u00e9spedes',
+                subtitle: 'Hasta ${lodging.maxGuests} personas.',
                 child: _GuestSelector(
                   value: _guests,
                   maxGuests: lodging.maxGuests,
@@ -165,16 +450,25 @@ class _LodgingAvailabilityScreenState
                     13,
                   ),
                   decoration: BoxDecoration(
-                    color: RancoColors.primarySoft,
+                    color: const Color(
+                      0xFFFFF6E6,
+                    ),
                     borderRadius: BorderRadius.circular(
                       14,
+                    ),
+                    border: Border.all(
+                      color: const Color(
+                        0xFFF1DEB8,
+                      ),
                     ),
                   ),
                   child: Row(
                     children: [
                       const Icon(
                         Icons.info_outline_rounded,
-                        color: RancoColors.primaryDark,
+                        color: Color(
+                          0xFF916B2D,
+                        ),
                         size: 18,
                       ),
                       const SizedBox(
@@ -182,13 +476,14 @@ class _LodgingAvailabilityScreenState
                       ),
                       Expanded(
                         child: Text(
-                          '${_guests - lodging.includedGuests} huésped adicional: ${_money(lodging.extraGuestPrice)} por persona y noche.',
+                          '${_guests - lodging.includedGuests} hu\u00e9sped adicional: ${_money(lodging.extraGuestPrice)} por persona y noche.',
                           style: const TextStyle(
                             color: Color(
-                              0xFF7A581F,
+                              0xFF765624,
                             ),
-                            fontSize: 12,
+                            fontSize: 11.5,
                             height: 1.35,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -197,11 +492,11 @@ class _LodgingAvailabilityScreenState
                 ),
               ],
               const SizedBox(
-                height: 14,
+                height: 12,
               ),
               _BookingSection(
                 number: '3',
-                title: 'Mensaje al anfitrión',
+                title: 'Mensaje al anfitri\u00f3n',
                 subtitle: 'Opcional',
                 child: TextField(
                   controller: _messageController,
@@ -212,208 +507,153 @@ class _LodgingAvailabilityScreenState
                     hintText: 'Ej: Llegaremos cerca de las 18:00.',
                     filled: true,
                     fillColor: const Color(
-                      0xFFF3F6F4,
+                      0xFFF5F8F6,
+                    ),
+                    contentPadding: const EdgeInsets.all(
+                      15,
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(
-                        15,
+                        14,
                       ),
                       borderSide: BorderSide.none,
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(
-                        15,
+                        14,
                       ),
-                      borderSide: BorderSide.none,
+                      borderSide: const BorderSide(
+                        color: Color(
+                          0xFFE2EAE6,
+                        ),
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(
-                        15,
+                        14,
                       ),
                       borderSide: const BorderSide(
                         color: RancoColors.forest,
+                        width: 1.2,
                       ),
                     ),
                   ),
                 ),
               ),
-              if (_range != null) ...[
-                const SizedBox(
-                  height: 14,
-                ),
-                FutureBuilder<List<LodgingCalendarDay>>(
-                  future: ref
-                      .read(
-                        lodgingCalendarRepositoryProvider,
-                      )
-                      .listRange(
-                        businessId: widget.business.id,
-                        from: _range!.start,
-                        to: _range!.end,
-                      ),
-                  builder: (
-                    context,
-                    snapshot,
-                  ) {
-                    if (snapshot.connectionState != ConnectionState.done) {
-                      return const Padding(
-                        padding: EdgeInsets.all(
-                          24,
-                        ),
-                        child: Center(
-                          child: CircularProgressIndicator(),
-                        ),
-                      );
-                    }
-
-                    if (snapshot.hasError) {
-                      return _MessageCard(
-                        icon: Icons.error_outline,
-                        title: 'No pudimos revisar las fechas',
-                        message: '${snapshot.error}',
-                        error: true,
-                      );
-                    }
-
-                    final entries =
-                        snapshot.data ?? const <LodgingCalendarDay>[];
-
-                    final nights = _range!.end
-                        .difference(
-                          _range!.start,
-                        )
-                        .inDays;
-
-                    final blocked = _hasBlockedNight(
-                      entries,
-                      _range!.start,
-                      nights,
-                    );
-
-                    if (blocked) {
-                      return const _MessageCard(
-                        icon: Icons.block_outlined,
-                        title: 'Fechas no disponibles',
-                        message:
-                            'Una o más noches seleccionadas están bloqueadas.',
-                        error: true,
-                      );
-                    }
-
-                    if (nights < lodging.minNights) {
-                      return _MessageCard(
-                        icon: Icons.nights_stay_outlined,
-                        title: 'Estadía mínima',
-                        message:
-                            'Este alojamiento exige al menos ${lodging.minNights} noches.',
-                        error: true,
-                      );
-                    }
-
-                    final baseTotal = _calculateBaseTotal(
-                      entries: entries,
-                      start: _range!.start,
-                      nights: nights,
-                      standardPrice: lodging.pricePerNight,
-                    );
-
-                    final extraGuests = math.max(
-                      _guests - lodging.includedGuests,
-                      0,
-                    );
-
-                    final extraTotal =
-                        extraGuests * lodging.extraGuestPrice * nights;
-
-                    final total = baseTotal + extraTotal;
-
-                    return Column(
-                      children: [
-                        _MessageCard(
-                          icon: Icons.check_circle_outline,
-                          title: 'Fechas disponibles',
-                          message:
-                              '$nights ${nights == 1 ? 'noche' : 'noches'} · $_guests ${_guests == 1 ? 'huésped' : 'huéspedes'}',
-                        ),
-                        const SizedBox(
-                          height: 12,
-                        ),
-                        _SummaryCard(
-                          range: _range!,
-                          nights: nights,
-                          baseTotal: baseTotal,
-                          extraTotal: extraTotal,
-                          total: total,
-                        ),
-                        const SizedBox(
-                          height: 14,
-                        ),
-                        FilledButton.icon(
-                          onPressed: _creating ? null : _confirmBooking,
-                          icon: _creating
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.event_available_outlined,
-                                ),
-                          label: Text(
-                            _creating ? 'Enviando solicitud...' : 'Continuar',
-                          ),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: RancoColors.forest,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size.fromHeight(
-                              56,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                17,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(
-                          height: 10,
-                        ),
-                        const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.verified_user_outlined,
-                              size: 15,
-                              color: Color(
-                                0xFF718078,
-                              ),
-                            ),
-                            SizedBox(
-                              width: 5,
-                            ),
-                            Flexible(
-                              child: Text(
-                                'La solicitud quedará pendiente hasta que el anfitrión la confirme.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Color(
-                                    0xFF718078,
-                                  ),
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ],
             ],
+          );
+
+          if (desktop) {
+            return LayoutBuilder(
+              builder: (
+                context,
+                viewport,
+              ) {
+                final availableWidth = math.min(
+                  1180.0,
+                  viewport.maxWidth - 44,
+                );
+
+                final availableHeight = viewport.maxHeight - 36;
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 22,
+                    vertical: 18,
+                  ),
+                  child: Center(
+                    child: SizedBox(
+                      width: availableWidth,
+                      height: availableHeight,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _PropertyHeader(
+                            name: widget.business.name,
+                            coverUrl: coverUrl,
+                            price: lodging.pricePerNight,
+                            maxGuests: lodging.maxGuests,
+                          ),
+                          const SizedBox(
+                            height: 16,
+                          ),
+                          Expanded(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: SingleChildScrollView(
+                                    padding: const EdgeInsets.only(
+                                      bottom: 32,
+                                    ),
+                                    child: _BookingFormCard(
+                                      child: form,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(
+                                  width: 20,
+                                ),
+                                SizedBox(
+                                  width: 390,
+                                  height: double.infinity,
+                                  child: SingleChildScrollView(
+                                    padding: const EdgeInsets.only(
+                                      bottom: 24,
+                                    ),
+                                    child: bookingStatus(),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          }
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              16,
+              16,
+              16,
+              44,
+            ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 720,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _PropertyHeader(
+                      name: widget.business.name,
+                      coverUrl: coverUrl,
+                      price: lodging.pricePerNight,
+                      maxGuests: lodging.maxGuests,
+                    ),
+                    const SizedBox(
+                      height: 14,
+                    ),
+                    _BookingFormCard(
+                      child: form,
+                    ),
+                    const SizedBox(
+                      height: 14,
+                    ),
+                    bookingStatus(),
+                    const SizedBox(
+                      height: 24,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           );
         },
         loading: () => const Center(
@@ -752,110 +992,591 @@ class _PropertyHeader extends StatelessWidget {
   Widget build(
     BuildContext context,
   ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(
-          22,
-        ),
-        border: Border.all(
-          color: const Color(
-            0xFFD5E2DC,
-          ),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(
-                21,
+    return LayoutBuilder(
+      builder: (
+        context,
+        constraints,
+      ) {
+        final desktop = constraints.maxWidth >= 760;
+
+        if (!desktop) {
+          return Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(
+                18,
+              ),
+              border: Border.all(
+                color: const Color(
+                  0xFFDDE7E2,
+                ),
               ),
             ),
-            child: SizedBox(
-              height: 145,
-              width: double.infinity,
-              child: coverUrl != null
-                  ? Image.network(
-                      coverUrl!,
-                      fit: BoxFit.cover,
-                    )
-                  : const ColoredBox(
-                      color: Color(
-                        0xFFDDECE5,
-                      ),
-                      child: Center(
-                        child: Icon(
-                          Icons.holiday_village_outlined,
-                          size: 52,
-                          color: RancoColors.forest,
-                        ),
-                      ),
-                    ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(
-              16,
-            ),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(
+                      17,
+                    ),
+                  ),
+                  child: SizedBox(
+                    height: 132,
+                    width: double.infinity,
+                    child: _PropertyImage(
+                      coverUrl: coverUrl,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(
+                    14,
+                  ),
+                  child: Row(
                     children: [
-                      Text(
-                        name,
-                        style: const TextStyle(
-                          color: Color(
-                            0xFF2E4239,
-                          ),
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
+                      Expanded(
+                        child: _PropertyText(
+                          name: name,
+                          maxGuests: maxGuests,
                         ),
                       ),
                       const SizedBox(
-                        height: 5,
+                        width: 12,
                       ),
-                      Text(
-                        'Hasta $maxGuests huéspedes',
-                        style: const TextStyle(
-                          color: Color(
-                            0xFF708078,
-                          ),
-                          fontSize: 12,
-                        ),
+                      _PropertyPrice(
+                        price: price,
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(
-                  width: 12,
+              ],
+            ),
+          );
+        }
+
+        return Container(
+          height: 108,
+          padding: const EdgeInsets.all(
+            9,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(
+              18,
+            ),
+            border: Border.all(
+              color: const Color(
+                0xFFDDE7E2,
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(
+                  12,
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      _LodgingAvailabilityScreenState._money(
-                        price,
-                      ),
-                      style: const TextStyle(
-                        color: RancoColors.forest,
-                        fontSize: 19,
-                        fontWeight: FontWeight.w900,
-                      ),
+                child: SizedBox(
+                  width: 138,
+                  height: double.infinity,
+                  child: _PropertyImage(
+                    coverUrl: coverUrl,
+                  ),
+                ),
+              ),
+              const SizedBox(
+                width: 14,
+              ),
+              Expanded(
+                child: _PropertyText(
+                  name: name,
+                  maxGuests: maxGuests,
+                ),
+              ),
+              const SizedBox(
+                width: 16,
+              ),
+              Container(
+                width: 1,
+                height: 58,
+                color: const Color(
+                  0xFFE5ECE8,
+                ),
+              ),
+              const SizedBox(
+                width: 18,
+              ),
+              _PropertyPrice(
+                price: price,
+              ),
+              const SizedBox(
+                width: 10,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PropertyImage extends StatelessWidget {
+  const _PropertyImage({
+    required this.coverUrl,
+  });
+
+  final String? coverUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    if (coverUrl == null) {
+      return const ColoredBox(
+        color: Color(
+          0xFFDDECE5,
+        ),
+        child: Center(
+          child: Icon(
+            Icons.holiday_village_outlined,
+            size: 46,
+            color: RancoColors.forest,
+          ),
+        ),
+      );
+    }
+
+    return Image.network(
+      coverUrl!,
+      fit: BoxFit.cover,
+      errorBuilder: (
+        context,
+        error,
+        stackTrace,
+      ) {
+        return const ColoredBox(
+          color: Color(
+            0xFFDDECE5,
+          ),
+          child: Center(
+            child: Icon(
+              Icons.holiday_village_outlined,
+              size: 46,
+              color: RancoColors.forest,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PropertyText extends StatelessWidget {
+  const _PropertyText({
+    required this.name,
+    required this.maxGuests,
+  });
+
+  final String name;
+  final int maxGuests;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Tu alojamiento',
+          style: TextStyle(
+            color: RancoColors.forest,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w900,
+            letterSpacing: .2,
+          ),
+        ),
+        const SizedBox(
+          height: 4,
+        ),
+        Text(
+          name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: Color(
+              0xFF263E34,
+            ),
+            fontSize: 19,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(
+          height: 5,
+        ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.groups_outlined,
+              size: 15,
+              color: Color(
+                0xFF718078,
+              ),
+            ),
+            const SizedBox(
+              width: 5,
+            ),
+            Text(
+              'Hasta $maxGuests hu\u00e9spedes',
+              style: const TextStyle(
+                color: Color(
+                  0xFF718078,
+                ),
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _PropertyPrice extends StatelessWidget {
+  const _PropertyPrice({
+    required this.price,
+  });
+
+  final int price;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          _LodgingAvailabilityScreenState._money(
+            price,
+          ),
+          style: const TextStyle(
+            color: RancoColors.forest,
+            fontSize: 23,
+            height: 1,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(
+          height: 4,
+        ),
+        const Text(
+          'por noche',
+          style: TextStyle(
+            color: Color(
+              0xFF718078,
+            ),
+            fontSize: 10.5,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BookingFormCard extends StatelessWidget {
+  const _BookingFormCard({
+    required this.child,
+  });
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(
+        18,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(
+          20,
+        ),
+        border: Border.all(
+          color: const Color(
+            0xFFDDE7E2,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(
+              alpha: .018,
+            ),
+            blurRadius: 16,
+            offset: const Offset(
+              0,
+              5,
+            ),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+class _BookingAsideCard extends StatelessWidget {
+  const _BookingAsideCard({
+    required this.child,
+  });
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(
+        20,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(
+          20,
+        ),
+        border: Border.all(
+          color: const Color(
+            0xFFD8E5DE,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(
+              0xFF193B2F,
+            ).withValues(
+              alpha: .055,
+            ),
+            blurRadius: 28,
+            offset: const Offset(
+              0,
+              10,
+            ),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+class _BookingSummaryIdle extends StatelessWidget {
+  const _BookingSummaryIdle({
+    required this.pricePerNight,
+    required this.guests,
+  });
+
+  final int pricePerNight;
+  final int guests;
+
+  @override
+  Widget build(BuildContext context) {
+    return _BookingAsideCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Resumen de tu reserva',
+            style: TextStyle(
+              color: Color(
+                0xFF263E34,
+              ),
+              fontSize: 19,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(
+            height: 5,
+          ),
+          const Text(
+            'Completa las fechas para calcular el total.',
+            style: TextStyle(
+              color: Color(
+                0xFF718078,
+              ),
+              fontSize: 11,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(
+            height: 20,
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                _LodgingAvailabilityScreenState._money(
+                  pricePerNight,
+                ),
+                style: const TextStyle(
+                  color: RancoColors.forest,
+                  fontSize: 28,
+                  height: 1,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.only(
+                  left: 5,
+                  bottom: 2,
+                ),
+                child: Text(
+                  '/ noche',
+                  style: TextStyle(
+                    color: Color(
+                      0xFF718078,
                     ),
-                    const Text(
-                      'por noche',
-                      style: TextStyle(
-                        color: Color(
-                          0xFF708078,
-                        ),
-                        fontSize: 11,
-                      ),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(
+            height: 20,
+          ),
+          const Divider(
+            height: 1,
+            color: Color(
+              0xFFE5ECE8,
+            ),
+          ),
+          const SizedBox(
+            height: 16,
+          ),
+          const _BookingAsideLine(
+            icon: Icons.calendar_month_outlined,
+            label: 'Fechas',
+            value: 'Seleccionar',
+          ),
+          const SizedBox(
+            height: 13,
+          ),
+          _BookingAsideLine(
+            icon: Icons.groups_outlined,
+            label: 'Hu\u00e9spedes',
+            value: '$guests',
+          ),
+          const SizedBox(
+            height: 13,
+          ),
+          const _BookingAsideLine(
+            icon: Icons.nights_stay_outlined,
+            label: 'Noches',
+            value: '\u2014',
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(
+              vertical: 17,
+            ),
+            child: Divider(
+              height: 1,
+              color: Color(
+                0xFFE5ECE8,
+              ),
+            ),
+          ),
+          const Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Total estimado',
+                  style: TextStyle(
+                    color: Color(
+                      0xFF30443B,
                     ),
-                  ],
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              Text(
+                '\u2014',
+                style: TextStyle(
+                  color: RancoColors.forest,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(
+            height: 18,
+          ),
+          FilledButton.icon(
+            onPressed: null,
+            icon: const Icon(
+              Icons.calendar_month_outlined,
+            ),
+            label: const Text(
+              'Selecciona tus fechas',
+            ),
+            style: FilledButton.styleFrom(
+              disabledBackgroundColor: const Color(
+                0xFFDDE7E2,
+              ),
+              disabledForegroundColor: const Color(
+                0xFF718078,
+              ),
+              minimumSize: const Size.fromHeight(
+                52,
+              ),
+              textStyle: const TextStyle(
+                fontWeight: FontWeight.w900,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(
+                  14,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(
+            height: 13,
+          ),
+          Container(
+            padding: const EdgeInsets.all(
+              12,
+            ),
+            decoration: BoxDecoration(
+              color: const Color(
+                0xFFF3F7F5,
+              ),
+              borderRadius: BorderRadius.circular(
+                13,
+              ),
+            ),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.lock_outline_rounded,
+                  size: 16,
+                  color: RancoColors.forest,
+                ),
+                SizedBox(
+                  width: 8,
+                ),
+                Expanded(
+                  child: Text(
+                    'No se realizar\u00e1 ning\u00fan cobro en este paso.',
+                    style: TextStyle(
+                      color: Color(
+                        0xFF64766D,
+                      ),
+                      fontSize: 10.5,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -866,57 +1587,139 @@ class _PropertyHeader extends StatelessWidget {
   }
 }
 
+class _BookingAsideLine extends StatelessWidget {
+  const _BookingAsideLine({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: const Color(
+              0xFFE8F3ED,
+            ),
+            borderRadius: BorderRadius.circular(
+              9,
+            ),
+          ),
+          child: Icon(
+            icon,
+            size: 16,
+            color: RancoColors.forest,
+          ),
+        ),
+        const SizedBox(
+          width: 10,
+        ),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Color(
+                0xFF6A7B73,
+              ),
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Color(
+              0xFF30443B,
+            ),
+            fontSize: 11.5,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _BookingSection extends StatelessWidget {
   const _BookingSection({
     required this.number,
     required this.title,
     required this.subtitle,
     required this.child,
+    this.primary = false,
   });
 
   final String number;
   final String title;
   final String subtitle;
   final Widget child;
+  final bool primary;
 
   @override
   Widget build(
     BuildContext context,
   ) {
-    return Container(
-      padding: const EdgeInsets.all(
-        17,
+    return AnimatedContainer(
+      duration: const Duration(
+        milliseconds: 180,
+      ),
+      padding: EdgeInsets.all(
+        primary ? 18 : 15,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: primary
+            ? const Color(
+                0xFFF8FCFA,
+              )
+            : const Color(
+                0xFFFCFDFC,
+              ),
         borderRadius: BorderRadius.circular(
-          20,
+          16,
         ),
         border: Border.all(
-          color: const Color(
-            0xFFD5E2DC,
-          ),
+          color: primary
+              ? const Color(
+                  0xFFBFD9CC,
+                )
+              : const Color(
+                  0xFFE3EAE6,
+                ),
+          width: primary ? 1.2 : 1,
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 28,
-                height: 28,
+                width: primary ? 32 : 29,
+                height: primary ? 32 : 29,
                 alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: Color(
-                    0xFFE2F2EA,
-                  ),
+                decoration: BoxDecoration(
+                  color: primary
+                      ? RancoColors.forest
+                      : const Color(
+                          0xFFE2F2EA,
+                        ),
                   shape: BoxShape.circle,
                 ),
                 child: Text(
                   number,
-                  style: const TextStyle(
-                    color: RancoColors.forest,
+                  style: TextStyle(
+                    color: primary ? Colors.white : RancoColors.forest,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -930,30 +1733,67 @@ class _BookingSection extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        fontSize: 16,
+                      style: TextStyle(
+                        color: const Color(
+                          0xFF30443B,
+                        ),
+                        fontSize: primary ? 16 : 14.5,
                         fontWeight: FontWeight.w900,
                       ),
+                    ),
+                    const SizedBox(
+                      height: 2,
                     ),
                     Text(
                       subtitle,
                       style: const TextStyle(
                         color: Color(
-                          0xFF718078,
+                          0xFF7A8982,
                         ),
-                        fontSize: 11,
+                        fontSize: 10.5,
                       ),
                     ),
                   ],
                 ),
               ),
+              if (primary) const _RequiredPill(),
             ],
           ),
-          const SizedBox(
-            height: 15,
+          SizedBox(
+            height: primary ? 16 : 13,
           ),
           child,
         ],
+      ),
+    );
+  }
+}
+
+class _RequiredPill extends StatelessWidget {
+  const _RequiredPill();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 9,
+        vertical: 5,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(
+          0xFFE6F2EB,
+        ),
+        borderRadius: BorderRadius.circular(
+          99,
+        ),
+      ),
+      child: const Text(
+        'Obligatorio',
+        style: TextStyle(
+          color: RancoColors.forest,
+          fontSize: 9.5,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
   }
@@ -1896,92 +2736,87 @@ class _SummaryCard extends StatelessWidget {
   Widget build(
     BuildContext context,
   ) {
-    return Container(
-      padding: const EdgeInsets.all(
-        18,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(
-          20,
-        ),
-        border: Border.all(
-          color: const Color(
-            0xFFD5E2DC,
-          ),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Resumen',
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w900,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Resumen',
+          style: TextStyle(
+            color: Color(
+              0xFF263E34,
             ),
+            fontSize: 17,
+            fontWeight: FontWeight.w900,
           ),
+        ),
+        const SizedBox(
+          height: 15,
+        ),
+        _SummaryRow(
+          label:
+              '${_LodgingAvailabilityScreenState._dateLabel(range.start)} - ${_LodgingAvailabilityScreenState._dateLabel(range.end)}',
+          value: '$nights ${nights == 1 ? 'noche' : 'noches'}',
+        ),
+        const SizedBox(
+          height: 11,
+        ),
+        _SummaryRow(
+          label: 'Alojamiento',
+          value: _LodgingAvailabilityScreenState._money(
+            baseTotal,
+          ),
+        ),
+        if (extraTotal > 0) ...[
           const SizedBox(
-            height: 14,
+            height: 11,
           ),
           _SummaryRow(
-            label:
-                '${_LodgingAvailabilityScreenState._dateLabel(range.start)} → ${_LodgingAvailabilityScreenState._dateLabel(range.end)}',
-            value: '$nights noches',
-          ),
-          const SizedBox(
-            height: 9,
-          ),
-          _SummaryRow(
-            label: 'Alojamiento',
+            label: 'Hu\u00e9spedes adicionales',
             value: _LodgingAvailabilityScreenState._money(
-              baseTotal,
+              extraTotal,
             ),
           ),
-          if (extraTotal > 0) ...[
-            const SizedBox(
-              height: 9,
-            ),
-            _SummaryRow(
-              label: 'Huéspedes adicionales',
-              value: _LodgingAvailabilityScreenState._money(
-                extraTotal,
-              ),
-            ),
-          ],
-          const Padding(
-            padding: EdgeInsets.symmetric(
-              vertical: 14,
-            ),
-            child: Divider(
-              height: 1,
+        ],
+        const Padding(
+          padding: EdgeInsets.symmetric(
+            vertical: 16,
+          ),
+          child: Divider(
+            height: 1,
+            color: Color(
+              0xFFE3EAE6,
             ),
           ),
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Total estadía',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            const Expanded(
+              child: Text(
+                'Total estad\u00eda',
+                style: TextStyle(
+                  color: Color(
+                    0xFF263E34,
                   ),
-                ),
-              ),
-              Text(
-                _LodgingAvailabilityScreenState._money(
-                  total,
-                ),
-                style: const TextStyle(
-                  color: RancoColors.forest,
-                  fontSize: 23,
+                  fontSize: 15,
                   fontWeight: FontWeight.w900,
                 ),
               ),
-            ],
-          ),
-        ],
-      ),
+            ),
+            Text(
+              _LodgingAvailabilityScreenState._money(
+                total,
+              ),
+              style: const TextStyle(
+                color: RancoColors.forest,
+                fontSize: 25,
+                height: 1,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

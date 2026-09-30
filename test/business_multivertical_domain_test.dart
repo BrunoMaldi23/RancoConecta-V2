@@ -84,6 +84,26 @@ void main() {
     expect(capabilities.can(BusinessCapability.team), isTrue);
   });
 
+  test('plan tiers keep gastronomy simple and reserve tables for Pro', () {
+    const resolver = BusinessCapabilityResolver(
+      featureFlags: FeatureFlags(),
+    );
+
+    final basic = resolver.resolve(
+      businessType: BusinessType.gastronomy,
+    );
+    final pro = resolver.resolve(
+      businessType: BusinessType.gastronomy,
+      planTier: BusinessPlanTier.pro,
+    );
+
+    expect(basic.can(BusinessCapability.menu), isTrue);
+    expect(basic.can(BusinessCapability.tableReservations), isFalse);
+    expect(basic.limit(BusinessLimit.maxMenuItems), 15);
+    expect(pro.can(BusinessCapability.tableReservations), isTrue);
+    expect(pro.limit(BusinessLimit.maxMenuItems), 50);
+  });
+
   test('monetization policy keeps commission rules separate from plans', () {
     const resolver = BusinessCapabilityResolver(
       featureFlags: FeatureFlags(),

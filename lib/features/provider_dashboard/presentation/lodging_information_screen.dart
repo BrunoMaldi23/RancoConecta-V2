@@ -36,6 +36,8 @@ class _LodgingInformationScreenState
 
   final _minNights = TextEditingController();
 
+  final _maxNights = TextEditingController();
+
   final _cancellation = TextEditingController();
 
   final _rules = TextEditingController();
@@ -53,6 +55,7 @@ class _LodgingInformationScreenState
     _checkIn.dispose();
     _checkOut.dispose();
     _minNights.dispose();
+    _maxNights.dispose();
     _cancellation.dispose();
     _rules.dispose();
     super.dispose();
@@ -137,9 +140,9 @@ class _LodgingInformationScreenState
                       ],
                     ),
                     _Card(
-                      title: 'Ingreso y salida',
+                      title: 'Ingreso, salida y estadía',
                       subtitle:
-                          'Usa formato de 24 horas para evitar confusiones.',
+                          'Usa formato de 24 horas y define noches mínimas o máximas.',
                       children: [
                         _TextField(
                           controller: _checkIn,
@@ -152,6 +155,11 @@ class _LodgingInformationScreenState
                         _NumberField(
                           controller: _minNights,
                           label: 'Estadía mínima',
+                        ),
+                        _OptionalNumberField(
+                          controller: _maxNights,
+                          label: 'Estadía máxima',
+                          hintText: 'Sin límite',
                         ),
                       ],
                     ),
@@ -257,6 +265,8 @@ class _LodgingInformationScreenState
 
     _minNights.text = details.minNights.toString();
 
+    _maxNights.text = details.maxNights?.toString() ?? '';
+
     _cancellation.text = details.cancellationPolicy;
 
     _rules.text = details.houseRules;
@@ -266,6 +276,26 @@ class _LodgingInformationScreenState
     String businessId,
   ) async {
     if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    final minNights = int.parse(
+      _minNights.text,
+    );
+    final maxNights = _parseOptionalInt(
+      _maxNights.text,
+    );
+
+    if (maxNights != null && maxNights < minNights) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'La estadía máxima debe ser igual o mayor que la mínima.',
+          ),
+        ),
+      );
       return;
     }
 
@@ -300,9 +330,8 @@ class _LodgingInformationScreenState
             ),
             checkInTime: _checkIn.text.trim(),
             checkOutTime: _checkOut.text.trim(),
-            minNights: int.parse(
-              _minNights.text,
-            ),
+            minNights: minNights,
+            maxNights: maxNights,
             cancellationPolicy: _cancellation.text,
             houseRules: _rules.text,
           );
@@ -347,6 +376,18 @@ class _LodgingInformationScreenState
         _saving = false;
       });
     }
+  }
+
+  int? _parseOptionalInt(
+    String value,
+  ) {
+    final trimmed = value.trim();
+
+    if (trimmed.isEmpty) {
+      return null;
+    }
+
+    return int.parse(trimmed);
   }
 }
 
@@ -439,6 +480,49 @@ class _NumberField extends StatelessWidget {
       validator: (value) {
         final number = int.tryParse(
           value ?? '',
+        );
+
+        if (number == null || number < 1) {
+          return 'Valor inválido';
+        }
+
+        return null;
+      },
+    );
+  }
+}
+
+class _OptionalNumberField extends StatelessWidget {
+  const _OptionalNumberField({
+    required this.controller,
+    required this.label,
+    required this.hintText,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final String hintText;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hintText,
+      ),
+      validator: (value) {
+        final trimmed = value?.trim() ?? '';
+
+        if (trimmed.isEmpty) {
+          return null;
+        }
+
+        final number = int.tryParse(
+          trimmed,
         );
 
         if (number == null || number < 1) {

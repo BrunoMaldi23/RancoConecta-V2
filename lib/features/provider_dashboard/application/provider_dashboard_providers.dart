@@ -7,6 +7,7 @@ import '../data/lodging_calendar_repository.dart';
 import '../data/lodging_details_repository.dart';
 import '../data/provider_business_repository.dart';
 import '../data/service_business_management_repository.dart';
+import 'provider_context_state.dart';
 
 final myProviderBusinessProvider =
     FutureProvider<ProviderBusinessSummary?>((ref) {
@@ -41,21 +42,18 @@ final activeProviderBusinessProvider =
   }
 
   final activeId = ref.watch(activeProviderBusinessIdProvider);
+  final business = selectActiveProviderBusiness(
+    businesses: businesses,
+    activeBusinessId: activeId,
+  );
 
-  if (activeId == null) {
-    return businesses.first;
+  if (activeId != null && business?.id != activeId) {
+    Future.microtask(() {
+      ref.read(activeProviderBusinessIdProvider.notifier).state = null;
+    });
   }
 
-  for (final business in businesses) {
-    if (business.id == activeId) {
-      return business;
-    }
-  }
-
-  Future.microtask(() {
-    ref.read(activeProviderBusinessIdProvider.notifier).state = null;
-  });
-  return businesses.first;
+  return business;
 });
 
 final businessCapabilityResolverProvider =

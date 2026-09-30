@@ -53,6 +53,7 @@ void main() {
       'whatsapp': '+56912345678',
       'email': null,
       'website': null,
+      'address_text': 'Calle Comercio 123',
       'verification_status': 'verified',
       'business_services': [
         {
@@ -88,6 +89,7 @@ void main() {
     expect(business.isVerified, isTrue);
     expect(business.services.single.subcategory.name, 'Gasfitería');
     expect(business.coverage.single.name, 'Lago Ranco');
+    expect(business.addressText, 'Calle Comercio 123');
   });
 
   test('maps service request dto with database status values', () {

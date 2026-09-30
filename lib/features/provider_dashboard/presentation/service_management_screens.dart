@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/app_failure.dart';
+import '../../../core/layout/ranco_responsive.dart';
 import '../../../core/widgets/ranco_app_bar.dart';
 import '../../../core/widgets/ranco_error_state.dart';
 import '../../../features/categories/application/category_providers.dart';
@@ -383,6 +384,135 @@ class _ProviderCoverageScreenState
   }
 }
 
+class ProviderLocationScreen extends ConsumerStatefulWidget {
+  const ProviderLocationScreen({super.key});
+
+  @override
+  ConsumerState<ProviderLocationScreen> createState() =>
+      _ProviderLocationScreenState();
+}
+
+class _ProviderLocationScreenState
+    extends ConsumerState<ProviderLocationScreen> {
+  final _address = TextEditingController();
+  String? _selectedLocationId;
+  String? _loadedBusinessId;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _address.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(serviceBusinessManagementProvider);
+    final locations = ref.watch(locationsProvider);
+
+    return _ManagementScaffold(
+      title: 'Ubicación',
+      body: state.when(
+        data: (state) {
+          if (state == null) return const _MissingBusiness();
+          _sync(state);
+
+          return locations.when(
+            data: (items) {
+              final selectedValue =
+                  items.any((item) => item.id == _selectedLocationId)
+                      ? _selectedLocationId
+                      : null;
+
+              return _FormShell(
+                title: 'Ubicación del negocio',
+                subtitle:
+                    'Indica la dirección comercial y localidad visible en la publicación.',
+                children: [
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedValue,
+                    decoration: const InputDecoration(
+                      labelText: 'Localidad',
+                    ),
+                    items: items
+                        .map(
+                          (location) => DropdownMenuItem(
+                            value: location.id,
+                            child: Text(
+                              location.communeName == null
+                                  ? location.name
+                                  : '${location.name} · ${location.communeName}',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedLocationId = value;
+                      });
+                    },
+                  ),
+                  _TextField(
+                    controller: _address,
+                    label: 'Dirección comercial',
+                    minLines: 2,
+                    maxLines: 3,
+                  ),
+                  _SaveButton(
+                    saving: _saving,
+                    label: 'Guardar ubicación',
+                    onPressed: () => _save(state),
+                  ),
+                ],
+              );
+            },
+            loading: () => const _LocalLoader(),
+            error: (error, stackTrace) => _ErrorBox(message: _message(error)),
+          );
+        },
+        loading: () => const _LocalLoader(),
+        error: (error, stackTrace) => _ErrorBox(message: _message(error)),
+      ),
+    );
+  }
+
+  void _sync(ServiceBusinessManagementState state) {
+    if (_loadedBusinessId == state.draft.id) return;
+    _loadedBusinessId = state.draft.id;
+    _address.text = state.draft.addressText ?? '';
+    _selectedLocationId =
+        state.draft.coverage.isEmpty ? null : state.draft.coverage.first.id;
+  }
+
+  Future<void> _save(ServiceBusinessManagementState state) async {
+    setState(() => _saving = true);
+    final result = await ref
+        .read(serviceBusinessManagementRepositoryProvider)
+        .updateLocation(
+          businessId: state.draft.id,
+          addressText: _address.text,
+          locationId: _selectedLocationId,
+        );
+    if (!mounted) return;
+    setState(() => _saving = false);
+    result.when(
+      success: (_) {
+        ref.invalidate(serviceBusinessManagementProvider);
+        ref.invalidate(activeProviderBusinessProvider);
+        _snack('Ubicación guardada.');
+      },
+      failure: (failure) => _snack(failure.message),
+    );
+  }
+
+  void _snack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+}
+
 class ProviderHoursScreen extends ConsumerStatefulWidget {
   const ProviderHoursScreen({super.key});
 
@@ -524,9 +654,9 @@ class _FormShell extends StatelessWidget {
     return Align(
       alignment: Alignment.topCenter,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 680),
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        child: RancoContentContainer(
+          width: RancoContainerWidth.form,
           child: DecoratedBox(
             decoration: BoxDecoration(
               color: Colors.white,

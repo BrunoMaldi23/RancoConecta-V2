@@ -61,7 +61,7 @@ join (values
   ('gastronomy', 'Cafeterías', 'coffee', 'Café, repostería y espacios de encuentro.', 'coffee', 2),
   ('lodging', 'Cabañas', 'cabins', 'Cabañas y alojamientos familiares.', 'cabin', 1),
   ('lodging', 'Hospedajes', 'guesthouses', 'Hospedajes y habitaciones locales.', 'lodging', 2),
-  ('emergencies', 'Urgencias hogar', 'home-emergencies', 'Servicios urgentes para incidentes domiciliarios.', 'emergency', 1)
+  ('emergencies', 'Atención de emergencia', 'health-emergencies', 'Atención de emergencia, primeros auxilios y apoyo de salud.', 'emergency', 1)
 ) as item(category_slug, name, slug, description, icon_key, sort_order) on item.category_slug = c.slug
 on conflict (slug) do nothing;
 

@@ -171,6 +171,22 @@ business_hours(
     );
   }
 
+  Future<Result<void>> updateLocation({
+    required String businessId,
+    required String addressText,
+    required String? locationId,
+  }) {
+    return _run(
+      rpc: 'update_manageable_business_location',
+      fallback: 'No pudimos actualizar la ubicación.',
+      params: {
+        'p_business_id': businessId,
+        'p_address_text': addressText,
+        'p_location_id': locationId,
+      },
+    );
+  }
+
   Future<Result<void>> replaceHours({
     required String businessId,
     required List<BusinessHourInput> hours,

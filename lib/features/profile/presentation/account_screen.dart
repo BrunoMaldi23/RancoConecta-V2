@@ -3,10 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../config/app_config.dart';
+import '../../../core/layout/ranco_responsive.dart';
+import '../../../router/session_actions.dart';
 import '../../../shared/models/profile.dart';
 import '../../../theme/ranco_colors.dart';
 import '../../auth/application/auth_controller.dart';
-import '../../auth/data/supabase_auth_repository.dart';
 import '../../messaging/application/messaging_providers.dart';
 import '../../notifications/application/notification_providers.dart';
 import '../../provider_dashboard/application/provider_dashboard_providers.dart';
@@ -61,185 +62,151 @@ class AccountScreen extends ConsumerWidget {
 
               return SafeArea(
                 top: false,
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: 720,
+                child: RancoContentContainer(
+                  width: RancoContainerWidth.detail,
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(
+                      0,
+                      18,
+                      0,
+                      30,
                     ),
-                    child: ListView(
-                      padding: const EdgeInsets.fromLTRB(
-                        18,
-                        18,
-                        18,
-                        30,
+                    children: [
+                      const _PageHeader(),
+                      const SizedBox(height: 14),
+                      _AccountProfile(
+                        initial: initial,
+                        name: displayName,
+                        email: email,
+                        role: profile.role.label,
+                        onEdit: () {
+                          context.push(
+                            '/account/edit',
+                          );
+                        },
                       ),
-                      children: [
-                        const _PageHeader(),
-                        const SizedBox(height: 14),
-                        _AccountProfile(
-                          initial: initial,
-                          name: displayName,
-                          email: email,
-                          role: profile.role.label,
-                          onEdit: () {
-                            context.push(
-                              '/account/edit',
-                            );
-                          },
+                      if (isProvider) ...[
+                        const SizedBox(height: 18),
+                        const _SectionLabel(
+                          text: 'Mi negocio',
                         ),
-                        if (isProvider) ...[
-                          const SizedBox(height: 18),
-                          const _SectionLabel(
-                            text: 'Mi negocio',
-                          ),
-                          const SizedBox(height: 7),
-                          ref
-                              .watch(
-                                myProviderBusinessProvider,
-                              )
-                              .when(
-                                data: (business) {
-                                  if (business == null) {
-                                    return _MissingBusinessCard(
-                                      onTap: () {
-                                        context.push(
-                                          '/provider/register',
-                                        );
-                                      },
-                                    );
-                                  }
-
-                                  return _ProviderBusinessCard(
-                                    name: business.name,
-                                    published: business.publicationStatus ==
-                                        'published',
-                                    status: business.publicationStatus,
-                                    lodging: business.isLodging,
-                                    onManage: () {
+                        const SizedBox(height: 7),
+                        ref
+                            .watch(
+                              myProviderBusinessProvider,
+                            )
+                            .when(
+                              data: (business) {
+                                if (business == null) {
+                                  return _MissingBusinessCard(
+                                    onTap: () {
                                       context.push(
-                                        '/provider/dashboard',
-                                      );
-                                    },
-                                    onBookings: () {
-                                      context.push(
-                                        '/provider/bookings',
-                                      );
-                                    },
-                                    onCalendar: () {
-                                      context.push(
-                                        '/provider/calendar',
-                                      );
-                                    },
-                                    onView: () {
-                                      context.push(
-                                        '/business/${business.id}',
+                                        '/provider/register',
                                       );
                                     },
                                   );
-                                },
-                                loading: () => const _BusinessLoading(),
-                                error: (_, __) => const _BusinessError(),
-                              ),
-                        ],
-                        if (!isProvider) ...[
-                          const SizedBox(height: 18),
-                          _BecomeProviderCard(
-                            onTap: () {
-                              context.push(
-                                '/provider/join',
-                              );
-                            },
-                          ),
-                        ],
-                        const SizedBox(height: 20),
-                        const _SectionLabel(
-                          text: 'Cuenta y soporte',
-                        ),
-                        const SizedBox(height: 7),
-                        _SettingsCard(
-                          children: [
-                            _SettingsRow(
-                              icon: Icons.verified_user_outlined,
-                              title: 'Estado de la cuenta',
-                              subtitle: _accountStatusLabel(
-                                profile.accountStatus,
-                              ),
-                            ),
-                            if (chatEnabled) ...[
-                              const _SettingsDivider(),
-                              _SettingsRow(
-                                icon: Icons.chat_bubble_outline_rounded,
-                                title: 'Mensajes',
-                                subtitle: unreadMessages == 0
-                                    ? 'Conversaciones de solicitudes y reservas'
-                                    : '$unreadMessages sin leer',
-                                badgeCount: unreadMessages,
-                                onTap: () {
-                                  context.push('/messages');
-                                },
-                              ),
-                            ],
-                            const _SettingsDivider(),
-                            _SettingsRow(
-                              icon: Icons.notifications_none_rounded,
-                              title: 'Notificaciones',
-                              subtitle: unreadNotifications == 0
-                                  ? 'Avisos de solicitudes, cotizaciones y reservas'
-                                  : '$unreadNotifications pendientes',
-                              badgeCount: unreadNotifications,
-                              onTap: () {
-                                context.push('/notifications');
+                                }
+
+                                return _ProviderBusinessCard(
+                                  name: business.name,
+                                  published:
+                                      business.publicationStatus == 'published',
+                                  status: business.publicationStatus,
+                                  lodging: business.isLodging,
+                                  onManage: () {
+                                    context.push(
+                                      '/provider/dashboard',
+                                    );
+                                  },
+                                  onBookings: () {
+                                    context.push(
+                                      '/provider/bookings',
+                                    );
+                                  },
+                                  onCalendar: () {
+                                    context.push(
+                                      '/provider/calendar',
+                                    );
+                                  },
+                                  onView: () {
+                                    context.push(
+                                      '/business/${business.id}',
+                                    );
+                                  },
+                                );
                               },
+                              loading: () => const _BusinessLoading(),
+                              error: (_, __) => const _BusinessError(),
                             ),
-                            const _SettingsDivider(),
-                            _SettingsRow(
-                              icon: Icons.help_outline_rounded,
-                              title: 'Ayuda y soporte',
-                              subtitle: 'Preguntas frecuentes y contacto',
-                              onTap: () {
-                                // Ruta futura de ayuda.
-                              },
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        _LogoutButton(
-                          onPressed: () async {
-                            await ref
-                                .read(
-                                  authRepositoryProvider,
-                                )
-                                .signOut();
-
-                            ref.invalidate(
-                              currentProfileProvider,
+                      ],
+                      if (!isProvider) ...[
+                        const SizedBox(height: 18),
+                        _BecomeProviderCard(
+                          onTap: () {
+                            context.push(
+                              '/provider/join',
                             );
-
-                            ref.invalidate(
-                              myProviderBusinessProvider,
-                            );
-
-                            ref.invalidate(
-                              myProviderBusinessesProvider,
-                            );
-
-                            ref.invalidate(
-                              activeProviderBusinessProvider,
-                            );
-
-                            ref
-                                .read(
-                                  activeProviderBusinessIdProvider.notifier,
-                                )
-                                .state = null;
-
-                            if (context.mounted) {
-                              context.go('/sign-in');
-                            }
                           },
                         ),
                       ],
-                    ),
+                      const SizedBox(height: 20),
+                      const _SectionLabel(
+                        text: 'Cuenta y soporte',
+                      ),
+                      const SizedBox(height: 7),
+                      _SettingsCard(
+                        children: [
+                          _SettingsRow(
+                            icon: Icons.verified_user_outlined,
+                            title: 'Estado de la cuenta',
+                            subtitle: _accountStatusLabel(
+                              profile.accountStatus,
+                            ),
+                          ),
+                          if (chatEnabled) ...[
+                            const _SettingsDivider(),
+                            _SettingsRow(
+                              icon: Icons.chat_bubble_outline_rounded,
+                              title: 'Mensajes',
+                              subtitle: unreadMessages == 0
+                                  ? 'Conversaciones de solicitudes y reservas'
+                                  : '$unreadMessages sin leer',
+                              badgeCount: unreadMessages,
+                              onTap: () {
+                                context.push('/messages');
+                              },
+                            ),
+                          ],
+                          const _SettingsDivider(),
+                          _SettingsRow(
+                            icon: Icons.notifications_none_rounded,
+                            title: 'Notificaciones',
+                            subtitle: unreadNotifications == 0
+                                ? 'Avisos de solicitudes, cotizaciones y reservas'
+                                : '$unreadNotifications pendientes',
+                            badgeCount: unreadNotifications,
+                            onTap: () {
+                              context.push('/notifications');
+                            },
+                          ),
+                          const _SettingsDivider(),
+                          _SettingsRow(
+                            icon: Icons.help_outline_rounded,
+                            title: 'Ayuda y soporte',
+                            subtitle: 'Preguntas frecuentes y contacto',
+                            onTap: () {
+                              // Ruta futura de ayuda.
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      _LogoutButton(
+                        onPressed: () async {
+                          await signOutAndGoToSignIn(context, ref);
+                        },
+                      ),
+                    ],
                   ),
                 ),
               );

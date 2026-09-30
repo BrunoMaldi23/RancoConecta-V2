@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../features/businesses/application/business_providers.dart';
+import '../../../features/businesses/presentation/business_avatar.dart';
+import '../../../shared/models/business.dart';
 import '../../../theme/ranco_colors.dart';
+import '../../../core/widgets/ranco_app_bar.dart';
 import '../application/provider_dashboard_providers.dart';
 import '../data/business_media_repository.dart';
-import '../../../core/widgets/ranco_app_bar.dart';
 
 class LodgingPhotosScreen extends ConsumerStatefulWidget {
   const LodgingPhotosScreen({
@@ -62,9 +65,21 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
                   )
                   .firstOrNull;
 
+              final logo = items
+                  .where(
+                    (item) => item.isLogo,
+                  )
+                  .firstOrNull;
+
               final gallery = items
                   .where(
-                    (item) => !item.isCover,
+                    (item) => !item.isCover && !item.isLogo,
+                  )
+                  .toList();
+
+              final photos = items
+                  .where(
+                    (item) => item.isPublicPhoto,
                   )
                   .toList();
 
@@ -101,7 +116,7 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
                         ),
                       ),
                       Text(
-                        '${items.length}/15',
+                        '${photos.length}/15',
                         style: const TextStyle(
                           color: RancoColors.forest,
                           fontWeight: FontWeight.w800,
@@ -111,6 +126,33 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
                   ),
                   const SizedBox(
                     height: 20,
+                  ),
+                  _ProfilePhotoSection(
+                    businessType: business.businessType,
+                    logoUrl: logo == null
+                        ? null
+                        : ref
+                            .read(
+                              businessMediaRepositoryProvider,
+                            )
+                            .publicUrl(
+                              logo.storagePath,
+                            ),
+                    busy: _working,
+                    hasLogo: logo != null,
+                    onUpload: () {
+                      _pickAndUploadLogo(
+                        business.id,
+                      );
+                    },
+                    onDelete: () {
+                      _deleteLogo(
+                        business.id,
+                      );
+                    },
+                  ),
+                  const SizedBox(
+                    height: 22,
                   ),
                   const Text(
                     'Portada',
@@ -171,7 +213,7 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
                           ),
                         ),
                       ),
-                      if (items.length < 15)
+                      if (photos.length < 15)
                         TextButton.icon(
                           onPressed: _working
                               ? null
@@ -269,7 +311,7 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
                   const SizedBox(
                     height: 20,
                   ),
-                  if (items.length < 15)
+                  if (photos.length < 15)
                     FilledButton.icon(
                       onPressed: _working
                           ? null
@@ -369,10 +411,8 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
             extension: extension,
           );
 
-      ref.invalidate(
-        providerBusinessMediaProvider(
-          businessId,
-        ),
+      _refreshMedia(
+        businessId,
       );
 
       if (!mounted) {
@@ -411,6 +451,89 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
     }
   }
 
+  Future<void> _pickAndUploadLogo(
+    String businessId,
+  ) async {
+    final image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 82,
+      maxWidth: 1024,
+      maxHeight: 1024,
+    );
+
+    if (image == null) {
+      return;
+    }
+
+    final extension =
+        image.name.contains('.') ? image.name.split('.').last : 'jpg';
+
+    if (!_allowedProfileExtensions.contains(extension.toLowerCase())) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Usa una imagen JPG, PNG o WEBP.'),
+        ),
+      );
+      return;
+    }
+
+    final bytes = await image.readAsBytes();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _working = true;
+    });
+
+    try {
+      await ref
+          .read(
+            businessMediaRepositoryProvider,
+          )
+          .uploadLogo(
+            businessId: businessId,
+            bytes: bytes,
+            extension: extension,
+          );
+
+      _refreshMedia(
+        businessId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Foto de perfil actualizada.'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No pudimos subir la foto de perfil: $error'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _working = false;
+        });
+      }
+    }
+  }
+
   Future<void> _makeCover(
     ProviderMediaItem item,
     String businessId,
@@ -429,10 +552,8 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
             mediaId: item.id,
           );
 
-      ref.invalidate(
-        providerBusinessMediaProvider(
-          businessId,
-        ),
+      _refreshMedia(
+        businessId,
       );
       if (!mounted) {
         return;
@@ -521,10 +642,8 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
             item,
           );
 
-      ref.invalidate(
-        providerBusinessMediaProvider(
-          businessId,
-        ),
+      _refreshMedia(
+        businessId,
       );
       if (!mounted) {
         return;
@@ -552,6 +671,255 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
         });
       }
     }
+  }
+
+  Future<void> _deleteLogo(
+    String businessId,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text(
+            'Eliminar foto de perfil',
+          ),
+          content: const Text(
+            'Volveremos a mostrar el icono de categoría como identificación.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(
+                  context,
+                  false,
+                );
+              },
+              child: const Text(
+                'Cancelar',
+              ),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(
+                  context,
+                  true,
+                );
+              },
+              child: const Text(
+                'Eliminar',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    setState(() {
+      _working = true;
+    });
+
+    try {
+      await ref
+          .read(
+            businessMediaRepositoryProvider,
+          )
+          .deleteLogo(
+            businessId: businessId,
+          );
+
+      _refreshMedia(
+        businessId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Foto de perfil eliminada.'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No pudimos eliminar la foto de perfil: $error'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _working = false;
+        });
+      }
+    }
+  }
+
+  void _refreshMedia(
+    String businessId,
+  ) {
+    ref.invalidate(
+      providerBusinessMediaProvider(
+        businessId,
+      ),
+    );
+
+    ref.invalidate(
+      businessDetailProvider(
+        businessId,
+      ),
+    );
+
+    ref.invalidate(
+      publishedBusinessesProvider,
+    );
+  }
+}
+
+const _allowedProfileExtensions = {
+  'jpg',
+  'jpeg',
+  'png',
+  'webp',
+};
+
+class _ProfilePhotoSection extends StatelessWidget {
+  const _ProfilePhotoSection({
+    required this.businessType,
+    required this.logoUrl,
+    required this.busy,
+    required this.hasLogo,
+    required this.onUpload,
+    required this.onDelete,
+  });
+
+  final BusinessType businessType;
+  final String? logoUrl;
+  final bool busy;
+  final bool hasLogo;
+  final VoidCallback onUpload;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(
+        18,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(
+          18,
+        ),
+        border: Border.all(
+          color: const Color(
+            0xFFD6E4DE,
+          ),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          BusinessAvatar(
+            businessType: businessType,
+            imageUrl: logoUrl,
+            size: 86,
+            borderWidth: 3,
+            showShadow: false,
+          ),
+          const SizedBox(
+            width: 16,
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'FOTO DE PERFIL',
+                  style: TextStyle(
+                    color: Color(
+                      0xFF718078,
+                    ),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: .8,
+                  ),
+                ),
+                const SizedBox(
+                  height: 6,
+                ),
+                const Text(
+                  'Usaremos esta imagen para identificar tu negocio o perfil en Ranco Conecta.',
+                  style: TextStyle(
+                    color: RancoColors.textSecondary,
+                    height: 1.32,
+                  ),
+                ),
+                const SizedBox(
+                  height: 4,
+                ),
+                const Text(
+                  'Recomendado: imagen cuadrada de al menos 512 x 512 px.',
+                  style: TextStyle(
+                    color: Color(
+                      0xFF7D8C85,
+                    ),
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(
+                  height: 12,
+                ),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: busy ? null : onUpload,
+                      icon: busy
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.upload_rounded,
+                            ),
+                      label: Text(
+                        hasLogo ? 'Cambiar foto' : 'Subir foto',
+                      ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: RancoColors.forest,
+                      ),
+                    ),
+                    if (hasLogo)
+                      OutlinedButton.icon(
+                        onPressed: busy ? null : onDelete,
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                        ),
+                        label: const Text(
+                          'Eliminar',
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

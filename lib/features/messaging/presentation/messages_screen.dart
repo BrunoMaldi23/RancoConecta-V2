@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/layout/ranco_responsive.dart';
 import '../../../core/errors/app_failure.dart';
 import '../../../core/widgets/ranco_app_bar.dart';
 import '../../../core/widgets/ranco_error_state.dart';
@@ -32,17 +33,20 @@ class MessagesScreen extends ConsumerWidget {
             return const _EmptyMessages();
           }
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(18),
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (context, index) {
-              final item = items[index];
-              return _ConversationTile(
-                conversation: item,
-                onTap: () => context.go('/messages/${item.id}'),
-              );
-            },
+          return RancoContentContainer(
+            width: RancoContainerWidth.form,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final item = items[index];
+                return _ConversationTile(
+                  conversation: item,
+                  onTap: () => context.go('/messages/${item.id}'),
+                );
+              },
+            ),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -92,38 +96,42 @@ class _MessageDetailScreenState extends ConsumerState<MessageDetailScreen> {
         title: 'Conversación',
         fallbackRoute: '/messages',
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: messages.when(
-              data: (items) {
-                if (items.isEmpty) {
-                  return const _EmptyConversation();
-                }
+      body: RancoContentContainer(
+        width: RancoContainerWidth.detail,
+        padding: EdgeInsets.zero,
+        child: Column(
+          children: [
+            Expanded(
+              child: messages.when(
+                data: (items) {
+                  if (items.isEmpty) {
+                    return const _EmptyConversation();
+                  }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                  itemCount: items.length,
-                  itemBuilder: (context, index) {
-                    return _MessageBubble(message: items[index]);
-                  },
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, stackTrace) => RancoErrorState(
-                message: _failureMessage(error),
-                onRetry: () => ref.invalidate(
-                  conversationMessagesProvider(widget.conversationId),
+                  return ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                    itemCount: items.length,
+                    itemBuilder: (context, index) {
+                      return _MessageBubble(message: items[index]);
+                    },
+                  );
+                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, stackTrace) => RancoErrorState(
+                  message: _failureMessage(error),
+                  onRetry: () => ref.invalidate(
+                    conversationMessagesProvider(widget.conversationId),
+                  ),
                 ),
               ),
             ),
-          ),
-          _Composer(
-            controller: _controller,
-            sending: _sending,
-            onSend: _send,
-          ),
-        ],
+            _Composer(
+              controller: _controller,
+              sending: _sending,
+              onSend: _send,
+            ),
+          ],
+        ),
       ),
     );
   }

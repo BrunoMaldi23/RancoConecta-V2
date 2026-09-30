@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:go_router/go_router.dart';
 
+import '../../../core/layout/ranco_responsive.dart';
 import '../../../core/widgets/ranco_error_state.dart';
 
 import '../../../core/widgets/ranco_skeleton.dart';
@@ -11,6 +12,7 @@ import '../../../core/widgets/ranco_skeleton.dart';
 import '../../../features/auth/data/supabase_auth_repository.dart';
 
 import '../../../features/businesses/application/business_providers.dart';
+import '../../../features/businesses/presentation/business_card.dart';
 
 import '../../../features/categories/application/category_providers.dart';
 
@@ -18,11 +20,13 @@ import '../../../features/locations/application/location_providers.dart';
 
 import '../../../features/locations/presentation/location_selector.dart';
 
+import '../../../shared/models/business.dart';
 import '../../../shared/models/category.dart';
 
 import '../../../theme/ranco_colors.dart';
 
 import '../../../theme/ranco_decoration.dart';
+import '../../../theme/ranco_tokens.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -32,12 +36,10 @@ class HomeScreen extends ConsumerWidget {
     final categories = ref.watch(categoriesProvider);
 
     final businesses = ref.watch(publishedBusinessesProvider);
-
     final authRepository = ref.watch(authRepositoryProvider);
-
     final user = authRepository.currentUser();
-
     final isSignedIn = user != null;
+    final desktop = context.isRancoDesktop;
 
     return ColoredBox(
       color: RancoColors.canvas,
@@ -73,14 +75,22 @@ class HomeScreen extends ConsumerWidget {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 12, 10),
-                child: _SectionTitle(
-                  title: 'Explora por categoría',
-                  subtitle: 'Encuentra lo que necesitas cerca de ti.',
-                  actionLabel: 'Ver todas',
-                  onAction: () {
-                    context.go('/categories');
-                  },
+                padding: EdgeInsets.only(
+                  top: desktop ? 24 : 20,
+                  bottom: 10,
+                ),
+                child: RancoContentContainer(
+                  width: desktop
+                      ? RancoContainerWidth.wide
+                      : RancoContainerWidth.standard,
+                  child: _SectionTitle(
+                    title: 'Explora por categoría',
+                    subtitle: 'Encuentra lo que necesitas cerca de ti.',
+                    actionLabel: 'Ver todas las categorías',
+                    onAction: () {
+                      context.go('/categories');
+                    },
+                  ),
                 ),
               ),
             ),
@@ -89,14 +99,12 @@ class HomeScreen extends ConsumerWidget {
                 if (items.isEmpty) {
                   return const SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 20,
-                      ),
+                      padding: EdgeInsets.symmetric(horizontal: 20),
                       child: _EmptySectionCard(
                         icon: Icons.grid_view_rounded,
                         title: 'Aún no hay rubros disponibles',
                         message:
-                            'Cuando las categorías estén activas aparecerán aquí.',
+                            'Cuando las categorías están activas aparecerán aquí.',
                       ),
                     ),
                   );
@@ -111,21 +119,15 @@ class HomeScreen extends ConsumerWidget {
               loading: () {
                 return const SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 20,
-                    ),
-                    child: RancoSkeleton(
-                      height: 260,
-                    ),
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: RancoSkeleton(height: 260),
                   ),
                 );
               },
               error: (error, stackTrace) {
                 return SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: RancoErrorState(
                       message: failureMessage(
                         error,
@@ -139,8 +141,76 @@ class HomeScreen extends ConsumerWidget {
                 );
               },
             ),
+            if (desktop) ...[
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 26, bottom: 10),
+                  child: RancoContentContainer(
+                    width: RancoContainerWidth.wide,
+                    child: _SectionTitle(
+                      title: 'Destacados cerca de ti',
+                      subtitle:
+                          'Negocios y prestadores recomendados en Ranco Conecta.',
+                      actionLabel: 'Ver todos los destacados',
+                      onAction: () {
+                        ref.read(featuredOnlyProvider.notifier).state = true;
+                        context.go('/explore');
+                      },
+                    ),
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: RancoContentContainer(
+                  width: RancoContainerWidth.wide,
+                  child: _FeaturedBusinessesSection(
+                    businesses: businesses,
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 22),
+                  child: RancoContentContainer(
+                    width: RancoContainerWidth.wide,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _DesktopPromoCard(
+                            icon: Icons.eco_outlined,
+                            title: 'Apoya el comercio local',
+                            description:
+                                'Descubre y conecta con emprendedores, prestadores '
+                                'de servicios y negocios de nuestra comunidad.',
+                            buttonLabel: 'Explorar negocios',
+                            onTap: () {
+                              context.go('/explore');
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _DesktopPromoCard(
+                            icon: Icons.handshake_outlined,
+                            title: '¿Tienes un negocio o prestas servicios?',
+                            description:
+                                '?nete a Ranco Conecta y llega a más personas '
+                                'de la comunidad.',
+                            buttonLabel: 'Para prestadores',
+                            warm: true,
+                            onTap: () {
+                              context.go('/provider/join');
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
             const SliverToBoxAdapter(
-              child: SizedBox(height: 24),
+              child: SizedBox(height: 32),
             ),
           ],
         ),
@@ -157,89 +227,79 @@ class _HomeHeader extends StatelessWidget {
   });
 
   final VoidCallback onMenu;
-
   final VoidCallback onAccount;
-
   final bool isSignedIn;
 
   @override
   Widget build(BuildContext context) {
+    if (context.isRancoDesktop) {
+      return const SizedBox.shrink();
+    }
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        10,
-        20,
-        0,
-      ),
-      child: Align(
-        alignment: Alignment.center,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 760),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _HeaderButton(
-                icon: Icons.menu_rounded,
-                onTap: onMenu,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFDDECE6),
-                        borderRadius: BorderRadius.circular(19),
-                        border: Border.all(
-                          color: const Color(0xFFC5D9D0),
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.landscape_outlined,
-                        size: 21,
-                        color: RancoColors.forest,
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+      child: RancoContentContainer(
+        width: RancoContainerWidth.standard,
+        padding: EdgeInsets.zero,
+        child: Row(
+          children: [
+            _HeaderButton(
+              icon: Icons.menu_rounded,
+              onTap: onMenu,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFDDECE6),
+                      borderRadius: BorderRadius.circular(19),
+                      border: Border.all(
+                        color: const Color(0xFFC5D9D0),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    RichText(
-                      text: const TextSpan(
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                        ),
-                        children: [
-                          TextSpan(
-                            text: 'Ranco',
-                            style: TextStyle(
-                              color: RancoColors.forest,
-                            ),
-                          ),
-                          TextSpan(
-                            text: 'Conecta',
-                            style: TextStyle(
-                              color: Color(0xFFD06A42),
-                            ),
-                          ),
-                        ],
-                      ),
+                    child: const Icon(
+                      Icons.landscape_outlined,
+                      size: 21,
+                      color: RancoColors.forest,
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text.rich(
+                    TextSpan(
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                      children: [
+                        TextSpan(
+                          text: 'Ranco',
+                          style: TextStyle(color: RancoColors.forest),
+                        ),
+                        TextSpan(
+                          text: 'Conecta',
+                          style: TextStyle(color: Color(0xFFD06A42)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Tooltip(
-                message: isSignedIn ? 'Mi cuenta' : 'Ingresar',
-                child: _HeaderButton(
-                  icon: isSignedIn ? Icons.person_rounded : Icons.login_rounded,
-                  onTap: onAccount,
-                  accent: true,
-                ),
+            ),
+            const SizedBox(width: 12),
+            Tooltip(
+              message: isSignedIn ? 'Mi cuenta' : 'Ingresar',
+              child: _HeaderButton(
+                icon: isSignedIn ? Icons.person_rounded : Icons.login_rounded,
+                onTap: onAccount,
+                accent: true,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -346,150 +406,513 @@ class _HomeSearchPanelState extends ConsumerState<_HomeSearchPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final isWide = width >= 600;
+    final viewportWidth = MediaQuery.sizeOf(context).width;
+    final desktop = context.isRancoDesktop;
+    final tablet = viewportWidth >= RancoBreakpoints.medium;
+
     final selectedLocation = ref.watch(selectedLocationProvider);
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-      child: Align(
-        alignment: Alignment.center,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: isWide ? 8 : 0,
+    // =======================================================
+    // MOBILE / TABLET
+    // No cambia la estructura principal de la app.
+    // =======================================================
+
+    if (!desktop) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 18),
+        child: RancoContentContainer(
+          width: RancoContainerWidth.standard,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FCFA),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFFDDE9E3),
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.location_on_outlined,
-                      size: 16,
-                      color: RancoColors.primary,
-                    ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        selectedLocation?.name ?? 'Lago Ranco',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: RancoColors.textSecondary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.location_on_outlined,
+                        size: 16,
+                        color: RancoColors.primary,
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          selectedLocation?.name ?? 'Lago Ranco',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: RancoColors.textSecondary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '¿Qué necesitas hoy?',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: RancoColors.pine,
-                        fontWeight: FontWeight.w800,
-                        height: 1.08,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 520),
-                  child: Text(
-                    'Encuentra servicios, comercios, gastronomía, '
-                    'alojamientos y experiencias cerca de ti.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: RancoColors.textSecondary,
-                          height: 1.4,
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '¿Qué necesitas hoy?',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          color: RancoColors.pine,
+                          fontWeight: FontWeight.w900,
+                          height: 1.08,
+                          letterSpacing: -.35,
                         ),
                   ),
-                ),
-                const SizedBox(height: 18),
-                TextField(
-                  controller: _searchController,
-                  focusNode: _searchFocusNode,
-                  textInputAction: TextInputAction.search,
-                  autocorrect: false,
-                  enableSuggestions: true,
-                  onChanged: (_) {
-                    setState(() {});
-                  },
-                  onSubmitted: (_) {
-                    _submitSearch();
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'Buscar en Ranco Conecta',
-                    prefixIcon: const Icon(
-                      Icons.search_rounded,
-                      size: 21,
-                      color: RancoColors.primary,
+                  const SizedBox(height: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: 520,
                     ),
-                    suffixIcon: _searchController.text.trim().isEmpty
-                        ? null
-                        : IconButton(
-                            tooltip: 'Limpiar búsqueda',
-                            onPressed: _clearSearch,
-                            icon: const Icon(
-                              Icons.close_rounded,
-                              size: 19,
+                    child: Text(
+                      'Encuentra servicios, comercios, gastronomía, '
+                      'alojamientos y experiencias cerca de ti.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: RancoColors.textSecondary,
+                            height: 1.45,
+                          ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  _HomeSearchField(
+                    controller: _searchController,
+                    focusNode: _searchFocusNode,
+                    onChanged: () => setState(() {}),
+                    onSubmitted: _submitSearch,
+                    onClear: _clearSearch,
+                  ),
+                  const SizedBox(height: 12),
+                  const LocationSelector(
+                    compact: true,
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: _SearchButton(
+                      onPressed: _submitSearch,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _LocalSummary(
+                    businesses: widget.businesses,
+                    centered: tablet,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // =======================================================
+    // DESKTOP
+    // Hero dividido: plataforma + paisaje.
+    // =======================================================
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: RancoContentContainer(
+        width: RancoContainerWidth.wide,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: const Color(0xFFD8E5DF),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: RancoColors.forest.withValues(
+                  alpha: .045,
+                ),
+                blurRadius: 26,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ================================================
+              // HERO SUPERIOR
+              // ================================================
+
+              SizedBox(
+                height: 288,
+                child: LayoutBuilder(
+                  builder: (context, heroConstraints) {
+                    final heroWidth = heroConstraints.maxWidth;
+
+                    return Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        // FOTO DERECHA
+                        Positioned(
+                          left: heroWidth * .43,
+                          top: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: Image.asset(
+                            'assets/branding/fondo-hero.png',
+                            fit: BoxFit.cover,
+                            alignment: Alignment.center,
+                          ),
+                        ),
+
+                        // PANEL IZQUIERDO RECTO Y LIMPIO
+                        Positioned(
+                          left: 0,
+                          top: 0,
+                          bottom: 0,
+                          width: heroWidth * .47,
+                          child: Container(
+                            color: const Color(
+                              0xFFF2F8F5,
                             ),
                           ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 15,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      borderSide: const BorderSide(
-                        color: RancoDecoration.softBorder,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      borderSide: const BorderSide(
-                        color: RancoColors.primary,
-                        width: 1.4,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const LocationSelector(compact: true),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: _submitSearch,
-                    icon: const Icon(
-                      Icons.search_rounded,
-                      size: 18,
-                    ),
-                    label: const Text('Buscar'),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50),
-                      backgroundColor: RancoColors.pine,
-                      foregroundColor: Colors.white,
-                      textStyle:
-                          Theme.of(context).textTheme.labelLarge?.copyWith(
-                                fontWeight: FontWeight.w700,
+                        ),
+
+                        // TRANSICION SUAVE HACIA LA FOTO
+                        Positioned(
+                          left: heroWidth * .41,
+                          top: 0,
+                          bottom: 0,
+                          width: heroWidth * .12,
+                          child: IgnorePointer(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  colors: [
+                                    const Color(
+                                      0xFFF2F8F5,
+                                    ),
+                                    const Color(
+                                      0xFFF2F8F5,
+                                    ).withValues(
+                                      alpha: .78,
+                                    ),
+                                    const Color(
+                                      0xFFF2F8F5,
+                                    ).withValues(
+                                      alpha: .28,
+                                    ),
+                                    Colors.transparent,
+                                  ],
+                                  stops: const [
+                                    0,
+                                    .30,
+                                    .68,
+                                    1,
+                                  ],
+                                ),
                               ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
+                            ),
+                          ),
+                        ),
+
+                        // CONTENIDO IZQUIERDO
+                        Positioned(
+                          left: 32,
+                          top: 28,
+                          bottom: 28,
+                          width: heroWidth * .39,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 11,
+                                  vertical: 7,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFFE3F1EA,
+                                  ),
+                                  borderRadius: BorderRadius.circular(
+                                    999,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.location_on_rounded,
+                                      size: 15,
+                                      color: RancoColors.primary,
+                                    ),
+                                    const SizedBox(
+                                      width: 6,
+                                    ),
+                                    Text(
+                                      selectedLocation?.name ?? 'Lago Ranco',
+                                      style: const TextStyle(
+                                        color: RancoColors.forest,
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Spacer(),
+                              const Text(
+                                'Encuentra servicios y\n'
+                                'comercios en Lago Ranco',
+                                style: TextStyle(
+                                  color: RancoColors.textPrimary,
+                                  fontSize: 39,
+                                  height: 1.02,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -1.05,
+                                ),
+                              ),
+                              const SizedBox(height: 13),
+                              const Text(
+                                'Servicios, comercios, gastronomía, '
+                                'alojamientos y experiencias locales '
+                                'en un solo lugar.',
+                                style: TextStyle(
+                                  color: RancoColors.textSecondary,
+                                  fontSize: 14,
+                                  height: 1.45,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const Spacer(),
+                            ],
+                          ),
+                        ),
+
+                        // ETIQUETA SOBRE FOTO
+                        Positioned(
+                          right: 18,
+                          bottom: 16,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 11,
+                              vertical: 7,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                0xFF16372D,
+                              ).withValues(
+                                alpha: .82,
+                              ),
+                              borderRadius: BorderRadius.circular(
+                                999,
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.location_on_rounded,
+                                  size: 14,
+                                  color: Colors.white,
+                                ),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Lago Ranco',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+
+              // ================================================
+              // BUSCADOR - LOS 3 EXACTAMENTE 54 PX
+              // ================================================
+
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(
+                    top: BorderSide(
+                      color: Color(0xFFE1EBE6),
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
-                _LocalSummary(
-                  businesses: widget.businesses,
+                child: SizedBox(
+                  height: 54,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        flex: 57,
+                        child: SizedBox.expand(
+                          child: _HomeSearchField(
+                            controller: _searchController,
+                            focusNode: _searchFocusNode,
+                            onChanged: () {
+                              setState(() {});
+                            },
+                            onSubmitted: _submitSearch,
+                            onClear: _clearSearch,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        flex: 31,
+                        child: SizedBox.expand(
+                          child: LocationSelector(
+                            compact: true,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      SizedBox(
+                        width: 176,
+                        height: 54,
+                        child: _SearchButton(
+                          onPressed: _submitSearch,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeSearchField extends StatelessWidget {
+  const _HomeSearchField({
+    required this.controller,
+    required this.focusNode,
+    required this.onChanged,
+    required this.onSubmitted,
+    required this.onClear,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final VoidCallback onChanged;
+  final VoidCallback onSubmitted;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDesktop = MediaQuery.sizeOf(context).width >= 900;
+
+    final height = isDesktop ? 54.0 : 52.0;
+
+    return SizedBox(
+      height: height,
+      child: TextField(
+        controller: controller,
+        focusNode: focusNode,
+        textInputAction: TextInputAction.search,
+        autocorrect: false,
+        enableSuggestions: true,
+        textAlignVertical: TextAlignVertical.center,
+        onChanged: (_) => onChanged(),
+        onSubmitted: (_) => onSubmitted(),
+        decoration: InputDecoration(
+          hintText: 'Buscar en Ranco Conecta',
+          filled: true,
+          fillColor: Colors.white,
+          isDense: false,
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            size: 20,
+            color: RancoColors.primary,
+          ),
+          prefixIconConstraints: const BoxConstraints(
+            minWidth: 46,
+            minHeight: 54,
+          ),
+          suffixIcon: controller.text.trim().isEmpty
+              ? null
+              : IconButton(
+                  tooltip: 'Limpiar búsqueda',
+                  onPressed: onClear,
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    size: 19,
+                  ),
+                ),
+          suffixIconConstraints: const BoxConstraints(
+            minWidth: 46,
+            minHeight: 54,
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 0,
+            vertical: 0,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(
+              color: RancoDecoration.softBorder,
             ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(
+              color: RancoColors.primary,
+              width: 1.4,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchButton extends StatelessWidget {
+  const _SearchButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 54,
+      child: FilledButton.icon(
+        onPressed: onPressed,
+        icon: const Icon(
+          Icons.search_rounded,
+          size: 18,
+        ),
+        label: const Text('Buscar'),
+        style: FilledButton.styleFrom(
+          minimumSize: const Size.fromHeight(54),
+          maximumSize: const Size.fromHeight(54),
+          backgroundColor: RancoColors.pine,
+          foregroundColor: Colors.white,
+          textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
       ),
@@ -500,9 +923,11 @@ class _HomeSearchPanelState extends ConsumerState<_HomeSearchPanel> {
 class _LocalSummary extends StatelessWidget {
   const _LocalSummary({
     required this.businesses,
+    this.centered = false,
   });
 
   final AsyncValue businesses;
+  final bool centered;
 
   @override
   Widget build(BuildContext context) {
@@ -515,6 +940,7 @@ class _LocalSummary extends StatelessWidget {
 
     return Text(
       'Lago Ranco y sectores cercanos · $count prestadores',
+      textAlign: centered ? TextAlign.center : TextAlign.start,
       overflow: TextOverflow.ellipsis,
       style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: RancoColors.textSecondary,
@@ -594,52 +1020,65 @@ class _CategoryGrid extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) {
-    // Mostramos hasta 8 categorías para dar más variedad en Home
-    // sin convertir Inicio en una segunda pantalla Explorar.
+    final desktop = context.isRancoDesktop;
+    final viewportWidth = MediaQuery.sizeOf(context).width;
+
     final visible = categories.take(8).toList();
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 20,
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isVeryNarrow = constraints.maxWidth < 340;
-          final isDesktop = constraints.maxWidth >= 760;
-          final columns = isDesktop ? 4 : 2;
-          const spacing = 10.0;
+    final desktopColumns = viewportWidth >= RancoBreakpoints.large
+        ? 8
+        : viewportWidth >= 1180
+            ? 4
+            : 3;
 
-          final itemWidth =
-              (constraints.maxWidth - spacing * (columns - 1)) / columns;
+    return RancoContentContainer(
+      width: desktop ? RancoContainerWidth.wide : RancoContainerWidth.standard,
+      child: RancoResponsiveGrid(
+        minItemWidth: desktop ? 135 : 220,
+        maxColumns: desktop ? desktopColumns : 5,
+        minColumns: MediaQuery.sizeOf(context).width < 390 ? 1 : 2,
+        spacing: desktop ? 12 : 10,
+        runSpacing: desktop ? 12 : 10,
+        children: [
+          for (final category in visible)
+            _CategoryCard(
+              category: category,
+              compact: MediaQuery.sizeOf(context).width < 340,
+              onTap: () {
+                ref
+                    .read(
+                      businessSearchQueryProvider.notifier,
+                    )
+                    .state = '';
 
-          return Wrap(
-            spacing: spacing,
-            runSpacing: spacing,
-            children: [
-              for (final category in visible)
-                SizedBox(
-                  width: itemWidth,
-                  child: _CategoryCard(
-                    category: category,
-                    compact: isVeryNarrow,
-                    onTap: () {
-                      // Al entrar desde una categoría de Home iniciamos
-                      // una exploración nueva. Conservamos la localidad,
-                      // pero limpiamos búsqueda y filtros secundarios.
-                      ref.read(businessSearchQueryProvider.notifier).state = '';
-                      ref.read(selectedCategoryIdProvider.notifier).state =
-                          category.id;
-                      ref.read(verifiedOnlyProvider.notifier).state = false;
-                      ref.read(featuredOnlyProvider.notifier).state = false;
-                      ref.read(openNowOnlyProvider.notifier).state = false;
+                ref
+                    .read(
+                      selectedCategoryIdProvider.notifier,
+                    )
+                    .state = category.id;
 
-                      context.go('/explore');
-                    },
-                  ),
-                ),
-            ],
-          );
-        },
+                ref
+                    .read(
+                      verifiedOnlyProvider.notifier,
+                    )
+                    .state = false;
+
+                ref
+                    .read(
+                      featuredOnlyProvider.notifier,
+                    )
+                    .state = false;
+
+                ref
+                    .read(
+                      openNowOnlyProvider.notifier,
+                    )
+                    .state = false;
+
+                context.go('/explore');
+              },
+            ),
+        ],
       ),
     );
   }
@@ -659,58 +1098,132 @@ class _CategoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tone = _categoryTone(category);
+    final desktop = context.isRancoDesktop;
+
+    if (!desktop) {
+      return Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            height: 66,
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 9 : 11,
+              vertical: 9,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: RancoDecoration.softBorder,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: compact ? 32 : 34,
+                  height: compact ? 32 : 34,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: tone.withValues(alpha: .10),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    _categoryIcon(category),
+                    size: compact ? 18 : 19,
+                    color: tone,
+                  ),
+                ),
+                SizedBox(
+                  width: compact ? 7 : 9,
+                ),
+                Expanded(
+                  child: Text(
+                    category.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: RancoColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: compact ? 12.5 : 13.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
-      elevation: 0,
+      borderRadius: BorderRadius.circular(17),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        mouseCursor: SystemMouseCursors.click,
+        borderRadius: BorderRadius.circular(17),
         child: Container(
-          height: 66,
-          padding: EdgeInsets.symmetric(
-            horizontal: compact ? 9 : 11,
-            vertical: 9,
-          ),
+          height: 132,
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(17),
             border: Border.all(
               color: RancoDecoration.softBorder,
             ),
           ),
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: compact ? 32 : 34,
-                height: compact ? 32 : 34,
+                width: 43,
+                height: 43,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: tone.withValues(alpha: .10),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(13),
                 ),
                 child: Icon(
                   _categoryIcon(category),
-                  size: compact ? 18 : 19,
+                  size: 22,
                   color: tone,
                 ),
               ),
-              SizedBox(
-                width: compact ? 7 : 9,
-              ),
-              Expanded(
-                child: Text(
-                  category.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  softWrap: false,
-                  style: TextStyle(
-                    color: RancoColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: compact ? 12.5 : 13.5,
-                    height: 1.1,
-                  ),
+              const SizedBox(height: 11),
+              Text(
+                category.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: RancoColors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13.5,
+                  letterSpacing: -.10,
                 ),
+              ),
+              const SizedBox(height: 7),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Ver servicios',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: RancoColors.textSecondary,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 16,
+                    color: tone,
+                  ),
+                ],
               ),
             ],
           ),
@@ -756,6 +1269,29 @@ IconData _categoryIcon(Category category) {
 
   if (key.contains('turis')) return Icons.terrain_outlined;
 
+  if (key.contains('escombro') || key.contains('delete_sweep')) {
+    return Icons.delete_sweep_outlined;
+  }
+
+  if (key.contains('chatarra') || key.contains('recycling')) {
+    return Icons.recycling_outlined;
+  }
+
+  if (key.contains('fosa') || key.contains('water_drop')) {
+    return Icons.water_drop_outlined;
+  }
+
+  if (key.contains('mantenimiento') || key.contains('home_repair')) {
+    return Icons.home_repair_service_outlined;
+  }
+
+  if (key.contains('inspeccion') ||
+      key.contains('inspección') ||
+      key.contains('visual') ||
+      key.contains('visibility')) {
+    return Icons.visibility_outlined;
+  }
+
   return Icons.home_repair_service_outlined;
 }
 
@@ -779,6 +1315,195 @@ Color _categoryTone(Category category) {
   }
 
   return RancoColors.forest;
+}
+
+class _FeaturedBusinessesSection extends StatelessWidget {
+  const _FeaturedBusinessesSection({
+    required this.businesses,
+  });
+
+  final AsyncValue businesses;
+
+  @override
+  Widget build(BuildContext context) {
+    return businesses.when(
+      data: (items) {
+        final source = List<Business>.from(
+          items as Iterable,
+        );
+
+        if (source.isEmpty) {
+          return const _EmptySectionCard(
+            icon: Icons.storefront_outlined,
+            title: 'Aún no hay negocios publicados',
+            message: 'Los negocios aparecerán aquí cuando estén disponibles.',
+          );
+        }
+
+        final highlighted = source
+            .where(
+              (business) => business.isFeatured,
+            )
+            .toList();
+
+        final visible =
+            (highlighted.isNotEmpty ? highlighted : source).take(4).toList();
+
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final columns = constraints.maxWidth >= 1180 ? 4 : 3;
+
+            const spacing = 14.0;
+
+            final cardWidth =
+                (constraints.maxWidth - spacing * (columns - 1)) / columns;
+
+            return Wrap(
+              spacing: spacing,
+              runSpacing: spacing,
+              children: [
+                for (final business in visible)
+                  SizedBox(
+                    width: cardWidth,
+                    height: 360,
+                    child: BusinessCard(
+                      business: business,
+                    ),
+                  ),
+              ],
+            );
+          },
+        );
+      },
+      loading: () => const RancoSkeleton(
+        height: 360,
+      ),
+      error: (error, stackTrace) => const _EmptySectionCard(
+        icon: Icons.storefront_outlined,
+        title: 'No pudimos cargar los destacados',
+        message: 'Intenta nuevamente en unos minutos.',
+      ),
+    );
+  }
+}
+
+class _DesktopPromoCard extends StatelessWidget {
+  const _DesktopPromoCard({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.buttonLabel,
+    required this.onTap,
+    this.warm = false,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+  final String buttonLabel;
+  final VoidCallback onTap;
+  final bool warm;
+
+  @override
+  Widget build(BuildContext context) {
+    final background = warm ? const Color(0xFFFFF7EC) : const Color(0xFFE9F4EF);
+
+    final borderColor =
+        warm ? const Color(0xFFF0DEC2) : const Color(0xFFD0E3DA);
+
+    final iconBackground =
+        warm ? const Color(0xFFFFE9C8) : const Color(0xFFD8ECE3);
+
+    final iconColor = warm ? const Color(0xFF96641B) : RancoColors.forest;
+
+    return Container(
+      constraints: const BoxConstraints(
+        minHeight: 120,
+      ),
+      padding: const EdgeInsets.all(19),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: borderColor,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: iconBackground,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(
+              icon,
+              color: iconColor,
+              size: 26,
+            ),
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: RancoColors.pine,
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -.20,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: RancoColors.textSecondary,
+                    fontSize: 11.5,
+                    height: 1.4,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          OutlinedButton.icon(
+            onPressed: onTap,
+            iconAlignment: IconAlignment.end,
+            icon: const Icon(
+              Icons.arrow_forward_rounded,
+              size: 17,
+            ),
+            label: Text(
+              buttonLabel,
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: RancoColors.forest,
+              side: BorderSide(
+                color: RancoColors.primary.withValues(alpha: .70),
+              ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 15,
+                vertical: 13,
+              ),
+              textStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _EmptySectionCard extends StatelessWidget {

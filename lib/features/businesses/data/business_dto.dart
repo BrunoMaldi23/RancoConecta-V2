@@ -14,6 +14,7 @@ class BusinessDto {
     required this.whatsapp,
     required this.email,
     required this.website,
+    required this.addressText,
     required this.verificationStatus,
     required this.isFeatured,
     required this.acceptsRequests,
@@ -39,6 +40,7 @@ class BusinessDto {
       whatsapp: json['whatsapp'] as String?,
       email: json['email'] as String?,
       website: json['website'] as String?,
+      addressText: json['address_text'] as String?,
       verificationStatus:
           json['verification_status'] as String? ?? 'unverified',
       isFeatured: json['is_featured'] as bool? ?? false,
@@ -70,6 +72,7 @@ class BusinessDto {
   final String? whatsapp;
   final String? email;
   final String? website;
+  final String? addressText;
 
   final String verificationStatus;
 
@@ -96,6 +99,7 @@ class BusinessDto {
       whatsapp: whatsapp,
       email: email,
       website: website,
+      addressText: addressText,
       verificationStatus: verificationStatus,
       isFeatured: isFeatured,
       acceptsRequests: acceptsRequests,

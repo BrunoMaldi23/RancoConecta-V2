@@ -95,7 +95,7 @@ class BusinessOnboardingResolver {
         capabilities.can(BusinessCapability.catalog),
       BusinessOnboardingSection.tourism =>
         capabilities.can(BusinessCapability.bookings) ||
-            capabilities.can(BusinessCapability.services),
+            capabilities.can(BusinessCapability.experiences),
       BusinessOnboardingSection.emergency =>
         capabilities.can(BusinessCapability.emergencyAvailability),
       _ => true,

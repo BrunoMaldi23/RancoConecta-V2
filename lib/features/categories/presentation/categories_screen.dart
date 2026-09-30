@@ -12,7 +12,9 @@ import '../../../theme/ranco_decoration.dart';
 import '../application/category_providers.dart';
 
 class CategoriesScreen extends ConsumerStatefulWidget {
-  const CategoriesScreen({super.key});
+  const CategoriesScreen({
+    super.key,
+  });
 
   @override
   ConsumerState<CategoriesScreen> createState() => _CategoriesScreenState();
@@ -20,7 +22,6 @@ class CategoriesScreen extends ConsumerStatefulWidget {
 
 class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
   late final TextEditingController _searchController;
-  late final FocusNode _searchFocusNode;
 
   String _query = '';
 
@@ -29,13 +30,12 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
     super.initState();
 
     _searchController = TextEditingController();
-    _searchFocusNode = FocusNode();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
-    _searchFocusNode.dispose();
+
     super.dispose();
   }
 
@@ -47,20 +47,152 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
       color: RancoColors.canvas,
       child: SafeArea(
         child: CustomScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           slivers: [
             SliverToBoxAdapter(
-              child: _Header(
-                searchController: _searchController,
-                searchFocusNode: _searchFocusNode,
-                query: _query,
-                onBack: _goBack,
-                onQueryChanged: (value) {
-                  setState(() {
-                    _query = value;
-                  });
-                },
-                onClearSearch: _clearSearch,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  24,
+                  18,
+                  24,
+                  8,
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: 1240,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            _BackButton(
+                              onTap: () {
+                                if (context.canPop()) {
+                                  context.pop();
+                                } else {
+                                  context.go(
+                                    '/explore',
+                                  );
+                                }
+                              },
+                            ),
+                            const SizedBox(
+                              width: 12,
+                            ),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Todas las categor\u00edas',
+                                    style: TextStyle(
+                                      color: RancoColors.forest,
+                                      fontSize: 27,
+                                      height: 1.05,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: -.4,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    height: 4,
+                                  ),
+                                  Text(
+                                    'Explora servicios y negocios por categor\u00eda.',
+                                    style: TextStyle(
+                                      color: RancoColors.textSecondary,
+                                      fontSize: 13,
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(
+                          height: 18,
+                        ),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              maxWidth: 760,
+                            ),
+                            child: Container(
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(
+                                  14,
+                                ),
+                                border: Border.all(
+                                  color: RancoDecoration.softBorder,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(
+                                      alpha: .018,
+                                    ),
+                                    blurRadius: 14,
+                                    offset: const Offset(
+                                      0,
+                                      5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              child: TextField(
+                                controller: _searchController,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _query = value;
+                                  });
+                                },
+                                decoration: InputDecoration(
+                                  hintText: 'Buscar una categor\u00eda...',
+                                  prefixIcon: const Icon(
+                                    Icons.search_rounded,
+                                    color: RancoColors.primary,
+                                    size: 19,
+                                  ),
+                                  suffixIcon: _query.trim().isNotEmpty
+                                      ? IconButton(
+                                          tooltip: 'Limpiar',
+                                          onPressed: () {
+                                            _searchController.clear();
+
+                                            setState(() {
+                                              _query = '';
+                                            });
+                                          },
+                                          icon: const Icon(
+                                            Icons.close_rounded,
+                                            size: 18,
+                                          ),
+                                        )
+                                      : null,
+                                  border: InputBorder.none,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 15,
+                                  ),
+                                  hintStyle: const TextStyle(
+                                    color: Color(
+                                      0xFF83928B,
+                                    ),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
             categories.when(
@@ -71,21 +203,25 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                 );
 
                 if (items.isEmpty) {
-                  return const SliverFillRemaining(
-                    hasScrollBody: false,
+                  return SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        20,
+                      padding: const EdgeInsets.fromLTRB(
                         24,
-                        20,
-                        90,
+                        16,
+                        24,
+                        0,
                       ),
                       child: Center(
-                        child: RancoEmptyState(
-                          icon: Icons.grid_view_rounded,
-                          title: 'Aún no hay categorías',
-                          message:
-                              'Cuando las categorías estén activas aparecerán aquí.',
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxWidth: 1240,
+                          ),
+                          child: const RancoEmptyState(
+                            icon: Icons.grid_view_rounded,
+                            title: 'A\u00fan no hay categor\u00edas',
+                            message:
+                                'Cuando los rubros est\u00e9n activos aparecer\u00e1n aqu\u00ed.',
+                          ),
                         ),
                       ),
                     ),
@@ -93,142 +229,185 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                 }
 
                 if (filtered.isEmpty) {
-                  return SliverFillRemaining(
-                    hasScrollBody: false,
+                  return SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(
-                        20,
                         24,
-                        20,
-                        90,
+                        18,
+                        24,
+                        0,
                       ),
                       child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const RancoEmptyState(
-                              icon: Icons.search_off_rounded,
-                              title: 'No encontramos esa categoría',
-                              message:
-                                  'Prueba escribiendo otro nombre o limpia la búsqueda.',
-                            ),
-                            const SizedBox(height: 12),
-                            OutlinedButton.icon(
-                              onPressed: _clearSearch,
-                              icon: const Icon(
-                                Icons.restart_alt_rounded,
-                              ),
-                              label: const Text(
-                                'Ver todas las categorías',
-                              ),
-                            ),
-                          ],
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxWidth: 1240,
+                          ),
+                          child: const RancoEmptyState(
+                            icon: Icons.search_off_rounded,
+                            title: 'Sin resultados',
+                            message:
+                                'No encontramos categor\u00edas para esa b\u00fasqueda.',
+                          ),
                         ),
                       ),
                     ),
                   );
                 }
 
-                return SliverMainAxisGroup(
-                  slivers: [
-                    SliverToBoxAdapter(
-                      child: _ResultCount(
-                        total: items.length,
-                        filtered: filtered.length,
-                        query: _query,
-                      ),
+                return SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      24,
+                      10,
+                      24,
+                      32,
                     ),
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(
-                        20,
-                        8,
-                        20,
-                        28,
-                      ),
-                      sliver: SliverLayoutBuilder(
-                        builder: (context, constraints) {
-                          final width = constraints.crossAxisExtent;
-
-                          final columns = _columnCount(width);
-
-                          return SliverGrid(
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: columns,
-                              mainAxisSpacing: 8,
-                              crossAxisSpacing: 8,
-                              mainAxisExtent: 64,
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxWidth: 1240,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Expanded(
+                                  child: Text(
+                                    'Explora por categor\u00eda',
+                                    style: TextStyle(
+                                      color: RancoColors.forest,
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  height: 30,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                  ),
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFFEAF4EF,
+                                    ),
+                                    borderRadius: BorderRadius.circular(
+                                      99,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    '${filtered.length} '
+                                    '${filtered.length == 1 ? 'categor\u00eda' : 'categor\u00edas'}',
+                                    style: const TextStyle(
+                                      color: RancoColors.forest,
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) {
-                                final category = filtered[index];
+                            const SizedBox(
+                              height: 12,
+                            ),
+                            LayoutBuilder(
+                              builder: (
+                                context,
+                                constraints,
+                              ) {
+                                final width = constraints.maxWidth;
 
-                                return _CategoryTile(
-                                  category: category,
-                                  onTap: () {
-                                    _openCategory(category);
-                                  },
+                                final columns = width >= 1120
+                                    ? 4
+                                    : width >= 820
+                                        ? 3
+                                        : width >= 540
+                                            ? 2
+                                            : 1;
+
+                                const gap = 12.0;
+
+                                final itemWidth =
+                                    (width - gap * (columns - 1)) / columns;
+
+                                return Wrap(
+                                  spacing: gap,
+                                  runSpacing: gap,
+                                  children: [
+                                    for (final category in filtered)
+                                      SizedBox(
+                                        width: itemWidth,
+                                        child: _CategoryTile(
+                                          category: category,
+                                          onTap: () {
+                                            _openCategory(
+                                              category,
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                  ],
                                 );
                               },
-                              childCount: filtered.length,
                             ),
-                          );
-                        },
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                );
-              },
-              loading: () {
-                return const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      20,
-                      20,
-                      20,
-                      0,
-                    ),
-                    child: Column(
-                      children: [
-                        RancoSkeleton(
-                          height: 64,
-                        ),
-                        SizedBox(height: 8),
-                        RancoSkeleton(
-                          height: 64,
-                        ),
-                        SizedBox(height: 8),
-                        RancoSkeleton(
-                          height: 64,
-                        ),
-                        SizedBox(height: 8),
-                        RancoSkeleton(
-                          height: 64,
-                        ),
-                      ],
                     ),
                   ),
                 );
               },
-              error: (error, stackTrace) {
-                return SliverFillRemaining(
-                  hasScrollBody: false,
+              loading: () {
+                return SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(
-                      20,
-                      20,
-                      20,
-                      90,
+                      24,
+                      18,
+                      24,
+                      0,
                     ),
                     child: Center(
-                      child: RancoErrorState(
-                        message: failureMessage(
-                          error,
-                          'No pudimos cargar las categorías.',
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxWidth: 1240,
                         ),
-                        onRetry: () {
-                          ref.invalidate(categoriesProvider);
-                        },
+                        child: const RancoSkeleton(
+                          height: 320,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+              error: (
+                error,
+                stackTrace,
+              ) {
+                return SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      24,
+                      18,
+                      24,
+                      0,
+                    ),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxWidth: 1240,
+                        ),
+                        child: RancoErrorState(
+                          message: failureMessage(
+                            error,
+                            'No pudimos cargar las categor\u00edas.',
+                          ),
+                          onRetry: () {
+                            ref.invalidate(
+                              categoriesProvider,
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
@@ -241,285 +420,62 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
     );
   }
 
-  int _columnCount(double width) {
-    if (width >= 1180) {
-      return 4;
-    }
-
-    if (width >= 860) {
-      return 3;
-    }
-
-    if (width >= 600) {
-      return 2;
-    }
-
-    // En móvil usamos una sola columna.
-    // Evita partir nombres como:
-    // Computación, Electricidad, Carpintería, etc.
-    return 1;
-  }
-
   List<Category> _filterCategories(
     List<Category> categories,
     String query,
   ) {
-    final normalizedQuery = _normalize(query);
+    final normalized = query.trim().toLowerCase();
 
-    if (normalizedQuery.isEmpty) {
+    if (normalized.isEmpty) {
       return categories;
     }
 
-    return categories.where((category) {
-      final haystack = _normalize(
-        '${category.name} '
-        '${category.slug} '
-        '${category.iconKey}',
-      );
+    return categories.where(
+      (category) {
+        final haystack = '${category.name} ${category.slug} ${category.iconKey}'
+            .toLowerCase();
 
-      return haystack.contains(normalizedQuery);
-    }).toList();
+        return haystack.contains(
+          normalized,
+        );
+      },
+    ).toList();
   }
 
-  String _normalize(String value) {
-    return value
-        .trim()
-        .toLowerCase()
-        .replaceAll('á', 'a')
-        .replaceAll('é', 'e')
-        .replaceAll('í', 'i')
-        .replaceAll('ó', 'o')
-        .replaceAll('ú', 'u')
-        .replaceAll('ü', 'u')
-        .replaceAll('ñ', 'n');
-  }
+  void _openCategory(
+    Category category,
+  ) {
+    ref
+        .read(
+          businessSearchQueryProvider.notifier,
+        )
+        .state = '';
 
-  void _clearSearch() {
-    _searchController.clear();
-    _searchFocusNode.unfocus();
+    ref
+        .read(
+          selectedCategoryIdProvider.notifier,
+        )
+        .state = category.id;
 
-    setState(() {
-      _query = '';
-    });
-  }
+    ref
+        .read(
+          verifiedOnlyProvider.notifier,
+        )
+        .state = false;
 
-  void _goBack() {
-    if (context.canPop()) {
-      context.pop();
-      return;
-    }
+    ref
+        .read(
+          featuredOnlyProvider.notifier,
+        )
+        .state = false;
 
-    context.go('/');
-  }
-
-  void _openCategory(Category category) {
-    // Abrir una categoría desde esta pantalla representa
-    // una nueva exploración.
-    //
-    // Conservamos selectedLocationProvider.
-    ref.read(businessSearchQueryProvider.notifier).state = '';
-
-    ref.read(selectedCategoryIdProvider.notifier).state = category.id;
-
-    ref.read(verifiedOnlyProvider.notifier).state = false;
-    ref.read(featuredOnlyProvider.notifier).state = false;
-    ref.read(openNowOnlyProvider.notifier).state = false;
+    ref
+        .read(
+          openNowOnlyProvider.notifier,
+        )
+        .state = false;
 
     context.go('/explore');
-  }
-}
-
-class _Header extends StatelessWidget {
-  const _Header({
-    required this.searchController,
-    required this.searchFocusNode,
-    required this.query,
-    required this.onBack,
-    required this.onQueryChanged,
-    required this.onClearSearch,
-  });
-
-  final TextEditingController searchController;
-  final FocusNode searchFocusNode;
-  final String query;
-
-  final VoidCallback onBack;
-  final ValueChanged<String> onQueryChanged;
-  final VoidCallback onClearSearch;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        14,
-        20,
-        4,
-      ),
-      child: Align(
-        alignment: Alignment.center,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: 920,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  _BackButton(
-                    onTap: onBack,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Todas las categorías',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineSmall
-                              ?.copyWith(
-                                color: RancoColors.pine,
-                                fontWeight: FontWeight.w800,
-                                height: 1.05,
-                              ),
-                        ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Elige una categoría para explorar negocios y servicios.',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: RancoColors.textSecondary,
-                            height: 1.3,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: searchController,
-                focusNode: searchFocusNode,
-                textInputAction: TextInputAction.search,
-                autocorrect: false,
-                enableSuggestions: true,
-                onChanged: onQueryChanged,
-                decoration: InputDecoration(
-                  hintText: 'Buscar una categoría',
-                  prefixIcon: const Icon(
-                    Icons.search_rounded,
-                    size: 20,
-                    color: RancoColors.primary,
-                  ),
-                  suffixIcon: query.trim().isEmpty
-                      ? null
-                      : IconButton(
-                          tooltip: 'Limpiar búsqueda',
-                          onPressed: onClearSearch,
-                          icon: const Icon(
-                            Icons.close_rounded,
-                            size: 19,
-                          ),
-                        ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 13,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(
-                      color: RancoDecoration.softBorder,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(
-                      color: RancoColors.primary,
-                      width: 1.4,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ResultCount extends StatelessWidget {
-  const _ResultCount({
-    required this.total,
-    required this.filtered,
-    required this.query,
-  });
-
-  final int total;
-  final int filtered;
-  final String query;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasQuery = query.trim().isNotEmpty;
-
-    final text = hasQuery
-        ? '$filtered ${filtered == 1 ? 'resultado' : 'resultados'}'
-        : '$total ${total == 1 ? 'categoría' : 'categorías'}';
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        14,
-        20,
-        4,
-      ),
-      child: Align(
-        alignment: Alignment.center,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: 920,
-          ),
-          child: Row(
-            children: [
-              Text(
-                text,
-                style: const TextStyle(
-                  color: RancoColors.textSecondary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              if (hasQuery) ...[
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    'para “${query.trim()}”',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: RancoColors.textSecondary,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
 
@@ -558,7 +514,7 @@ class _BackButton extends StatelessWidget {
   }
 }
 
-class _CategoryTile extends StatelessWidget {
+class _CategoryTile extends StatefulWidget {
   const _CategoryTile({
     required this.category,
     required this.onTap,
@@ -568,66 +524,199 @@ class _CategoryTile extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
+  State<_CategoryTile> createState() => _CategoryTileState();
+}
+
+class _CategoryTileState extends State<_CategoryTile> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
+    final category = widget.category;
+
     final tone = _categoryTone(category);
 
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
-      elevation: 0,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 9,
+    final isEmergency = category.name.toLowerCase().contains('emerg');
+
+    final accent = isEmergency
+        ? const Color(
+            0xFFD76B4F,
+          )
+        : tone;
+
+    final iconBackground = isEmergency
+        ? const Color(
+            0xFFFFEEE8,
+          )
+        : tone.withValues(
+            alpha: .10,
+          );
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) {
+        setState(() {
+          _hovered = true;
+        });
+      },
+      onExit: (_) {
+        setState(() {
+          _hovered = false;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(
+          milliseconds: 160,
+        ),
+        transform: Matrix4.translationValues(
+          0,
+          _hovered ? -2 : 0,
+          0,
+        ),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(
+            16,
           ),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: RancoDecoration.softBorder,
+          boxShadow: _hovered
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(
+                      alpha: .055,
+                    ),
+                    blurRadius: 18,
+                    offset: const Offset(
+                      0,
+                      7,
+                    ),
+                  ),
+                ]
+              : null,
+        ),
+        child: Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(
+            16,
+          ),
+          child: InkWell(
+            onTap: widget.onTap,
+            borderRadius: BorderRadius.circular(
+              16,
             ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: tone.withValues(
-                    alpha: .10,
+            child: Container(
+              height: 108,
+              padding: const EdgeInsets.all(
+                14,
+              ),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(
+                  16,
+                ),
+                border: Border.all(
+                  color: _hovered
+                      ? accent.withValues(
+                          alpha: .52,
+                        )
+                      : RancoDecoration.softBorder,
+                  width: _hovered ? 1.2 : 1,
+                ),
+                gradient: isEmergency
+                    ? const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(
+                            0xFFFFFCFA,
+                          ),
+                          Color(
+                            0xFFFFF6F2,
+                          ),
+                        ],
+                      )
+                    : null,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: iconBackground,
+                          borderRadius: BorderRadius.circular(
+                            11,
+                          ),
+                        ),
+                        child: Icon(
+                          _categoryIcon(
+                            category,
+                          ),
+                          size: 20,
+                          color: accent,
+                        ),
+                      ),
+                      const Spacer(),
+                      AnimatedContainer(
+                        duration: const Duration(
+                          milliseconds: 160,
+                        ),
+                        transform: Matrix4.translationValues(
+                          _hovered ? 2 : 0,
+                          0,
+                          0,
+                        ),
+                        child: Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 18,
+                          color: _hovered
+                              ? accent
+                              : const Color(
+                                  0xFF8A9A92,
+                                ),
+                        ),
+                      ),
+                    ],
                   ),
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: Icon(
-                  _categoryIcon(category),
-                  size: 20,
-                  color: tone,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  category.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: RancoColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    height: 1.15,
+                  const Spacer(),
+                  Text(
+                    category.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: RancoColors.textPrimary,
+                      fontSize: 14,
+                      height: 1.1,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                ),
+                  const SizedBox(
+                    height: 4,
+                  ),
+                  Row(
+                    children: [
+                      Text(
+                        'Ver servicios',
+                        style: TextStyle(
+                          color: _hovered ? accent : RancoColors.textSecondary,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(
+                        width: 4,
+                      ),
+                      Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 13,
+                        color: _hovered ? accent : RancoColors.textSecondary,
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.chevron_right_rounded,
-                size: 20,
-                color: Color(0xFF9AA8A2),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -687,11 +776,34 @@ IconData _categoryIcon(Category category) {
     return Icons.plumbing_outlined;
   }
 
-  if (key.contains('carpint')) {
+  if (key.contains('escombro') || key.contains('delete_sweep')) {
+    return Icons.delete_sweep_outlined;
+  }
+
+  if (key.contains('chatarra') || key.contains('recycling')) {
+    return Icons.recycling_outlined;
+  }
+
+  if (key.contains('fosa') || key.contains('water_drop')) {
+    return Icons.water_drop_outlined;
+  }
+
+  if (key.contains('mantenimiento') || key.contains('home_repair')) {
+    return Icons.home_repair_service_outlined;
+  }
+
+  if (key.contains('inspeccion') ||
+      key.contains('inspección') ||
+      key.contains('visual') ||
+      key.contains('visibility')) {
+    return Icons.visibility_outlined;
+  }
+
+  if (key.contains('carpin')) {
     return Icons.carpenter_outlined;
   }
 
-  if (key.contains('pintur')) {
+  if (key.contains('pint')) {
     return Icons.format_paint_outlined;
   }
 
@@ -703,18 +815,6 @@ IconData _categoryIcon(Category category) {
     return Icons.local_fire_department_outlined;
   }
 
-  if (key.contains('techumbr') || key.contains('techo')) {
-    return Icons.roofing_outlined;
-  }
-
-  if (key.contains('alban') || key.contains('constr')) {
-    return Icons.construction_outlined;
-  }
-
-  if (key.contains('cerraj')) {
-    return Icons.key_outlined;
-  }
-
   if (key.contains('solar')) {
     return Icons.solar_power_outlined;
   }
@@ -723,8 +823,7 @@ IconData _categoryIcon(Category category) {
 }
 
 Color _categoryTone(Category category) {
-  final key =
-      '${category.themeKey} ${category.slug} ${category.name}'.toLowerCase();
+  final key = '${category.themeKey} ${category.slug}'.toLowerCase();
 
   if (key.contains('food') || key.contains('gastr')) {
     return RancoColors.primary;

@@ -23,6 +23,7 @@ class LodgingDetails {
     required this.checkInTime,
     required this.checkOutTime,
     required this.minNights,
+    required this.maxNights,
     required this.cancellationPolicy,
     required this.houseRules,
   });
@@ -46,6 +47,7 @@ class LodgingDetails {
         json['check_out_time'] as String?,
       ),
       minNights: (json['min_nights'] as num?)?.toInt() ?? 1,
+      maxNights: (json['max_nights'] as num?)?.toInt(),
       cancellationPolicy: json['cancellation_policy'] as String? ?? '',
       houseRules: json['house_rules'] as String? ?? '',
     );
@@ -62,6 +64,7 @@ class LodgingDetails {
   final String checkInTime;
   final String checkOutTime;
   final int minNights;
+  final int? maxNights;
   final String cancellationPolicy;
   final String houseRules;
 
@@ -124,6 +127,7 @@ class LodgingDetailsRepository {
     required String checkInTime,
     required String checkOutTime,
     required int minNights,
+    required int? maxNights,
     required String cancellationPolicy,
     required String houseRules,
   }) async {
@@ -144,6 +148,7 @@ class LodgingDetailsRepository {
       'check_in_time': checkInTime,
       'check_out_time': checkOutTime,
       'min_nights': minNights,
+      'max_nights': maxNights,
       'cancellation_policy':
           cancellationPolicy.trim().isEmpty ? null : cancellationPolicy.trim(),
       'house_rules': houseRules.trim().isEmpty ? null : houseRules.trim(),

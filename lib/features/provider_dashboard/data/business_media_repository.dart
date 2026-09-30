@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../auth/data/supabase_auth_repository.dart';
+import '../../../shared/models/business.dart';
+import '../../../shared/models/business_capability.dart';
 
 final businessMediaRepositoryProvider =
     Provider<BusinessMediaRepository>((ref) {
@@ -40,6 +42,8 @@ class ProviderMediaItem {
   final int sortOrder;
 
   bool get isCover => mediaType == 'cover';
+  bool get isLogo => mediaType == 'logo';
+  bool get isPublicPhoto => !isLogo;
 }
 
 class BusinessMediaRepository {
@@ -97,6 +101,8 @@ class BusinessMediaRepository {
 
   Future<void> upload({
     required String businessId,
+    BusinessType businessType = BusinessType.lodging,
+    BusinessPlanTier planTier = BusinessPlanTier.basic,
     required Uint8List bytes,
     required String extension,
   }) async {
@@ -113,9 +119,16 @@ class BusinessMediaRepository {
       businessId,
     );
 
-    if (current.length >= 15) {
+    final photos = current.where((item) => item.isPublicPhoto).toList();
+    final maxPhotos = BusinessCapabilityResolver.limitsFor(
+          businessType,
+          planTier: planTier,
+        )[BusinessLimit.maxPhotos] ??
+        5;
+
+    if (photos.length >= maxPhotos) {
       throw StateError(
-        'Puedes subir un maximo de 15 fotografias.',
+        'Puedes subir hasta $maxPhotos fotografias en tu plan.',
       );
     }
 
@@ -136,15 +149,92 @@ class BusinessMediaRepository {
           ),
         );
 
-    final mediaType = current.isEmpty ? 'cover' : 'gallery';
+    final mediaType = photos.isEmpty ? 'cover' : 'gallery';
 
     try {
       await client.from('business_media').insert({
         'business_id': businessId,
         'media_type': mediaType,
         'storage_path': storagePath,
-        'sort_order': current.length,
+        'sort_order': photos.length,
       });
+    } catch (_) {
+      await client.storage.from(bucket).remove([storagePath]);
+
+      rethrow;
+    }
+  }
+
+  Future<void> uploadLogo({
+    required String businessId,
+    required Uint8List bytes,
+    required String extension,
+  }) async {
+    final client = _requireClient;
+    final userId = client.auth.currentUser?.id;
+
+    if (userId == null) {
+      throw StateError(
+        'Debes iniciar sesion.',
+      );
+    }
+
+    final safeExtension = extension.toLowerCase().replaceAll('.', '');
+
+    if (!_allowedLogoExtensions.contains(safeExtension)) {
+      throw StateError(
+        'Formato no permitido. Usa JPG, PNG o WEBP.',
+      );
+    }
+
+    if (bytes.lengthInBytes > _maxUploadBytes) {
+      throw StateError(
+        'La imagen es demasiado grande. Intenta con una foto menor a 5 MB.',
+      );
+    }
+
+    final current = await list(
+      businessId,
+    );
+
+    final existingLogos = current.where((item) => item.isLogo).toList();
+
+    final fileName =
+        'profile/avatar_${DateTime.now().microsecondsSinceEpoch}.$safeExtension';
+
+    final storagePath = '$userId/$businessId/$fileName';
+
+    await client.storage.from(bucket).uploadBinary(
+          storagePath,
+          bytes,
+          fileOptions: FileOptions(
+            upsert: false,
+            contentType: _contentType(
+              safeExtension,
+            ),
+          ),
+        );
+
+    try {
+      await client.from('business_media').insert({
+        'business_id': businessId,
+        'media_type': 'logo',
+        'storage_path': storagePath,
+        'sort_order': -1,
+      });
+
+      if (existingLogos.isNotEmpty) {
+        for (final logo in existingLogos) {
+          await client.from('business_media').delete().eq(
+                'id',
+                logo.id,
+              );
+        }
+
+        await client.storage.from(bucket).remove(
+              existingLogos.map((item) => item.storagePath).toList(),
+            );
+      }
     } catch (_) {
       await client.storage.from(bucket).remove([storagePath]);
 
@@ -162,7 +252,9 @@ class BusinessMediaRepository {
       businessId,
     );
 
-    final selected = current
+    final photos = current.where((item) => item.isPublicPhoto).toList();
+
+    final selected = photos
         .where(
           (item) => item.id == mediaId,
         )
@@ -174,7 +266,7 @@ class BusinessMediaRepository {
       );
     }
 
-    for (final item in current) {
+    for (final item in photos) {
       await client.from('business_media').update({
         'media_type': item.id == mediaId ? 'cover' : 'gallery',
       }).eq(
@@ -198,9 +290,15 @@ class BusinessMediaRepository {
       item.storagePath,
     ]);
 
-    final remaining = await list(
+    if (item.isLogo) {
+      return;
+    }
+
+    final remaining = (await list(
       item.businessId,
-    );
+    ))
+        .where((media) => media.isPublicPhoto)
+        .toList();
 
     if (remaining.isNotEmpty &&
         !remaining.any(
@@ -222,6 +320,22 @@ class BusinessMediaRepository {
     }
   }
 
+  Future<void> deleteLogo({
+    required String businessId,
+  }) async {
+    final logos = (await list(
+      businessId,
+    ))
+        .where((item) => item.isLogo)
+        .toList();
+
+    for (final logo in logos) {
+      await delete(
+        logo,
+      );
+    }
+  }
+
   static String _contentType(
     String extension,
   ) {
@@ -234,6 +348,15 @@ class BusinessMediaRepository {
       _ => 'image/jpeg',
     };
   }
+
+  static const _allowedLogoExtensions = {
+    'jpg',
+    'jpeg',
+    'png',
+    'webp',
+  };
+
+  static const _maxUploadBytes = 5 * 1024 * 1024;
 }
 
 extension _FirstWhereOrNull<T> on Iterable<T> {
