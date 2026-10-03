@@ -195,25 +195,15 @@ class LodgingPublicProfile extends ConsumerWidget {
                               const SizedBox(
                                 height: 6,
                               ),
-                              Row(
+                              const Row(
                                 children: [
-                                  const Text(
+                                  Text(
                                     'Alojamiento',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
-                                  if (business.isVerified) ...[
-                                    const SizedBox(
-                                      width: 6,
-                                    ),
-                                    const Icon(
-                                      Icons.verified_rounded,
-                                      color: Colors.white,
-                                      size: 18,
-                                    ),
-                                  ],
                                 ],
                               ),
                             ],
@@ -263,15 +253,6 @@ class LodgingPublicProfile extends ConsumerWidget {
                               '${business.ratingAvg.toStringAsFixed(1)} (${business.reviewCount})',
                           foreground: RancoColors.primaryDark,
                           background: RancoColors.primarySoft,
-                        ),
-                      if (business.isVerified)
-                        const _StatusChip(
-                          icon: Icons.verified_rounded,
-                          label: 'Verificado',
-                          foreground: RancoColors.forest,
-                          background: Color(
-                            0xFFE5F1EC,
-                          ),
                         ),
                       if (business.isFeatured)
                         const _StatusChip(

@@ -46,8 +46,12 @@ void main() {
   });
 
   testWidgets('adaptive modal uses bottom sheet on mobile', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(390, 844));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
 
     await _pumpAdaptiveModalHarness(tester);
     await tester.tap(find.text('Abrir'));
@@ -58,8 +62,12 @@ void main() {
   });
 
   testWidgets('adaptive modal uses dialog on desktop', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(1366, 768));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.physicalSize = const Size(1366, 768);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
 
     await _pumpAdaptiveModalHarness(tester);
     await tester.tap(find.text('Abrir'));

@@ -5,6 +5,9 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/result/result.dart';
 import '../../../core/widgets/ranco_app_bar.dart';
+import '../../../core/widgets/ranco_error_state.dart';
+import '../../auth/application/auth_controller.dart';
+import '../../auth/presentation/visitor_contact_sheet.dart';
 import '../../../features/locations/application/location_providers.dart';
 import '../../../shared/models/location.dart';
 import '../../../shared/models/service_request.dart';
@@ -12,6 +15,29 @@ import '../../businesses/application/business_providers.dart';
 import '../application/service_request_providers.dart';
 import '../data/request_attachment_repository.dart';
 import '../data/service_request_repository.dart';
+
+final _visitorRequestDraftProvider =
+    StateProvider.family<_VisitorRequestDraft?, String>((ref, key) => null);
+
+class _VisitorRequestDraft {
+  const _VisitorRequestDraft({
+    required this.serviceId,
+    required this.message,
+    required this.locationId,
+    required this.address,
+    required this.urgency,
+    required this.desiredDate,
+    required this.attachments,
+  });
+
+  final String? serviceId;
+  final String message;
+  final String? locationId;
+  final String address;
+  final RequestUrgency urgency;
+  final DateTime? desiredDate;
+  final List<PendingRequestAttachment> attachments;
+}
 
 class CreateRequestScreen extends ConsumerStatefulWidget {
   const CreateRequestScreen({required this.businessId, super.key});
@@ -34,6 +60,29 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
   bool _saving = false;
   String? _error;
   final List<PendingRequestAttachment> _attachments = [];
+
+  String get _draftKey =>
+      '${ref.read(authStateProvider).valueOrNull?.id ?? 'unknown'}:${widget.businessId}';
+
+  @override
+  void initState() {
+    super.initState();
+    final draft = ref.read(_visitorRequestDraftProvider(_draftKey));
+    if (draft == null) return;
+    _selectedSubcategoryId = draft.serviceId;
+    _descriptionController.text = draft.message;
+    _selectedLocationId = draft.locationId;
+    _addressController.text = draft.address;
+    _urgency = draft.urgency;
+    _desiredDate = draft.desiredDate;
+    _attachments.addAll(draft.attachments);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted &&
+          identical(ref.read(_visitorRequestDraftProvider(_draftKey)), draft)) {
+        ref.read(_visitorRequestDraftProvider(_draftKey).notifier).state = null;
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -87,7 +136,11 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
                         ),
                       ] else ...[
                         DropdownButtonFormField<String>(
-                          initialValue: _selectedSubcategoryId,
+                          initialValue: services.any((service) =>
+                                  service.subcategory.id ==
+                                  _selectedSubcategoryId)
+                              ? _selectedSubcategoryId
+                              : null,
                           decoration: const InputDecoration(
                             labelText: 'Servicio',
                             prefixIcon:
@@ -121,7 +174,10 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: _selectedLocationId,
+                          initialValue: availableLocations.any((location) =>
+                                  location.id == _selectedLocationId)
+                              ? _selectedLocationId
+                              : null,
                           isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: 'Localidad',
@@ -212,8 +268,11 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) =>
-            Center(child: Text(requestFailureMessage(error))),
+        error: (error, stackTrace) => RancoErrorState(
+          message: 'No pudimos cargar los servicios de este negocio.',
+          onRetry: () =>
+              ref.invalidate(businessDetailProvider(widget.businessId)),
+        ),
       ),
     );
   }
@@ -243,6 +302,9 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
     if (business == null || service == null) {
       return;
     }
+    final consented = await ensureVisitorContactAndConsent(context, ref,
+        action: 'service_request');
+    if (!mounted || !consented) return;
     setState(() {
       _saving = true;
       _error = null;
@@ -266,6 +328,7 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
     switch (result) {
       case Success(:final value):
         final request = value;
+        var attachmentsFailed = false;
         for (final attachment in _attachments) {
           final upload =
               await ref.read(requestAttachmentRepositoryProvider).upload(
@@ -277,23 +340,23 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
             return;
           }
 
-          final failed = upload.when(
-            success: (_) => false,
-            failure: (failure) {
-              setState(() => _error = failure.message);
-              return true;
-            },
-          );
-
-          if (failed) {
-            setState(() => _saving = false);
-            return;
+          if (upload case Failure()) {
+            attachmentsFailed = true;
+            break;
           }
         }
 
         ref.invalidate(myRequestsProvider);
+        ref.invalidate(myCustomerActivityProvider);
+        ref.invalidate(providerRequestQueueProvider);
         ref.invalidate(requestAttachmentsProvider(request.id));
-        context.go('/requests/${request.id}');
+        context.go(Uri(
+          path: '/requests/${request.id}',
+          queryParameters: {
+            'sent': '1',
+            if (attachmentsFailed) 'attachments': 'failed',
+          },
+        ).toString());
       case Failure(:final error):
         setState(() => _error = error.message);
     }

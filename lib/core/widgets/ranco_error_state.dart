@@ -24,7 +24,9 @@ class RancoErrorState extends StatelessWidget {
               size: 40,
             ),
             const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
+            Text(message,
+                style: Theme.of(context).textTheme.titleMedium,
+                textAlign: TextAlign.center),
             if (onRetry != null) ...[
               const SizedBox(height: 16),
               OutlinedButton.icon(

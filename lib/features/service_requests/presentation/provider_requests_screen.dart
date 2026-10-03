@@ -118,6 +118,40 @@ class _ProviderRequestCard extends ConsumerWidget {
               height: 1.35,
             ),
           ),
+          const SizedBox(height: 7),
+          Text(
+            'Solicitud: ${item.createdAt.day.toString().padLeft(2, '0')}/${item.createdAt.month.toString().padLeft(2, '0')}/${item.createdAt.year}',
+            style:
+                const TextStyle(color: RancoColors.textSecondary, fontSize: 12),
+          ),
+          if (item.guestName?.trim().isNotEmpty == true ||
+              item.guestPhone?.trim().isNotEmpty == true) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(11),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F7F3),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Wrap(spacing: 8, runSpacing: 5, children: [
+                if (item.guestName?.trim().isNotEmpty == true)
+                  Text('Cliente: ${item.guestName}',
+                      style: const TextStyle(fontWeight: FontWeight.w800)),
+                if (item.guestPhone?.trim().isNotEmpty == true)
+                  TextButton.icon(
+                    onPressed: () async {
+                      await launchUrl(
+                        Uri(scheme: 'tel', path: item.guestPhone!.trim()),
+                        mode: LaunchMode.externalApplication,
+                      );
+                    },
+                    icon: const Icon(Icons.call_outlined, size: 16),
+                    label: Text(item.guestPhone!),
+                  ),
+              ]),
+            ),
+          ],
           if (item.addressText?.trim().isNotEmpty == true) ...[
             const SizedBox(height: 8),
             Text(

@@ -21,6 +21,10 @@ abstract final class RancoBreakpoints {
   static const compact = 0.0;
   static const medium = 600.0;
   static const expanded = 1024.0;
+
+  /// Vistas con panel lateral propio (filtros, índice) además del sidebar
+  /// de la app: requieren más ancho que [expanded].
+  static const twoPane = 1200.0;
   static const large = 1440.0;
 
   static bool isCompact(double width) => width < medium;

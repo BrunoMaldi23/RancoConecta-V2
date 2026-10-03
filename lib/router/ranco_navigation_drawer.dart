@@ -3,14 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../config/app_config.dart';
+import '../core/widgets/ranco_brand.dart';
 import '../features/admin/application/admin_providers.dart';
 import '../features/auth/application/auth_controller.dart';
+import '../features/auth/presentation/visitor_contact_validation.dart';
 import '../features/locations/presentation/location_selector.dart';
 import '../features/messaging/application/messaging_providers.dart';
 import '../features/notifications/application/notification_providers.dart';
 import '../features/profile/application/profile_providers.dart';
 import '../features/provider_dashboard/application/provider_dashboard_providers.dart';
 import '../features/provider_dashboard/data/provider_business_repository.dart';
+import '../shared/models/profile.dart';
 import '../theme/ranco_colors.dart';
 
 import 'session_actions.dart';
@@ -26,12 +29,24 @@ class RancoNavigationDrawer extends ConsumerWidget {
     final auth = ref.watch(authStateProvider);
     final user = auth.valueOrNull;
     final isSignedIn = user != null;
-    final showLoginAction = !isSignedIn && !auth.isLoading;
+    final isVisitor = user?.isAnonymous == true;
     final profile = isSignedIn ? ref.watch(currentProfileProvider) : null;
-    final businesses =
-        isSignedIn ? ref.watch(myProviderBusinessesProvider) : null;
-    final activeBusiness =
-        isSignedIn ? ref.watch(activeProviderBusinessProvider) : null;
+    final visitorHasProfile = isVisitor &&
+        (profile?.valueOrNull?.fullName?.trim().length ?? 0) >= 3 &&
+        isValidChileanWhatsapp(profile?.valueOrNull?.phone);
+    final publicVisitor = !isSignedIn || (isVisitor && !visitorHasProfile);
+    final showLoginAction = publicVisitor && !auth.isLoading;
+    final role = profile?.valueOrNull?.role;
+    final canCheckProviderBusinesses =
+        isSignedIn && !isVisitor && role != null && !role.canAccessAdmin;
+    final businesses = canCheckProviderBusinesses
+        ? ref.watch(myProviderBusinessesProvider)
+        : null;
+    final activeBusiness = canCheckProviderBusinesses
+        ? ref.watch(activeProviderBusinessProvider)
+        : null;
+    final isProvider = role == ProfileRole.provider ||
+        (canCheckProviderBusinesses && activeBusiness?.valueOrNull != null);
     final adminRole = isSignedIn ? ref.watch(currentAdminRoleProvider) : null;
     final chatEnabled = ref.watch(appConfigProvider).featureFlags.chatEnabled;
     final unreadMessages = chatEnabled
@@ -56,15 +71,21 @@ class RancoNavigationDrawer extends ConsumerWidget {
                   padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
                   children: [
                     _DrawerHeader(
-                      isSignedIn: isSignedIn,
+                      isSignedIn: !publicVisitor,
                       name: profile?.valueOrNull?.fullName,
                       email: user?.email,
                       onAccount: () {
-                        _go(context, isSignedIn ? '/account' : '/sign-in');
+                        _go(
+                            context,
+                            publicVisitor
+                                ? (isVisitor ? '/sign-in?choose=1' : '/sign-in')
+                                : '/account');
                       },
                     ),
-                    const SizedBox(height: 12),
-                    const _LocationRow(),
+                    if (!publicVisitor) ...[
+                      const SizedBox(height: 12),
+                      const _LocationRow(),
+                    ],
                     const SizedBox(height: 14),
                     _DrawerSection(
                       children: [
@@ -82,21 +103,31 @@ class RancoNavigationDrawer extends ConsumerWidget {
                           route: '/explore',
                           currentPath: path,
                         ),
-                        _NavigationItem(
-                          icon: Icons.bookmark_border_rounded,
-                          selectedIcon: Icons.bookmark_rounded,
-                          label: 'Guardados',
-                          route: '/saved',
-                          currentPath: path,
-                        ),
-                        _NavigationItem(
-                          icon: Icons.assignment_outlined,
-                          selectedIcon: Icons.assignment_rounded,
-                          label: 'Mis solicitudes',
-                          route: '/requests',
-                          currentPath: path,
-                        ),
-                        if (chatEnabled)
+                        if (!publicVisitor)
+                          _NavigationItem(
+                            icon: Icons.bookmark_border_rounded,
+                            selectedIcon: Icons.bookmark_rounded,
+                            label: 'Guardados',
+                            route: '/saved',
+                            currentPath: path,
+                          ),
+                        if (!publicVisitor)
+                          _NavigationItem(
+                            icon: Icons.assignment_outlined,
+                            selectedIcon: Icons.assignment_rounded,
+                            label: 'Solicitudes',
+                            route: '/requests',
+                            currentPath: path,
+                          ),
+                        if (!publicVisitor)
+                          _NavigationItem(
+                            icon: Icons.person_outline_rounded,
+                            selectedIcon: Icons.person_rounded,
+                            label: 'Cuenta',
+                            route: '/account',
+                            currentPath: path,
+                          ),
+                        if (chatEnabled && isSignedIn && !isVisitor)
                           _NavigationItem(
                             icon: Icons.chat_bubble_outline_rounded,
                             selectedIcon: Icons.chat_bubble_rounded,
@@ -105,22 +136,25 @@ class RancoNavigationDrawer extends ConsumerWidget {
                             currentPath: path,
                             badgeCount: unreadMessages,
                           ),
-                        _NavigationItem(
-                          icon: Icons.notifications_none_rounded,
-                          selectedIcon: Icons.notifications_rounded,
-                          label: 'Notificaciones',
-                          route: '/notifications',
-                          currentPath: path,
-                          badgeCount: unreadNotifications,
-                        ),
+                        if (!publicVisitor)
+                          _NavigationItem(
+                            icon: Icons.notifications_none_rounded,
+                            selectedIcon: Icons.notifications_rounded,
+                            label: 'Notificaciones',
+                            route: '/notifications',
+                            currentPath: path,
+                            badgeCount: unreadNotifications,
+                          ),
                       ],
                     ),
                     const SizedBox(height: 14),
-                    _ProviderSection(
-                      businesses: businesses,
-                      activeBusiness: activeBusiness,
-                      isSignedIn: isSignedIn,
-                    ),
+                    if (isProvider)
+                      _ProviderSection(
+                        businesses: businesses,
+                        activeBusiness: activeBusiness,
+                        isSignedIn: isSignedIn,
+                        allowCallToAction: role == ProfileRole.provider,
+                      ),
                     if (adminRole?.valueOrNull != null) ...[
                       const SizedBox(height: 16),
                       const _SectionLabel('Administración'),
@@ -140,7 +174,7 @@ class RancoNavigationDrawer extends ConsumerWidget {
                   ],
                 ),
               ),
-              if (isSignedIn)
+              if (!publicVisitor)
                 _LogoutAction(
                   onPressed: () async {
                     await signOutAndGoToSignIn(context, ref);
@@ -148,7 +182,8 @@ class RancoNavigationDrawer extends ConsumerWidget {
                 )
               else if (showLoginAction)
                 _LoginAction(
-                  onPressed: () => _go(context, '/sign-in'),
+                  onPressed: () => _go(
+                      context, isVisitor ? '/sign-in?choose=1' : '/sign-in'),
                 ),
             ],
           ),
@@ -198,42 +233,28 @@ class _DrawerHeader extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
           child: Row(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.asset(
-                  'assets/branding/ranco_logo_login.png',
-                  width: 40,
-                  height: 40,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) {
-                    return Container(
-                      width: 40,
-                      height: 40,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE5F1EC),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.near_me_outlined,
-                        color: RancoColors.forest,
-                      ),
-                    );
-                  },
-                ),
-              ),
+              // Emblema real legible (antes el logo completo quedaba diminuto).
+              const RancoBrandMark(size: 44),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Ranco Conecta',
+                    const Text.rich(
+                      TextSpan(children: [
+                        TextSpan(
+                          text: 'Ranco ',
+                          style: TextStyle(color: RancoColors.pine),
+                        ),
+                        TextSpan(
+                          text: 'Conecta',
+                          style: TextStyle(color: RancoBrandLockup.accent),
+                        ),
+                      ]),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: RancoColors.forest,
-                        fontSize: 15,
+                        fontSize: 16,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -314,11 +335,13 @@ class _ProviderSection extends ConsumerWidget {
     required this.businesses,
     required this.activeBusiness,
     required this.isSignedIn,
+    required this.allowCallToAction,
   });
 
   final AsyncValue<List<ProviderBusinessSummary>>? businesses;
   final AsyncValue<ProviderBusinessSummary?>? activeBusiness;
   final bool isSignedIn;
+  final bool allowCallToAction;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -326,6 +349,7 @@ class _ProviderSection extends ConsumerWidget {
     final active = activeBusiness?.valueOrNull;
 
     if (!isSignedIn || items.isEmpty) {
+      if (!allowCallToAction) return const SizedBox.shrink();
       return _ProviderCallToAction(
         title: '¿Ofreces un servicio?',
         subtitle: 'Publica en Ranco Conecta',

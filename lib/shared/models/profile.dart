@@ -6,7 +6,7 @@ enum ProfileRole {
 
   String get label {
     return switch (this) {
-      ProfileRole.customer => 'Cliente',
+      ProfileRole.customer => 'Usuario',
       ProfileRole.provider => 'Prestador',
       ProfileRole.admin => 'Administrador',
       ProfileRole.superAdmin => 'Super admin',

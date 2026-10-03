@@ -16,6 +16,17 @@ final featuredOnlyProvider = StateProvider<bool>((ref) => false);
 
 final openNowOnlyProvider = StateProvider<bool>((ref) => false);
 
+/// Home stays independent of the filters used in Explore.
+final homeBusinessesProvider = FutureProvider<List<Business>>((ref) async {
+  final result = await ref
+      .watch(businessRepositoryProvider)
+      .listPublishedBusinesses(const BusinessQuery());
+  return result.when(
+    success: (businesses) => businesses,
+    failure: (failure) => throw failure,
+  );
+});
+
 final publishedBusinessesProvider = FutureProvider<List<Business>>((ref) async {
   final selectedLocation = ref.watch(selectedLocationProvider);
 

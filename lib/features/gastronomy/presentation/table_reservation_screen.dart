@@ -4,8 +4,16 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/ranco_app_bar.dart';
 import '../../../theme/ranco_colors.dart';
-import '../../auth/application/auth_controller.dart';
+import '../../auth/presentation/visitor_contact_sheet.dart';
+import '../../../core/telemetry/telemetry.dart';
+import '../../service_requests/application/service_request_providers.dart';
+import '../application/gastronomy_providers.dart';
 import '../data/gastronomy_repository.dart';
+
+final _tableVisitorDraftProvider = StateProvider.family<
+    ({DateTime date, String time, String guests, String message})?, String>(
+  (ref, businessId) => null,
+);
 
 class TableReservationScreen extends ConsumerStatefulWidget {
   const TableReservationScreen({
@@ -27,6 +35,26 @@ class _TableReservationScreenState
   final _guests = TextEditingController(text: '2');
   final _message = TextEditingController();
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final draft = ref.read(_tableVisitorDraftProvider(widget.businessId));
+    if (draft != null) {
+      _date = draft.date;
+      _time.text = draft.time;
+      _guests.text = draft.guests;
+      _message.text = draft.message;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            ref.read(_tableVisitorDraftProvider(widget.businessId)) == draft) {
+          ref
+              .read(_tableVisitorDraftProvider(widget.businessId).notifier)
+              .state = null;
+        }
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -149,15 +177,7 @@ class _TableReservationScreenState
   }
 
   Future<void> _save() async {
-    final user = ref.read(authStateProvider).valueOrNull;
-    final next = '/business/${widget.businessId}/table-reservation';
-
-    if (user == null) {
-      context.go(
-        Uri(path: '/sign-in', queryParameters: {'next': next}).toString(),
-      );
-      return;
-    }
+    Telemetry.capture('start_booking');
 
     final date = _date;
     final guests = int.tryParse(_guests.text.trim());
@@ -168,6 +188,9 @@ class _TableReservationScreenState
       return;
     }
 
+    final consented = await ensureVisitorContactAndConsent(context, ref,
+        action: 'table_reservation');
+    if (!mounted || !consented) return;
     setState(() => _saving = true);
     try {
       await ref.read(gastronomyRepositoryProvider).createReservation(
@@ -177,6 +200,9 @@ class _TableReservationScreenState
             guests: guests,
             message: _message.text,
           );
+      Telemetry.capture('complete_booking');
+      ref.invalidate(myCustomerActivityProvider);
+      ref.invalidate(gastronomyReservationsProvider(widget.businessId));
 
       if (!mounted) {
         return;

@@ -3,6 +3,19 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('review queue casts auth email and preserves optional owner joins', () {
+    final sql = _readMigration(
+      'supabase/migrations/20261001210000_admin_review_queue_email_type.sql',
+    );
+
+    expect(sql, contains('u.email::text as owner_email'));
+    expect(sql, contains('left join public.profiles p'));
+    expect(sql, contains('left join auth.users u'));
+    expect(sql, contains('p_status is null or'));
+    expect(sql, contains('p_business_type is null or'));
+    expect(sql, contains('not public.current_user_is_admin()'));
+  });
+
   test('admin SQL exposes canonical review queue and detail RPCs', () {
     final sql = _readMigration(
       'supabase/migrations/20260923120000_admin_review_transition_hardening.sql',

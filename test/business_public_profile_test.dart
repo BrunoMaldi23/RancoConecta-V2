@@ -96,14 +96,15 @@ void main() {
     expect(find.text('Solicitar servicio'), findsWidgets);
   });
 
-  testWidgets('verified and featured badges only render from real flags',
+  testWidgets('featured badge renders from real flag; verified stays private',
       (tester) async {
     await _pumpProfile(
       tester,
       _business(verified: true, featured: true),
     );
 
-    expect(find.text('Verificado'), findsWidgets);
+    // La verificación es un estado interno: no se expone en la ficha pública.
+    expect(find.text('Verificado'), findsNothing);
     expect(find.text('Destacado'), findsOneWidget);
 
     await _pumpProfile(tester, _business(verified: false, featured: false));

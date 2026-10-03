@@ -1,10 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/layout/ranco_responsive.dart';
 import '../../../shared/models/location.dart';
 import '../../../theme/ranco_colors.dart';
+import '../../../theme/ranco_tokens.dart';
 import '../application/location_providers.dart';
+
+/// Abre el selector de localidad (diálogo en desktop, hoja en móvil).
+Future<void> showLocationPicker(BuildContext context, WidgetRef ref) async {
+  final List<Location> items = ref.read(locationsProvider).valueOrNull ??
+      await ref.read(locationsProvider.future);
+  if (!context.mounted) return;
+  await LocationSelector._showLocationSheet(
+    context: context,
+    ref: ref,
+    items: items,
+    selected: ref.read(selectedLocationProvider),
+  );
+}
 
 class LocationSelector extends ConsumerWidget {
   const LocationSelector({
@@ -167,13 +182,14 @@ class LocationSelector extends ConsumerWidget {
     );
   }
 
-  Future<void> _showLocationSheet({
+  static Future<void> _showLocationSheet({
     required BuildContext context,
     required WidgetRef ref,
     required List<Location> items,
     required Location? selected,
   }) async {
-    final isDesktop = MediaQuery.sizeOf(context).width >= 900;
+    final viewport = MediaQuery.sizeOf(context);
+    final isDesktop = viewport.width >= RancoBreakpoints.expanded;
 
     if (isDesktop) {
       await showDialog<void>(
@@ -189,9 +205,10 @@ class LocationSelector extends ConsumerWidget {
               vertical: 24,
             ),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(
+              constraints: BoxConstraints(
                 maxWidth: 720,
-                maxHeight: 590,
+                maxHeight:
+                    viewport.height * .86 < 590 ? viewport.height * .86 : 590,
               ),
               child: _DesktopLocationDialog(
                 items: items,
@@ -255,8 +272,15 @@ class _LocationBottomSheet extends StatefulWidget {
 
 class _LocationBottomSheetState extends State<_LocationBottomSheet> {
   final _searchController = TextEditingController();
+  final _selectedKey = GlobalKey();
 
   String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _revealSelected(_selectedKey);
+  }
 
   @override
   void dispose() {
@@ -437,6 +461,7 @@ class _LocationBottomSheetState extends State<_LocationBottomSheet> {
             const SizedBox(height: 14),
             Expanded(
               child: ListView(
+                scrollCacheExtent: const ScrollCacheExtent.pixels(4000),
                 padding: const EdgeInsets.fromLTRB(
                   20,
                   0,
@@ -456,6 +481,9 @@ class _LocationBottomSheetState extends State<_LocationBottomSheet> {
                   const SizedBox(height: 10),
                   for (final location in filtered) ...[
                     _LocationTile(
+                      key: widget.selected?.id == location.id
+                          ? _selectedKey
+                          : null,
                       title: location.name,
                       subtitle: _locationSubtitle(
                         location,
@@ -501,6 +529,7 @@ class _LocationTile extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.emphasized = false,
+    super.key,
   });
 
   final String title;
@@ -682,8 +711,15 @@ class _DesktopLocationDialog extends StatefulWidget {
 
 class _DesktopLocationDialogState extends State<_DesktopLocationDialog> {
   final TextEditingController _searchController = TextEditingController();
+  final _selectedKey = GlobalKey();
 
   String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _revealSelected(_selectedKey);
+  }
 
   @override
   void dispose() {
@@ -807,6 +843,7 @@ class _DesktopLocationDialogState extends State<_DesktopLocationDialog> {
                       height: 50,
                       child: TextField(
                         controller: _searchController,
+                        autofocus: true,
                         onChanged: (value) {
                           setState(() {
                             _query = value;
@@ -914,6 +951,8 @@ class _DesktopLocationDialogState extends State<_DesktopLocationDialog> {
                             )
                           : GridView.builder(
                               padding: EdgeInsets.zero,
+                              scrollCacheExtent:
+                                  const ScrollCacheExtent.pixels(4000),
                               itemCount: items.length,
                               gridDelegate:
                                   const SliverGridDelegateWithFixedCrossAxisCount(
@@ -932,6 +971,7 @@ class _DesktopLocationDialogState extends State<_DesktopLocationDialog> {
                                     widget.selected?.name == location.name;
 
                                 return _DesktopLocationTile(
+                                  key: selected ? _selectedKey : null,
                                   location: location,
                                   selected: selected,
                                   onTap: () => widget.onSelected(
@@ -1059,6 +1099,7 @@ class _DesktopLocationTile extends StatelessWidget {
     required this.location,
     required this.selected,
     required this.onTap,
+    super.key,
   });
 
   final Location location;
@@ -1143,4 +1184,17 @@ class _DesktopLocationTile extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Desplaza la lista para que la localidad seleccionada quede visible.
+void _revealSelected(GlobalKey key) {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    final target = key.currentContext;
+    if (target == null) return;
+    Scrollable.ensureVisible(
+      target,
+      alignment: .35,
+      duration: const Duration(milliseconds: 1),
+    );
+  });
 }

@@ -21,12 +21,17 @@ import 'package:ranco_conecta_2/shared/models/location.dart';
 import 'package:ranco_conecta_2/shared/models/profile.dart';
 
 void main() {
-  testWidgets('drawer guest shows sign in and provider CTA', (tester) async {
+  testWidgets('drawer guest shows only public destinations', (tester) async {
     await _pumpDrawer(tester, user: null);
 
     expect(find.text('Modo visitante'), findsOneWidget);
     expect(find.text('Iniciar sesión'), findsOneWidget);
-    expect(find.text('¿Ofreces un servicio?'), findsOneWidget);
+    expect(find.text('Inicio'), findsOneWidget);
+    expect(find.text('Explorar'), findsOneWidget);
+    expect(find.text('Ingresar'), findsOneWidget);
+    expect(find.text('Solicitudes'), findsNothing);
+    expect(find.text('Guardados'), findsNothing);
+    expect(find.text('¿Ofreces un servicio?'), findsNothing);
   });
 
   testWidgets('drawer authenticated shows account identity', (tester) async {
@@ -36,39 +41,87 @@ void main() {
     expect(find.text('bruno@example.com'), findsOneWidget);
   });
 
+  testWidgets('anonymous visitor with profile sees personal destinations',
+      (tester) async {
+    await _pumpDrawer(
+      tester,
+      completeVisitorProfile: true,
+      user: const AuthUser(
+        id: 'visitor-1',
+        email: null,
+        emailConfirmed: false,
+        isAnonymous: true,
+      ),
+    );
+
+    expect(find.text('Inicio'), findsOneWidget);
+    expect(find.text('Explorar'), findsOneWidget);
+    expect(find.text('Solicitudes'), findsOneWidget);
+    expect(find.text('Guardados'), findsOneWidget);
+    expect(find.text('Cuenta'), findsOneWidget);
+    expect(find.text('¿Ofreces un servicio?'), findsNothing);
+    expect(find.text('Mi negocio'), findsNothing);
+    expect(find.text('Panel administrativo'), findsNothing);
+    expect(find.text('Notificaciones'), findsOneWidget);
+  });
+
+  testWidgets('anonymous visitor without profile keeps public navigation',
+      (tester) async {
+    await _pumpDrawer(
+      tester,
+      user: const AuthUser(
+        id: 'visitor-1',
+        email: null,
+        emailConfirmed: false,
+        isAnonymous: true,
+      ),
+    );
+    expect(find.text('Inicio'), findsOneWidget);
+    expect(find.text('Explorar'), findsOneWidget);
+    expect(find.text('Ingresar'), findsOneWidget);
+    expect(find.text('Solicitudes'), findsNothing);
+    expect(find.text('Cuenta'), findsNothing);
+  });
+
   testWidgets('provider without business sees publish action', (tester) async {
-    await _pumpDrawer(tester, businesses: const []);
+    await _pumpDrawer(tester, role: ProfileRole.provider, businesses: const []);
 
     expect(find.text('¿Ofreces un servicio?'), findsOneWidget);
     expect(find.text('Publica en Ranco Conecta'), findsOneWidget);
   });
 
   testWidgets('draft business prompts continuing publication', (tester) async {
-    await _pumpDrawer(tester, businesses: [_business('draft')]);
+    await _pumpDrawer(tester,
+        role: ProfileRole.provider, businesses: [_business('draft')]);
 
     expect(find.text('Continuar publicación'), findsOneWidget);
   });
 
   testWidgets('pending review business shows review state', (tester) async {
-    await _pumpDrawer(tester, businesses: [_business('pending_review')]);
+    await _pumpDrawer(tester,
+        role: ProfileRole.provider, businesses: [_business('pending_review')]);
 
     expect(find.text('Negocio en revisión'), findsOneWidget);
   });
 
   testWidgets('changes requested business prompts correction', (tester) async {
-    await _pumpDrawer(tester, businesses: [_business('changes_requested')]);
+    await _pumpDrawer(tester,
+        role: ProfileRole.provider,
+        businesses: [_business('changes_requested')]);
 
     expect(find.text('Corregir publicación'), findsOneWidget);
   });
 
   testWidgets('published business shows active business name', (tester) async {
-    await _pumpDrawer(tester, businesses: [_business('published')]);
+    await _pumpDrawer(tester,
+        role: ProfileRole.provider, businesses: [_business('published')]);
 
     expect(find.text('Servicios Ranco'), findsOneWidget);
   });
 
   testWidgets('suspended business shows suspended state', (tester) async {
-    await _pumpDrawer(tester, businesses: [_business('suspended')]);
+    await _pumpDrawer(tester,
+        role: ProfileRole.provider, businesses: [_business('suspended')]);
 
     expect(find.text('Negocio suspendido'), findsOneWidget);
   });
@@ -80,6 +133,22 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('ADMINISTRACIÓN'), findsOneWidget);
+    expect(find.text('Panel administrativo'), findsOneWidget);
+    expect(find.text('¿Ofreces un servicio?'), findsNothing);
+  });
+
+  testWidgets('admin with historical ownership only sees admin destination',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _pumpDrawer(
+      tester,
+      role: ProfileRole.admin,
+      businesses: [_business('published')],
+    );
+
+    expect(find.text('MI NEGOCIO'), findsNothing);
+    expect(find.text('Servicios Ranco'), findsNothing);
     expect(find.text('Panel administrativo'), findsOneWidget);
   });
 
@@ -114,7 +183,8 @@ void main() {
   });
 
   testWidgets('provider CTA is hidden when business exists', (tester) async {
-    await _pumpDrawer(tester, businesses: [_business('published')]);
+    await _pumpDrawer(tester,
+        role: ProfileRole.provider, businesses: [_business('published')]);
 
     expect(find.text('¿Ofreces un servicio?'), findsNothing);
   });
@@ -133,6 +203,26 @@ void main() {
 
     expect(find.text('Ruta /sign-in'), findsOneWidget);
     expect(find.text('Cerrar sesión'), findsNothing);
+  });
+
+  testWidgets('provider logout clears selected active business',
+      (tester) async {
+    await _pumpDrawer(
+      tester,
+      role: ProfileRole.provider,
+      businesses: [_business('published')],
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.text('Cerrar sesión')),
+    );
+    container.read(activeProviderBusinessIdProvider.notifier).state =
+        'business-published';
+
+    await tester.tap(find.text('Cerrar sesión'));
+    await tester.pumpAndSettle();
+
+    expect(container.read(activeProviderBusinessIdProvider), isNull);
+    expect(find.text('Ruta /sign-in'), findsOneWidget);
   });
 
   testWidgets('drawer has no overflow at 360px', (tester) async {
@@ -163,6 +253,7 @@ Future<void> _pumpDrawer(
     emailConfirmed: true,
   ),
   ProfileRole role = ProfileRole.customer,
+  bool completeVisitorProfile = false,
   List<ProviderBusinessSummary>? businesses,
   bool chatEnabled = true,
   int unreadMessages = 0,
@@ -172,7 +263,7 @@ Future<void> _pumpDrawer(
   final profile = Profile(
     id: user?.id ?? 'user-1',
     fullName: user == null ? null : 'Bruno',
-    phone: null,
+    phone: completeVisitorProfile ? '+56 9 1234 5678' : null,
     avatarUrl: null,
     role: role,
     accountStatus: 'active',
@@ -301,6 +392,9 @@ class _FakeAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<Result<AuthUser>> signInAnonymously() async => Success(user!);
+
+  @override
   Future<Result<void>> signOut() async {
     return const Success(null);
   }
@@ -310,6 +404,7 @@ class _FakeAuthRepository implements AuthRepository {
     required String fullName,
     required String email,
     required String password,
+    bool consentAccepted = false,
   }) async {
     return Success(user);
   }

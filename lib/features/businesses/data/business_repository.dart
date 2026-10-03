@@ -24,6 +24,7 @@ class BusinessQuery {
     this.verifiedOnly = false,
     this.featuredOnly = false,
     this.limit = 50,
+    this.offset = 0,
   });
 
   final String? categoryId;
@@ -35,12 +36,24 @@ class BusinessQuery {
   final bool featuredOnly;
 
   final int limit;
+  final int offset;
+}
+
+class BusinessPage {
+  const BusinessPage(
+      {required this.items, required this.nextOffset, required this.hasMore});
+
+  final List<Business> items;
+  final int nextOffset;
+  final bool hasMore;
 }
 
 abstract interface class BusinessRepository {
   Future<Result<List<Business>>> listPublishedBusinesses(
     BusinessQuery query,
   );
+
+  Future<Result<BusinessPage>> listPublishedBusinessesPage(BusinessQuery query);
 
   Future<Result<Business>> getBusinessById(
     String id,
@@ -108,17 +121,52 @@ business_media(
   Future<Result<List<Business>>> listPublishedBusinesses(
     BusinessQuery query,
   ) async {
+    final result = await listPublishedBusinessesPage(query);
+    return result.when(
+      success: (page) => Success(page.items),
+      failure: (failure) => Failure(failure),
+    );
+  }
+
+  @override
+  Future<Result<BusinessPage>> listPublishedBusinessesPage(
+    BusinessQuery query,
+  ) async {
     final client = _client;
 
     if (client == null) {
-      return const Success([]);
+      return const Success(
+          BusinessPage(items: [], nextOffset: 0, hasMore: false));
     }
 
     try {
+      // Coverage uses a separate alias so the card still receives all its
+      // locations. Category uses the existing primary category association,
+      // which also covers verticals without business_services rows.
+      final filterJoins = [
+        if (query.locationId != null)
+          'location_match:business_coverage!inner(location_id)',
+      ];
+      final select =
+          filterJoins.isEmpty ? _select : '$_select,${filterJoins.join(',')}';
       var request = client
           .from('businesses')
-          .select(_select)
+          .select(select)
           .eq('publication_status', 'published');
+
+      if (query.categoryId != null) {
+        request = request.eq(
+          'primary_category_id',
+          query.categoryId!,
+        );
+      }
+
+      if (query.locationId != null) {
+        request = request.eq(
+          'location_match.location_id',
+          query.locationId!,
+        );
+      }
 
       if (query.verifiedOnly) {
         request = request.eq(
@@ -147,9 +195,12 @@ business_media(
             'created_at',
             ascending: false,
           )
-          .limit(query.limit);
+          .order('id', ascending: false)
+          .range(query.offset, query.offset + query.limit);
 
-      var businesses = rows
+      final pageRows = rows.take(query.limit).toList();
+
+      var businesses = pageRows
           .map(
             (row) => BusinessDto.fromJson(row).toDomain(),
           )
@@ -165,27 +216,11 @@ business_media(
             .toList();
       }
 
-      if (query.categoryId != null) {
-        businesses = businesses
-            .where(
-              (business) => business.services.any(
-                (service) => service.subcategory.categoryId == query.categoryId,
-              ),
-            )
-            .toList();
-      }
-
-      if (query.locationId != null) {
-        businesses = businesses
-            .where(
-              (business) => business.coverage.any(
-                (location) => location.id == query.locationId,
-              ),
-            )
-            .toList();
-      }
-
-      return Success(businesses);
+      return Success(BusinessPage(
+        items: businesses,
+        nextOffset: query.offset + pageRows.length,
+        hasMore: rows.length > query.limit,
+      ));
     } catch (error) {
       AppLogger.dataQueryFailure(
         feature: 'businesses',

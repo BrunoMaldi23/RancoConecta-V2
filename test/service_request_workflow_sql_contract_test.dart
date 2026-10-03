@@ -7,6 +7,10 @@ void main() {
       'supabase/migrations/20260923143000_service_request_quote_operations.sql';
   const locationMigration =
       'supabase/migrations/20260923170000_request_location_attachments_reject_quote.sql';
+  const visitorContactMigration =
+      'supabase/migrations/20260930120000_provider_request_contact_details.sql';
+  const anonymousBusinessGuardMigration =
+      'supabase/migrations/20260930121000_reject_anonymous_business_management.sql';
 
   test('service request workflow exposes backend-side matching and queue RPCs',
       () {
@@ -90,6 +94,25 @@ void main() {
     expect(rejectSql, contains("v_quote.status::text <> 'pending'"));
     expect(rejectSql, contains("set status = 'rejected'"));
     expect(rejectSql, isNot(contains('insert into public.operations')));
+  });
+
+  test('provider contact details remain business-scoped', () {
+    final sql = _read(visitorContactMigration);
+    expect(sql, contains('function public.provider_request_contacts'));
+    expect(sql, contains('public.user_can_manage_business(p_business_id)'));
+    expect(sql, contains('public.request_is_visible_to_business'));
+    expect(sql, contains('join public.profiles'));
+    expect(sql, contains('guest_name text'));
+    expect(sql, contains('guest_phone text'));
+    expect(sql, contains('from public, anon'));
+  });
+
+  test('anonymous visitors cannot create or manage businesses', () {
+    final sql = _read(anonymousBusinessGuardMigration);
+    expect(sql, contains('function public.user_can_manage_business'));
+    expect(sql, contains("auth.jwt() ->> 'is_anonymous'"));
+    expect(sql,
+        contains('before insert or update or delete on public.businesses'));
   });
 }
 

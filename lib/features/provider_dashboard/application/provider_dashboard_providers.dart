@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/app_config.dart';
 import '../../../shared/models/business_capability.dart';
+import '../../profile/application/profile_providers.dart';
 import '../data/business_media_repository.dart';
 import '../data/lodging_calendar_repository.dart';
 import '../data/lodging_details_repository.dart';
@@ -10,12 +11,8 @@ import '../data/service_business_management_repository.dart';
 import 'provider_context_state.dart';
 
 final myProviderBusinessProvider =
-    FutureProvider<ProviderBusinessSummary?>((ref) {
-  return ref
-      .watch(
-        providerBusinessRepositoryProvider,
-      )
-      .getMyBusiness();
+    FutureProvider<ProviderBusinessSummary?>((ref) async {
+  return ref.watch(activeProviderBusinessProvider.future);
 });
 
 final activeProviderBusinessIdProvider = StateProvider<String?>((ref) {
@@ -23,7 +20,11 @@ final activeProviderBusinessIdProvider = StateProvider<String?>((ref) {
 });
 
 final myProviderBusinessesProvider =
-    FutureProvider<List<ProviderBusinessSummary>>((ref) {
+    FutureProvider<List<ProviderBusinessSummary>>((ref) async {
+  final profile = await ref.watch(currentProfileProvider.future);
+  if (profile.role.canAccessAdmin) {
+    return const [];
+  }
   return ref
       .watch(
         providerBusinessRepositoryProvider,
@@ -33,6 +34,15 @@ final myProviderBusinessesProvider =
 
 final activeProviderBusinessProvider =
     FutureProvider<ProviderBusinessSummary?>((ref) async {
+  final profile = await ref.watch(currentProfileProvider.future);
+  if (profile.role.canAccessAdmin) {
+    if (ref.read(activeProviderBusinessIdProvider) != null) {
+      Future.microtask(() {
+        ref.read(activeProviderBusinessIdProvider.notifier).state = null;
+      });
+    }
+    return null;
+  }
   final businesses = await ref.watch(
     myProviderBusinessesProvider.future,
   );

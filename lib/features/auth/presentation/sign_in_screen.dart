@@ -9,16 +9,19 @@ import '../../../config/app_config.dart';
 import '../../../core/widgets/ranco_app_bar.dart';
 
 import '../../../theme/ranco_colors.dart';
+import '../../legal/presentation/consent_fields.dart';
 
 import '../data/supabase_auth_repository.dart';
 
 class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({
     this.nextRoute,
+    this.providerAccess = false,
     super.key,
   });
 
   final String? nextRoute;
+  final bool providerAccess;
 
   @override
   ConsumerState<SignInScreen> createState() => _SignInScreenState();
@@ -43,6 +46,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   @override
   Widget build(BuildContext context) {
     final config = ref.watch(appConfigProvider);
+    if (widget.providerAccess) return _buildProviderAccess(config);
 
     return Scaffold(
       backgroundColor: RancoColors.canvas,
@@ -335,6 +339,175 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProviderAccess(AppConfig config) {
+    final next = _safeNextRoute(widget.nextRoute);
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7F2),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.all(16),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: Card(
+                color: Colors.white,
+                elevation: 6,
+                shadowColor: const Color(0x24194532),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  side: const BorderSide(color: RancoColors.border),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(22),
+                  child: AutofillGroup(
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              onPressed: () => context.go(Uri(
+                                path: '/sign-in',
+                                queryParameters:
+                                    next == null ? null : {'next': next},
+                              ).toString()),
+                              icon: const Icon(Icons.arrow_back_rounded,
+                                  size: 18),
+                              label: const Text('Volver'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: RancoColors.primaryDark,
+                                minimumSize: const Size(44, 44),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Center(
+                            child: Image.asset(
+                              'assets/branding/ranco_logo_login.png',
+                              width: 252,
+                              height: 104,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                          const Text('PORTAL PARA NEGOCIOS LOCALES',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                  color: RancoColors.primaryDark,
+                                  fontSize: 10,
+                                  letterSpacing: 1.2,
+                                  fontWeight: FontWeight.w800)),
+                          const SizedBox(height: 7),
+                          const Text('Acceso proveedor',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                  color: RancoColors.textPrimary,
+                                  fontSize: 25,
+                                  fontWeight: FontWeight.w900)),
+                          const SizedBox(height: 4),
+                          const Text('Gestiona tu negocio en Ranco.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                  color: RancoColors.textSecondary,
+                                  fontSize: 13)),
+                          const SizedBox(height: 15),
+                          TextFormField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            autofillHints: const [AutofillHints.email],
+                            decoration: const InputDecoration(
+                              labelText: 'Correo',
+                              prefixIcon: Icon(Icons.mail_outline_rounded),
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                            validator: validateEmail,
+                          ),
+                          const SizedBox(height: 11),
+                          TextFormField(
+                            controller: _passwordController,
+                            obscureText: _obscurePassword,
+                            autofillHints: const [AutofillHints.password],
+                            onFieldSubmitted: (_) =>
+                                _loading ? null : _submit(),
+                            decoration: InputDecoration(
+                              labelText: 'Contraseña',
+                              prefixIcon:
+                                  const Icon(Icons.lock_outline_rounded),
+                              border: const OutlineInputBorder(),
+                              isDense: true,
+                              suffixIcon: IconButton(
+                                tooltip: _obscurePassword
+                                    ? 'Mostrar contraseña'
+                                    : 'Ocultar contraseña',
+                                onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword),
+                                icon: Icon(_obscurePassword
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined),
+                              ),
+                            ),
+                            validator: (value) => value == null || value.isEmpty
+                                ? 'Ingresa tu contraseña.'
+                                : null,
+                          ),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () => context.go(Uri(
+                                path: '/forgot-password',
+                                queryParameters:
+                                    next == null ? null : {'next': next},
+                              ).toString()),
+                              child: const Text('Olvidé mi contraseña'),
+                            ),
+                          ),
+                          if (_error != null)
+                            Text(_error!,
+                                style:
+                                    const TextStyle(color: Color(0xFFAA3D32))),
+                          const SizedBox(height: 7),
+                          SizedBox(
+                            height: 52,
+                            child: FilledButton(
+                              onPressed: _loading ? null : _submit,
+                              style: FilledButton.styleFrom(
+                                backgroundColor: RancoColors.primaryDark,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child:
+                                  Text(_loading ? 'Ingresando...' : 'Ingresar'),
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          TextButton(
+                            onPressed: () => context.go('/provider/join'),
+                            child:
+                                const Text('¿Aún no tienes acceso proveedor?'),
+                          ),
+                          if (!config.hasSupabaseConfig &&
+                              config.environment == AppEnvironment.development)
+                            const _InfoBanner(
+                                message:
+                                    'Modo desarrollo: falta configurar Supabase para iniciar sesión.'),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -1044,7 +1217,7 @@ class ProviderJoinScreen extends ConsumerWidget {
     final user = ref.watch(authRepositoryProvider).currentUser();
 
     void startPublication() {
-      if (user != null) {
+      if (user != null && !user.isAnonymous) {
         context.go('/provider/register');
         return;
       }
@@ -1060,7 +1233,7 @@ class ProviderJoinScreen extends ConsumerWidget {
 
     void signInToContinue() {
       final uri = Uri(
-        path: '/sign-in',
+        path: '/provider/sign-in',
         queryParameters: const {
           'next': '/provider/register',
         },
@@ -1074,18 +1247,21 @@ class ProviderJoinScreen extends ConsumerWidget {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final isNarrow = constraints.maxWidth < 370;
+            final wide = constraints.maxWidth >= 720;
 
             return SingleChildScrollView(
               padding: EdgeInsets.fromLTRB(
                 isNarrow ? 16 : 20,
-                14,
+                wide ? 40 : 14,
                 isNarrow ? 16 : 20,
-                24,
+                wide ? 40 : 24,
               ),
               child: Center(
+                // Desktop: columna de lectura de ~600px, no un formulario
+                // diminuto en el centro de la pantalla.
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(
-                    maxWidth: 440,
+                    maxWidth: 580,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1136,14 +1312,9 @@ class ProviderJoinScreen extends ConsumerWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 28),
+                      SizedBox(height: wide ? 32 : 28),
                       Container(
-                        padding: const EdgeInsets.fromLTRB(
-                          16,
-                          16,
-                          16,
-                          17,
-                        ),
+                        padding: EdgeInsets.all(wide ? 24 : 16),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF6FAF8),
                           borderRadius: BorderRadius.circular(18),
@@ -1176,7 +1347,7 @@ class ProviderJoinScreen extends ConsumerWidget {
                               'Haz visible tu negocio',
                               style: TextStyle(
                                 color: RancoColors.forest,
-                                fontSize: 23,
+                                fontSize: 26,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: -0.4,
                                 height: 1.05,
@@ -1187,42 +1358,57 @@ class ProviderJoinScreen extends ConsumerWidget {
                               'Crea tu perfil, completa la información y envíalo a revisión. Publicar inicialmente es gratis.',
                               style: TextStyle(
                                 color: RancoColors.textSecondary,
-                                fontSize: 13,
+                                fontSize: 14,
                                 height: 1.45,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 22),
-                      const _JoinStep(
-                        number: '01',
-                        title: 'Identifícate',
-                        subtitle:
-                            'Inicia sesión o crea tu acceso para gestionar la publicación.',
+                      const SizedBox(height: 20),
+                      // Pasos agrupados en una superficie; el CTA queda
+                      // inmediatamente debajo, como cierre del recorrido.
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: const Color(0xFFDDE7E2)),
+                        ),
+                        child: const Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _JoinStep(
+                              number: '01',
+                              title: 'Identifícate',
+                              subtitle:
+                                  'Inicia sesión o crea tu acceso para gestionar la publicación.',
+                            ),
+                            _JoinStep(
+                              number: '02',
+                              title: 'Completa tu negocio',
+                              subtitle:
+                                  'Agrega nombre, tipo, categoría, contacto e información principal.',
+                            ),
+                            _JoinStep(
+                              number: '03',
+                              title: 'Define dónde operas',
+                              subtitle:
+                                  'Selecciona la ubicación y las localidades donde atiendes.',
+                            ),
+                            _JoinStep(
+                              number: '04',
+                              title: 'Envía a revisión',
+                              subtitle:
+                                  'Revisaremos la información antes de publicar el negocio.',
+                              isLast: true,
+                            ),
+                          ],
+                        ),
                       ),
-                      const _JoinStep(
-                        number: '02',
-                        title: 'Completa tu negocio',
-                        subtitle:
-                            'Agrega nombre, tipo, categoría, contacto e información principal.',
-                      ),
-                      const _JoinStep(
-                        number: '03',
-                        title: 'Define dónde operas',
-                        subtitle:
-                            'Selecciona la ubicación y las localidades donde atiendes.',
-                      ),
-                      const _JoinStep(
-                        number: '04',
-                        title: 'Envía a revisión',
-                        subtitle:
-                            'Revisaremos la información antes de publicar el negocio.',
-                        isLast: true,
-                      ),
-                      const SizedBox(height: 22),
+                      const SizedBox(height: 16),
                       SizedBox(
-                        height: 48,
+                        height: 50,
                         child: FilledButton.icon(
                           onPressed: startPublication,
                           icon: const Icon(
@@ -1238,7 +1424,7 @@ class ProviderJoinScreen extends ConsumerWidget {
                             backgroundColor: RancoColors.forest,
                             foregroundColor: Colors.white,
                             textStyle: const TextStyle(
-                              fontSize: 13.5,
+                              fontSize: 14.5,
                               fontWeight: FontWeight.w800,
                             ),
                             shape: RoundedRectangleBorder(
@@ -1257,7 +1443,7 @@ class ProviderJoinScreen extends ConsumerWidget {
                           child: const Text(
                             'Ya tengo una cuenta',
                             style: TextStyle(
-                              fontSize: 12.5,
+                              fontSize: 13.5,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -1269,7 +1455,7 @@ class ProviderJoinScreen extends ConsumerWidget {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: RancoColors.textSecondary,
-                          fontSize: 11.5,
+                          fontSize: 12.5,
                         ),
                       ),
                     ],
@@ -1322,7 +1508,7 @@ class _JoinStep extends StatelessWidget {
                     number,
                     style: const TextStyle(
                       color: RancoColors.forest,
-                      fontSize: 10.5,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
@@ -1354,7 +1540,7 @@ class _JoinStep extends StatelessWidget {
                     title,
                     style: const TextStyle(
                       color: RancoColors.textPrimary,
-                      fontSize: 13.5,
+                      fontSize: 15,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -1363,8 +1549,8 @@ class _JoinStep extends StatelessWidget {
                     subtitle,
                     style: const TextStyle(
                       color: RancoColors.textSecondary,
-                      fontSize: 12,
-                      height: 1.35,
+                      fontSize: 13,
+                      height: 1.4,
                     ),
                   ),
                 ],
@@ -1404,6 +1590,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
   bool _obscurePassword = true;
 
+  bool _acceptedTerms = false;
+  bool _acceptedPrivacy = false;
+  bool _acceptedDataProcessing = false;
+
   String? _message;
 
   String? _error;
@@ -1431,161 +1621,213 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       appBar: RancoAppBar(
         title: providerFlow ? 'Crear acceso' : 'Crear cuenta',
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 460),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    providerFlow ? 'Crea tu acceso' : 'Crear cuenta',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    providerFlow
-                        ? 'Necesitas un acceso para guardar tu publicación y administrar tu negocio.'
-                        : 'Crea tu acceso para guardar favoritos, gestionar solicitudes y usar las funciones de Ranco Conecta.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                  const SizedBox(height: 22),
-                  TextFormField(
-                    controller: _nameController,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Nombre completo',
-                      prefixIcon: Icon(
-                        Icons.person_outline_rounded,
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Ingresa tu nombre.';
-                      }
-
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Correo',
-                      prefixIcon: Icon(
-                        Icons.mail_outline_rounded,
-                      ),
-                    ),
-                    validator: validateEmail,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      labelText: 'Contraseña',
-                      prefixIcon: const Icon(
-                        Icons.lock_outline_rounded,
-                      ),
-                      suffixIcon: IconButton(
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
-                        ),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.length < 8) {
-                        return 'Usa al menos 8 caracteres.';
-                      }
-
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _confirmPasswordController,
-                    obscureText: _obscurePassword,
-                    decoration: const InputDecoration(
-                      labelText: 'Confirmar contraseña',
-                      prefixIcon: Icon(
-                        Icons.lock_reset_outlined,
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value != _passwordController.text) {
-                        return 'Las contraseñas no coinciden.';
-                      }
-
-                      return null;
-                    },
-                  ),
-                  if (_message != null) ...[
-                    const SizedBox(height: 12),
-                    _InfoBanner(
-                      message: _message!,
-                    ),
-                  ],
-                  if (_error != null) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      _error!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 20),
-                  FilledButton.icon(
-                    onPressed: _loading ? null : _signUp,
-                    icon: _loading
-                        ? const SizedBox.square(
-                            dimension: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Icon(
-                            Icons.person_add_outlined,
-                          ),
-                    label: Text(
-                      providerFlow ? 'Crear acceso' : 'Crear cuenta',
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      final next = _safeNextRoute(widget.nextRoute);
-                      final uri = Uri(
-                        path: '/sign-in',
-                        queryParameters: next == null ? null : {'next': next},
-                      );
-                      context.go(uri.toString());
-                    },
-                    child: const Text('Volver'),
-                  ),
-                ],
+      body: LayoutBuilder(builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 600;
+        final form = Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Image.asset(
+                  'assets/branding/ranco_logo_login.png',
+                  height: 56,
+                  fit: BoxFit.contain,
+                  semanticLabel: 'Ranco Conecta',
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
               ),
+              const SizedBox(height: 14),
+              Text(
+                providerFlow ? 'Crea tu acceso' : 'Crear cuenta',
+                textAlign: wide ? TextAlign.center : TextAlign.start,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: RancoColors.textPrimary,
+                      fontWeight: FontWeight.w900,
+                    ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                providerFlow
+                    ? 'Necesitas un acceso para guardar tu publicación y administrar tu negocio.'
+                    : 'Crea tu acceso para guardar favoritos, gestionar solicitudes y usar las funciones de Ranco Conecta.',
+                textAlign: wide ? TextAlign.center : TextAlign.start,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+              const SizedBox(height: 22),
+              TextFormField(
+                controller: _nameController,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Nombre completo',
+                  prefixIcon: Icon(
+                    Icons.person_outline_rounded,
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Ingresa tu nombre.';
+                  }
+
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Correo',
+                  prefixIcon: Icon(
+                    Icons.mail_outline_rounded,
+                  ),
+                ),
+                validator: validateEmail,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _passwordController,
+                obscureText: _obscurePassword,
+                decoration: InputDecoration(
+                  labelText: 'Contraseña',
+                  prefixIcon: const Icon(
+                    Icons.lock_outline_rounded,
+                  ),
+                  suffixIcon: IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                    ),
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.length < 8) {
+                    return 'Usa al menos 8 caracteres.';
+                  }
+
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _confirmPasswordController,
+                obscureText: _obscurePassword,
+                decoration: const InputDecoration(
+                  labelText: 'Confirmar contraseña',
+                  prefixIcon: Icon(
+                    Icons.lock_reset_outlined,
+                  ),
+                ),
+                validator: (value) {
+                  if (value != _passwordController.text) {
+                    return 'Las contraseñas no coinciden.';
+                  }
+
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              ConsentFields(
+                terms: _acceptedTerms,
+                privacy: _acceptedPrivacy,
+                dataProcessing: _acceptedDataProcessing,
+                onTerms: (value) => setState(() => _acceptedTerms = value),
+                onPrivacy: (value) => setState(() => _acceptedPrivacy = value),
+                onDataProcessing: (value) =>
+                    setState(() => _acceptedDataProcessing = value),
+              ),
+              if (_message != null) ...[
+                const SizedBox(height: 12),
+                _InfoBanner(
+                  message: _message!,
+                ),
+              ],
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _error!,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  backgroundColor: RancoColors.forest,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: _loading ? null : _signUp,
+                icon: _loading
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.person_add_outlined,
+                      ),
+                label: Text(
+                  providerFlow ? 'Crear acceso' : 'Crear cuenta',
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  final next = _safeNextRoute(widget.nextRoute);
+                  final uri = Uri(
+                    path: '/sign-in',
+                    queryParameters: next == null ? null : {'next': next},
+                  );
+                  context.go(uri.toString());
+                },
+                child: const Text('Ya tengo una cuenta · Ingresar'),
+              ),
+            ],
+          ),
+        );
+        return SingleChildScrollView(
+          padding: EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: wide ? 32 : 16,
+          ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: wide
+                  ? Container(
+                      padding: const EdgeInsets.fromLTRB(28, 24, 28, 20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: RancoColors.border),
+                      ),
+                      child: form,
+                    )
+                  : form,
             ),
           ),
-        ),
-      ),
+        );
+      }),
     );
   }
 
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) {
+      return;
+    }
+    if (!_acceptedTerms || !_acceptedPrivacy || !_acceptedDataProcessing) {
+      setState(() =>
+          _error = 'Acepta los tres consentimientos para crear tu cuenta.');
       return;
     }
 
@@ -1601,6 +1843,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           fullName: _nameController.text.trim(),
           email: _emailController.text.trim(),
           password: _passwordController.text,
+          consentAccepted: true,
         );
 
     if (!mounted) return;

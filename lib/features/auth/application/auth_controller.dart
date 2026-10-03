@@ -7,3 +7,20 @@ final authStateProvider = StreamProvider<AuthUser?>((ref) {
   final repository = ref.watch(authRepositoryProvider);
   return repository.observeAuthState();
 });
+
+enum AuthPhase {
+  initializing,
+  authenticated,
+  anonymous,
+  unauthenticated,
+  error
+}
+
+final authPhaseProvider = Provider<AuthPhase>((ref) {
+  final auth = ref.watch(authStateProvider);
+  if (auth.hasError) return AuthPhase.error;
+  if (!auth.hasValue) return AuthPhase.initializing;
+  final user = auth.valueOrNull;
+  if (user == null) return AuthPhase.unauthenticated;
+  return user.isAnonymous ? AuthPhase.anonymous : AuthPhase.authenticated;
+});

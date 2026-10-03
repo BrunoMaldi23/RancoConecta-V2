@@ -3,15 +3,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/layout/ranco_responsive.dart';
+import '../../../core/telemetry/telemetry.dart';
 import '../../../core/widgets/ranco_error_state.dart';
+import '../../../core/widgets/ranco_site_footer.dart';
 import '../../../core/widgets/ranco_skeleton.dart';
+import '../../../features/discovery/application/business_card_data.dart';
+import '../../../features/discovery/application/business_card_providers.dart';
+import '../../../features/discovery/application/explore_businesses_provider.dart';
 import '../../../features/businesses/application/business_providers.dart';
 import '../../../features/businesses/presentation/business_card.dart';
 import '../../../features/categories/application/category_providers.dart';
+import '../../../features/categories/presentation/category_editorial_order.dart';
 import '../../../features/locations/application/location_providers.dart';
+import '../../../features/locations/presentation/location_selector.dart';
 import '../../../shared/models/business.dart';
 import '../../../shared/models/location.dart';
 import '../../../theme/ranco_colors.dart';
+import '../../../theme/ranco_tokens.dart';
 
 class ExploreScreen extends ConsumerStatefulWidget {
   const ExploreScreen({super.key});
@@ -43,16 +51,26 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   @override
   Widget build(BuildContext context) {
     final categories = ref.watch(categoriesProvider);
-    final businesses = ref.watch(publishedBusinessesProvider);
-
     final selectedCategoryId = ref.watch(selectedCategoryIdProvider);
     final selectedLocation = ref.watch(selectedLocationProvider);
 
-    final verified = ref.watch(verifiedOnlyProvider);
+    // "Verificado" no se expone públicamente: el filtro queda siempre apagado.
     final featured = ref.watch(featuredOnlyProvider);
     final openNow = ref.watch(openNowOnlyProvider);
 
     final searchQuery = ref.watch(businessSearchQueryProvider);
+    final filters = (
+      categoryId: selectedCategoryId,
+      locationId: selectedLocation?.id,
+      search: searchQuery.trim(),
+      verifiedOnly: false,
+      featuredOnly: featured,
+      openNowOnly: openNow,
+    );
+    final businesses = ref.watch(exploreBusinessesProvider(filters));
+    final cardDataById =
+        ref.watch(exploreBusinessCardDataProvider(filters)).valueOrNull ??
+            const <String, BusinessCardData>{};
 
     ref.listen<String>(
       businessSearchQueryProvider,
@@ -82,9 +100,11 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
       },
       orElse: () => null,
     );
+    final activeCategoryName = selectedCategoryId == null
+        ? null
+        : selectedCategoryName ?? 'Seleccionada';
 
     final advancedFilterCount = [
-      verified,
       featured,
       openNow,
     ].where((value) => value).length;
@@ -93,127 +113,167 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         selectedCategoryId != null ||
         advancedFilterCount > 0 ||
         searchQuery.trim().isNotEmpty;
-    final desktop = MediaQuery.sizeOf(context).width >= 1200;
+    final desktop =
+        MediaQuery.sizeOf(context).width >= RancoBreakpoints.twoPane;
 
     if (desktop) {
       return ColoredBox(
         color: RancoColors.canvas,
         child: SafeArea(
-          child: Column(
-            children: [
-              _ExploreWideContainer(
-                child: _ExploreHeader(
-                  searchController: _searchController,
-                  searchFocusNode: _searchFocusNode,
-                  selectedLocation: selectedLocation,
-                  selectedCategoryName: selectedCategoryName,
-                  advancedFilterCount: advancedFilterCount,
-                  onSearchChanged: (value) {
-                    ref.read(businessSearchQueryProvider.notifier).state =
-                        value.trimLeft();
-                    setState(() {});
-                  },
-                  onSearch: _submitSearch,
-                  onClearSearch: _clearSearch,
-                  onLocationTap: () => _showLocationPicker(context),
-                  onLocationClear: selectedLocation == null
-                      ? null
-                      : () {
-                          ref.read(selectedLocationProvider.notifier).state =
-                              null;
-                        },
-                  onCategoryTap: () => context.push('/categories'),
-                  onCategoryClear: selectedCategoryId == null
-                      ? null
-                      : () {
-                          ref.read(selectedCategoryIdProvider.notifier).state =
-                              null;
-                        },
-                  onFiltersTap: () => _showFilters(context),
-                ),
-              ),
-              Expanded(
+          child: CustomScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            slivers: [
+              SliverToBoxAdapter(
                 child: _ExploreWideContainer(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 256,
-                        child: _DesktopFiltersPanel(
-                          location: selectedLocation,
-                          categoryName: selectedCategoryName,
-                          advancedFilterCount: advancedFilterCount,
-                          onLocationTap: () => _showLocationPicker(context),
-                          onLocationClear: selectedLocation == null
-                              ? null
-                              : () {
-                                  ref
-                                      .read(selectedLocationProvider.notifier)
-                                      .state = null;
-                                },
-                          onCategoryTap: () => context.push('/categories'),
-                          onCategoryClear: selectedCategoryId == null
-                              ? null
-                              : () {
-                                  ref
-                                      .read(
-                                        selectedCategoryIdProvider.notifier,
-                                      )
-                                      .state = null;
-                                },
-                          onClearAll: _clearAll,
-                        ),
-                      ),
-                      const SizedBox(width: 22),
-                      Expanded(
-                        child: businesses.when(
-                          data: (items) {
-                            if (items.isEmpty) {
-                              return _CompactEmptyState(
-                                query: searchQuery,
-                                hasFilters: hasAnyFilter,
-                                onClear: _clearAll,
-                                onCategories: () => context.push('/categories'),
-                              );
-                            }
-
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 14),
-                                  child: _ResultsHeader(
-                                    count: items.length,
-                                    locationName: selectedLocation?.name,
-                                  ),
-                                ),
-                                Expanded(
-                                  child: _BusinessResultsGrid(
-                                    businesses: items,
-                                  ),
-                                ),
-                              ],
-                            );
+                  child: _ExploreHeader(
+                    searchController: _searchController,
+                    searchFocusNode: _searchFocusNode,
+                    selectedLocation: selectedLocation,
+                    selectedCategoryName: activeCategoryName,
+                    advancedFilterCount: advancedFilterCount,
+                    onSearchChanged: (value) {
+                      ref.read(businessSearchQueryProvider.notifier).state =
+                          value.trimLeft();
+                      setState(() {});
+                    },
+                    onSearch: _submitSearch,
+                    onClearSearch: _clearSearch,
+                    onLocationTap: () => _showLocationPicker(context),
+                    onLocationClear: selectedLocation == null
+                        ? null
+                        : () {
+                            ref.read(selectedLocationProvider.notifier).state =
+                                null;
                           },
-                          loading: () => const Column(
-                            children: [
-                              RancoSkeleton(height: 190),
-                              SizedBox(height: 10),
-                              RancoSkeleton(height: 190),
-                            ],
-                          ),
-                          error: (error, stackTrace) => RancoErrorState(
-                            message: businessFailureMessage(error),
-                            onRetry: () {
-                              ref.invalidate(publishedBusinessesProvider);
-                            },
-                          ),
-                        ),
-                      ),
-                    ],
+                    onCategoryTap: () => context.push('/categories'),
+                    onCategoryClear: selectedCategoryId == null
+                        ? null
+                        : () {
+                            ref
+                                .read(selectedCategoryIdProvider.notifier)
+                                .state = null;
+                          },
+                    onFiltersTap: () => _showFilters(context),
                   ),
                 ),
               ),
+              SliverToBoxAdapter(
+                child: _ExploreWideContainer(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 32),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        const panelWidth = 248.0;
+                        const gap = 24.0;
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(
+                              width: panelWidth,
+                              child: _DesktopFiltersPanel(
+                                location: selectedLocation,
+                                categoryName: activeCategoryName,
+                                advancedFilterCount: advancedFilterCount,
+                                hasAnyFilter: hasAnyFilter,
+                                onLocationTap: () =>
+                                    _showLocationPicker(context),
+                                onLocationClear: selectedLocation == null
+                                    ? null
+                                    : () {
+                                        ref
+                                            .read(selectedLocationProvider
+                                                .notifier)
+                                            .state = null;
+                                      },
+                                onCategoryTap: () =>
+                                    context.push('/categories'),
+                                onCategoryClear: selectedCategoryId == null
+                                    ? null
+                                    : () {
+                                        ref
+                                            .read(selectedCategoryIdProvider
+                                                .notifier)
+                                            .state = null;
+                                      },
+                                onClearAll: _clearAll,
+                              ),
+                            ),
+                            const SizedBox(width: gap),
+                            SizedBox(
+                              width: constraints.maxWidth - panelWidth - gap,
+                              child: businesses.when(
+                                data: (result) {
+                                  final items = result.items;
+                                  if (items.isEmpty && !result.hasMore) {
+                                    return _CompactEmptyState(
+                                      query: searchQuery,
+                                      hasFilters: hasAnyFilter,
+                                      onClear: _clearAll,
+                                      onCategories: () =>
+                                          context.push('/categories'),
+                                    );
+                                  }
+
+                                  return Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Padding(
+                                        padding:
+                                            const EdgeInsets.only(bottom: 14),
+                                        child: _ResultsHeader(
+                                          count: items.length,
+                                          hasMore: result.hasMore,
+                                          categoryName: activeCategoryName,
+                                          locationName: selectedLocation?.name,
+                                        ),
+                                      ),
+                                      if (items.isNotEmpty)
+                                        _BusinessResultsGrid(
+                                          businesses: items,
+                                          cardDataById: cardDataById,
+                                        )
+                                      else
+                                        const Text(
+                                            'Aún no hay coincidencias en los negocios cargados.'),
+                                      if (result.hasMore)
+                                        _LoadMoreResults(
+                                          result: result,
+                                          onPressed: () => ref
+                                              .read(
+                                                exploreBusinessesProvider(
+                                                        filters)
+                                                    .notifier,
+                                              )
+                                              .loadMore(),
+                                        ),
+                                    ],
+                                  );
+                                },
+                                loading: () => const Column(
+                                  children: [
+                                    RancoSkeleton(height: 190),
+                                    SizedBox(height: 10),
+                                    RancoSkeleton(height: 190),
+                                  ],
+                                ),
+                                error: (error, stackTrace) => RancoErrorState(
+                                  message: businessFailureMessage(error),
+                                  onRetry: () {
+                                    ref.invalidate(
+                                        exploreBusinessesProvider(filters));
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+              const RancoFooterSliver(),
             ],
           ),
         ),
@@ -234,12 +294,14 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                   searchController: _searchController,
                   searchFocusNode: _searchFocusNode,
                   selectedLocation: selectedLocation,
-                  selectedCategoryName: selectedCategoryName,
+                  selectedCategoryName: activeCategoryName,
                   advancedFilterCount: advancedFilterCount,
                   resultHeader: businesses.maybeWhen(
-                    data: (items) {
+                    data: (result) {
                       return _ResultsHeader(
-                        count: items.length,
+                        count: result.items.length,
+                        hasMore: result.hasMore,
+                        categoryName: activeCategoryName,
                         locationName: selectedLocation?.name,
                       );
                     },
@@ -273,10 +335,19 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             ),
           ),
           businesses.when(
-            data: (items) {
+            data: (result) {
+              final items = result.items;
+              if (items.isEmpty && result.hasMore) {
+                return const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Text(
+                        'Aún no hay coincidencias en los negocios cargados.'),
+                  ),
+                );
+              }
               if (items.isEmpty) {
-                return SliverFillRemaining(
-                  hasScrollBody: false,
+                return SliverToBoxAdapter(
                   child: Align(
                     alignment: Alignment.topCenter,
                     child: ConstrainedBox(
@@ -288,7 +359,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                           20,
                           32,
                           20,
-                          90,
+                          32,
                         ),
                         child: _CompactEmptyState(
                           query: searchQuery,
@@ -315,7 +386,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                   builder: (context, constraints) {
                     final width = constraints.crossAxisExtent;
 
-                    if (width < 800) {
+                    if (width < 711) {
                       return SliverList.separated(
                         itemCount: items.length,
                         separatorBuilder: (_, __) {
@@ -329,6 +400,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                               ),
                               child: BusinessCard(
                                 business: items[index],
+                                variant: BusinessCardVariant.explore,
+                                exploreData: cardDataById[items[index].id],
                               ),
                             ),
                           );
@@ -336,21 +409,11 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                       );
                     }
 
-                    return SliverGrid(
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                        childAspectRatio: 0.9,
-                      ),
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          return BusinessCard(
-                            business: items[index],
-                          );
-                        },
-                        childCount: items.length,
+                    return SliverToBoxAdapter(
+                      child: _BusinessResultsGrid(
+                        businesses: items,
+                        cardDataById: cardDataById,
+                        maxColumns: 3,
                       ),
                     );
                   },
@@ -381,19 +444,30 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               );
             },
             error: (error, stackTrace) {
-              return SliverFillRemaining(
-                hasScrollBody: false,
+              return SliverToBoxAdapter(
                 child: RancoErrorState(
                   message: businessFailureMessage(error),
                   onRetry: () {
                     ref.invalidate(
-                      publishedBusinessesProvider,
+                      exploreBusinessesProvider(filters),
                     );
                   },
                 ),
               );
             },
           ),
+          if (businesses.valueOrNull?.hasMore ?? false)
+            SliverToBoxAdapter(
+              child: _LoadMoreResults(
+                result: businesses.valueOrNull!,
+                onPressed: () => ref
+                    .read(
+                      exploreBusinessesProvider(filters).notifier,
+                    )
+                    .loadMore(),
+              ),
+            ),
+          const RancoFooterSliver(),
         ],
       ),
     );
@@ -401,6 +475,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
 
   void _submitSearch() {
     final query = _searchController.text.trim();
+    Telemetry.capture('search_business');
 
     ref.read(businessSearchQueryProvider.notifier).state = query;
 
@@ -419,36 +494,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     setState(() {});
   }
 
-  Future<void> _showLocationPicker(
-    BuildContext context,
-  ) async {
-    final width = MediaQuery.sizeOf(context).width;
-
-    if (width >= 800) {
-      await showDialog<void>(
-        context: context,
-        builder: (_) {
-          return const Dialog(
-            insetPadding: EdgeInsets.all(24),
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            child: _LocationPickerSheet(),
-          );
-        },
-      );
-
-      return;
-    }
-
-    await showModalBottomSheet<void>(
-      context: context,
-      useSafeArea: true,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) {
-        return const _LocationPickerSheet();
-      },
-    );
+  Future<void> _showLocationPicker(BuildContext context) {
+    return showLocationPicker(context, ref);
   }
 
   Future<void> _showFilters(
@@ -493,7 +540,7 @@ class _ExploreWideContainer extends StatelessWidget {
         ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(
-            maxWidth: 1480,
+            maxWidth: 1280,
           ),
           child: child,
         ),
@@ -635,7 +682,8 @@ class _ExploreHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final desktop = MediaQuery.sizeOf(context).width >= 1200;
+    final desktop =
+        MediaQuery.sizeOf(context).width >= RancoBreakpoints.twoPane;
 
     if (desktop) {
       return Padding(
@@ -678,6 +726,13 @@ class _ExploreHeader extends StatelessWidget {
               onLocationTap: onLocationTap,
               onCategoryTap: onCategoryTap,
             ),
+            if (selectedCategoryName != null && onCategoryClear != null) ...[
+              const SizedBox(height: 10),
+              _ActiveCategoryChip(
+                categoryName: selectedCategoryName!,
+                onClear: onCategoryClear!,
+              ),
+            ],
             const SizedBox(height: 12),
             _DesktopQuickCategories(
               onMoreTap: onCategoryTap,
@@ -734,12 +789,47 @@ class _ExploreHeader extends StatelessWidget {
               onFiltersTap: onFiltersTap,
             ),
           ],
+          if (selectedCategoryName != null && onCategoryClear != null) ...[
+            const SizedBox(height: 10),
+            _ActiveCategoryChip(
+              categoryName: selectedCategoryName!,
+              onClear: onCategoryClear!,
+            ),
+          ],
           if (resultHeader != null) ...[
             const SizedBox(height: 10),
             resultHeader!,
           ],
         ],
       ),
+    );
+  }
+}
+
+class _ActiveCategoryChip extends StatelessWidget {
+  const _ActiveCategoryChip({
+    required this.categoryName,
+    required this.onClear,
+  });
+
+  final String categoryName;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return InputChip(
+      label: Text('Categoría: $categoryName'),
+      onDeleted: onClear,
+      deleteIcon: const Icon(Icons.close_rounded, size: 18),
+      deleteButtonTooltipMessage: 'Quitar filtro de categoría',
+      backgroundColor: const Color(0xFFE7F2ED),
+      side: const BorderSide(color: Color(0xFFBDD8CB)),
+      labelStyle: const TextStyle(
+        color: RancoColors.forest,
+        fontSize: 12.5,
+        fontWeight: FontWeight.w700,
+      ),
+      visualDensity: VisualDensity.compact,
     );
   }
 }
@@ -990,7 +1080,7 @@ class _DesktopQuickCategories extends ConsumerWidget {
     }
 
     if (n.contains('turis') || n.contains('exper')) {
-      return Icons.explore_outlined;
+      return Icons.terrain_outlined;
     }
 
     if (n.contains('comerc') || n.contains('tienda')) {
@@ -1029,69 +1119,43 @@ class _DesktopQuickCategories extends ConsumerWidget {
         return const SizedBox.shrink();
       },
       data: (items) {
-        return LayoutBuilder(
-          builder: (
-            context,
-            constraints,
-          ) {
-            final width = constraints.maxWidth;
+        final visible = quickAccessCategories(items);
 
-            final visibleCount = width >= 1250
-                ? 9
-                : width >= 1080
-                    ? 8
-                    : width >= 900
-                        ? 7
-                        : 6;
-
-            final visible = items.take(visibleCount).toList();
-
-            return SizedBox(
-              width: double.infinity,
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: WrapAlignment.start,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  _DesktopCategoryChip(
-                    icon: Icons.apps_rounded,
-                    label: 'Todas',
-                    selected: selectedId == null,
-                    onTap: () {
-                      ref
-                          .read(
-                            selectedCategoryIdProvider.notifier,
-                          )
-                          .state = null;
-                    },
-                  ),
-                  for (final category in visible)
-                    _DesktopCategoryChip(
-                      icon: _iconFor(
-                        category.name,
-                      ),
-                      label: category.name,
-                      selected: selectedId == category.id,
-                      onTap: () {
-                        ref
-                            .read(
-                              selectedCategoryIdProvider.notifier,
-                            )
-                            .state = category.id;
-                      },
-                    ),
-                  if (items.length > visibleCount)
-                    _DesktopCategoryChip(
-                      icon: Icons.more_horiz_rounded,
-                      label: 'Más',
-                      selected: false,
-                      onTap: onMoreTap,
-                    ),
-                ],
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _DesktopCategoryChip(
+                icon: Icons.apps_rounded,
+                label: 'Todas',
+                selected: selectedId == null,
+                onTap: () {
+                  ref.read(selectedCategoryIdProvider.notifier).state = null;
+                },
               ),
-            );
-          },
+              for (final category in visible) ...[
+                const SizedBox(width: 8),
+                _DesktopCategoryChip(
+                  icon: _iconFor(category.name),
+                  label: quickAccessLabel(category),
+                  selected: selectedId == category.id,
+                  onTap: () {
+                    ref.read(selectedCategoryIdProvider.notifier).state =
+                        category.id;
+                  },
+                ),
+              ],
+              if (items.length > visible.length) ...[
+                const SizedBox(width: 8),
+                _DesktopCategoryChip(
+                  icon: Icons.more_horiz_rounded,
+                  label: 'Más',
+                  selected: false,
+                  onTap: onMoreTap,
+                ),
+              ],
+            ],
+          ),
         );
       },
     );
@@ -1176,6 +1240,7 @@ class _DesktopFiltersPanel extends ConsumerWidget {
     required this.location,
     required this.categoryName,
     required this.advancedFilterCount,
+    required this.hasAnyFilter,
     required this.onLocationTap,
     required this.onLocationClear,
     required this.onCategoryTap,
@@ -1186,6 +1251,7 @@ class _DesktopFiltersPanel extends ConsumerWidget {
   final Location? location;
   final String? categoryName;
   final int advancedFilterCount;
+  final bool hasAnyFilter;
 
   final VoidCallback onLocationTap;
   final VoidCallback? onLocationClear;
@@ -1200,24 +1266,14 @@ class _DesktopFiltersPanel extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) {
-    final verified = ref.watch(verifiedOnlyProvider);
-
     final featured = ref.watch(featuredOnlyProvider);
 
     final openNow = ref.watch(openNowOnlyProvider);
-    final hasAnyFilter =
-        location != null || categoryName != null || advancedFilterCount > 0;
-
     return Align(
       alignment: Alignment.topCenter,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(
-          16,
-          14,
-          16,
-          13,
-        ),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(19),
@@ -1295,7 +1351,7 @@ class _DesktopFiltersPanel extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 13),
+            const SizedBox(height: 8),
             const _ExploreFilterLabel(
               'UBICACIÓN',
             ),
@@ -1307,14 +1363,14 @@ class _DesktopFiltersPanel extends ConsumerWidget {
               onTap: onLocationTap,
               onClear: onLocationClear,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             const Divider(
               height: 1,
               color: Color(
                 0xFFE8EFEB,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             const _ExploreFilterLabel(
               'CATEGORÍA',
             ),
@@ -1326,30 +1382,18 @@ class _DesktopFiltersPanel extends ConsumerWidget {
               onTap: onCategoryTap,
               onClear: onCategoryClear,
             ),
-            const SizedBox(height: 13),
+            const SizedBox(height: 8),
             const Divider(
               height: 1,
               color: Color(
                 0xFFE8EFEB,
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
             const _ExploreFilterLabel(
               'PREFERENCIAS',
             ),
             const SizedBox(height: 2),
-            _DesktopSwitch(
-              icon: Icons.verified_outlined,
-              title: 'Verificados',
-              value: verified,
-              onChanged: (value) {
-                ref
-                    .read(
-                      verifiedOnlyProvider.notifier,
-                    )
-                    .state = value;
-              },
-            ),
             _DesktopSwitch(
               icon: Icons.star_outline_rounded,
               title: 'Destacados',
@@ -1394,10 +1438,10 @@ class _ExploreFilterLabel extends StatelessWidget {
       text,
       style: const TextStyle(
         color: Color(
-          0xFF899890,
+          0xFF6F8078,
         ),
-        fontSize: 9,
-        letterSpacing: .75,
+        fontSize: 11,
+        letterSpacing: .6,
         fontWeight: FontWeight.w800,
       ),
     );
@@ -1428,7 +1472,7 @@ class _DesktopFilterButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(11),
         child: Container(
-          height: 46,
+          height: 42,
           padding: const EdgeInsets.fromLTRB(
             10,
             0,
@@ -1462,7 +1506,7 @@ class _DesktopFilterButton extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: RancoColors.textPrimary,
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -1473,12 +1517,12 @@ class _DesktopFilterButton extends StatelessWidget {
                   tooltip: 'Quitar filtro',
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(
-                    minWidth: 27,
-                    minHeight: 27,
+                    minWidth: 32,
+                    minHeight: 32,
                   ),
                   icon: const Icon(
                     Icons.close_rounded,
-                    size: 15,
+                    size: 16,
                   ),
                 )
               else
@@ -1518,12 +1562,12 @@ class _DesktopSwitch extends StatelessWidget {
         },
         borderRadius: BorderRadius.circular(11),
         child: SizedBox(
-          height: 42,
+          height: 44,
           child: Row(
             children: [
               Container(
-                width: 25,
-                height: 25,
+                width: 28,
+                height: 28,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: value
@@ -1539,23 +1583,23 @@ class _DesktopSwitch extends StatelessWidget {
                 ),
                 child: Icon(
                   icon,
-                  size: 14,
+                  size: 16,
                   color: RancoColors.primary,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   title,
                   style: const TextStyle(
                     color: RancoColors.textPrimary,
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
               Transform.scale(
-                scale: .67,
+                scale: .78,
                 child: Switch(
                   value: value,
                   onChanged: onChanged,
@@ -1573,47 +1617,34 @@ class _DesktopSwitch extends StatelessWidget {
 class _BusinessResultsGrid extends StatelessWidget {
   const _BusinessResultsGrid({
     required this.businesses,
+    required this.cardDataById,
+    this.maxColumns = 4,
   });
 
   final List<Business> businesses;
+  final Map<String, BusinessCardData> cardDataById;
+  final int maxColumns;
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (
-        context,
-        constraints,
-      ) {
-        final columns = rancoGridColumns(
-          constraints.maxWidth,
-          minItemWidth: 280,
-          spacing: 18,
-          maxColumns: 3,
-        );
-
-        return GridView.builder(
-          padding: const EdgeInsets.only(
-            bottom: 28,
+    return RancoResponsiveGrid(
+      minItemWidth: 250,
+      spacing: 18,
+      runSpacing: 18,
+      maxColumns: maxColumns,
+      // Alturas iguales por fila: "Ver detalle" queda alineado.
+      equalHeightRows: true,
+      children: [
+        for (final business in businesses)
+          _ExploreBusinessCardShell(
+            child: BusinessCard(
+              business: business,
+              variant: BusinessCardVariant.explore,
+              exploreData: cardDataById[business.id],
+              fillHeight: true,
+            ),
           ),
-          itemCount: businesses.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            crossAxisSpacing: 18,
-            mainAxisSpacing: 18,
-            childAspectRatio: 0.94,
-          ),
-          itemBuilder: (
-            context,
-            index,
-          ) {
-            return _ExploreBusinessCardShell(
-              child: BusinessCard(
-                business: businesses[index],
-              ),
-            );
-          },
-        );
-      },
+      ],
     );
   }
 }
@@ -1845,98 +1876,85 @@ class _FilterPill extends StatelessWidget {
   }
 }
 
+class _LoadMoreResults extends StatelessWidget {
+  const _LoadMoreResults({required this.result, required this.onPressed});
+
+  final ExploreBusinessesState result;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 22),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (result.loadMoreError)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child:
+                    Text('No pudimos cargar más negocios. Inténtalo otra vez.'),
+              ),
+            OutlinedButton(
+              onPressed: result.loadingMore ? null : onPressed,
+              child: Text(
+                  result.loadingMore ? 'Cargando...' : 'Cargar más negocios'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ResultsHeader extends StatelessWidget {
   const _ResultsHeader({
     required this.count,
+    required this.hasMore,
+    this.categoryName,
     this.locationName,
   });
 
   final int count;
+  final bool hasMore;
+  final String? categoryName;
   final String? locationName;
 
   @override
   Widget build(BuildContext context) {
     final location = locationName?.trim();
-    final desktop = MediaQuery.sizeOf(context).width >= 1200;
+    final countText = '$count ${count == 1 ? 'prestador' : 'prestadores'}';
+    final title = categoryName == null
+        ? '$countText ${hasMore ? 'cargados' : 'encontrados'}'
+        : '$categoryName · $countText${hasMore ? ' cargados' : ''}';
 
-    if (desktop) {
-      return Container(
-        height: 38,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 14,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: const Color(0xFFDCE6E1),
-          ),
-        ),
-        child: Row(
-          children: [
-            Text(
-              '$count ${count == 1 ? 'resultado' : 'resultados'}',
-              style: const TextStyle(
-                color: RancoColors.textPrimary,
-                fontSize: 15,
-                fontWeight: FontWeight.w900,
-              ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: RancoColors.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
             ),
-            if (location != null && location.isNotEmpty) ...[
-              const SizedBox(width: 8),
-              Container(
-                width: 4,
-                height: 4,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFB5C5BD),
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'en $location',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: RancoColors.textSecondary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ] else
-              const Spacer(),
-          ],
-        ),
-      );
-    }
-
-    return Row(
-      children: [
-        Text(
-          '$count ${count == 1 ? 'resultado' : 'resultados'}',
-          style: const TextStyle(
-            color: RancoColors.forest,
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
           ),
-        ),
-        if (location != null && location.isNotEmpty) ...[
-          const SizedBox(width: 5),
-          Expanded(
-            child: Text(
+          if (location != null && location.isNotEmpty)
+            Text(
               'en $location',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: RancoColors.textSecondary,
                 fontSize: 12.5,
+                fontWeight: FontWeight.w500,
               ),
             ),
-          ),
         ],
-      ],
+      ),
     );
   }
 }
@@ -1964,7 +1982,7 @@ class _CompactEmptyState extends StatelessWidget {
             'Prueba con otra búsqueda o amplía los filtros.'
         : hasFilters
             ? 'No hay coincidencias con los filtros actuales.'
-            : 'Todavía no hay negocios disponibles en esta zona.';
+            : 'Estamos sumando nuevos lugares en Lago Ranco.';
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -1984,7 +2002,7 @@ class _CompactEmptyState extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         const Text(
-          'No encontramos resultados',
+          'No encontramos resultados todavía',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: RancoColors.textPrimary,
@@ -2035,331 +2053,6 @@ class _CompactEmptyState extends StatelessWidget {
   }
 }
 
-class _LocationPickerSheet extends ConsumerStatefulWidget {
-  const _LocationPickerSheet();
-
-  @override
-  ConsumerState<_LocationPickerSheet> createState() =>
-      _LocationPickerSheetState();
-}
-
-class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
-  late final TextEditingController _searchController;
-
-  @override
-  void initState() {
-    super.initState();
-    _searchController = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final desktop = MediaQuery.sizeOf(context).width >= 800;
-    final locations = ref.watch(locationsProvider);
-    final selected = ref.watch(selectedLocationProvider);
-
-    final content = locations.when(
-      data: (items) {
-        final query = _searchController.text.trim().toLowerCase();
-        final filtered = query.isEmpty
-            ? items
-            : items
-                .where(
-                  (location) => location.name.toLowerCase().contains(query),
-                )
-                .toList();
-
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _searchController,
-              textInputAction: TextInputAction.search,
-              onChanged: (_) {
-                setState(() {});
-              },
-              decoration: InputDecoration(
-                hintText: 'Buscar localidad...',
-                prefixIcon: const Icon(
-                  Icons.search_rounded,
-                  size: 19,
-                  color: RancoColors.primary,
-                ),
-                suffixIcon: query.isEmpty
-                    ? null
-                    : IconButton(
-                        tooltip: 'Limpiar búsqueda',
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() {});
-                        },
-                        icon: const Icon(
-                          Icons.close_rounded,
-                          size: 18,
-                        ),
-                      ),
-                filled: true,
-                fillColor: const Color(0xFFFBFDFC),
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 12,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(13),
-                  borderSide: const BorderSide(
-                    color: Color(0xFFD5E3DD),
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(13),
-                  borderSide: const BorderSide(
-                    color: RancoColors.primary,
-                    width: 1.25,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Flexible(
-              child: ListView(
-                shrinkWrap: true,
-                padding: EdgeInsets.zero,
-                children: [
-                  _LocationOption(
-                    label: 'Todas las localidades',
-                    selected: selected == null,
-                    onTap: () {
-                      ref.read(selectedLocationProvider.notifier).state = null;
-
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                  for (final location in filtered)
-                    _LocationOption(
-                      label: location.name,
-                      selected: selected?.id == location.id,
-                      onTap: () {
-                        ref.read(selectedLocationProvider.notifier).state =
-                            location;
-
-                        Navigator.of(context).pop();
-                      },
-                    ),
-                ],
-              ),
-            ),
-          ],
-        );
-      },
-      loading: () {
-        return const Padding(
-          padding: EdgeInsets.symmetric(
-            vertical: 30,
-          ),
-          child: Center(
-            child: CircularProgressIndicator(),
-          ),
-        );
-      },
-      error: (_, __) {
-        return const Padding(
-          padding: EdgeInsets.symmetric(
-            vertical: 20,
-          ),
-          child: Text(
-            'No pudimos cargar las localidades.',
-          ),
-        );
-      },
-    );
-
-    return _LocationPickerFrame(
-      desktop: desktop,
-      child: content,
-    );
-  }
-}
-
-class _LocationPickerFrame extends StatelessWidget {
-  const _LocationPickerFrame({
-    required this.desktop,
-    required this.child,
-  });
-
-  final bool desktop;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final maxHeight = MediaQuery.sizeOf(context).height * .8;
-
-    return Align(
-      alignment: desktop ? Alignment.center : Alignment.bottomCenter,
-      child: SafeArea(
-        top: desktop,
-        child: Material(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(desktop ? 22 : 24),
-            bottom: Radius.circular(desktop ? 22 : 0),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: 520,
-              maxHeight: desktop ? 680 : maxHeight,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                10,
-                20,
-                18,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (!desktop) ...[
-                    Center(
-                      child: Container(
-                        width: 38,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFD6E2DD),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Ubicación',
-                              style: TextStyle(
-                                color: RancoColors.forest,
-                                fontSize: 21,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            SizedBox(height: 2),
-                            Text(
-                              'Elige dónde quieres buscar.',
-                              style: TextStyle(
-                                color: RancoColors.textSecondary,
-                                fontSize: 12.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Cerrar',
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                        icon: const Icon(
-                          Icons.close_rounded,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Flexible(
-                    child: child,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LocationOption extends StatelessWidget {
-  const _LocationOption({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(
-        bottom: 6,
-      ),
-      child: Material(
-        color: selected ? const Color(0xFFE7F2ED) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            constraints: const BoxConstraints(
-              minHeight: 46,
-            ),
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-            ),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: const Color(0xFFD5E3DD),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.location_on_outlined,
-                  size: 18,
-                  color: RancoColors.forest,
-                ),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: const TextStyle(
-                      color: RancoColors.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                if (selected)
-                  const Icon(
-                    Icons.check_rounded,
-                    size: 19,
-                    color: RancoColors.forest,
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _FiltersSheet extends ConsumerStatefulWidget {
   const _FiltersSheet();
 
@@ -2368,7 +2061,6 @@ class _FiltersSheet extends ConsumerStatefulWidget {
 }
 
 class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
-  bool _verified = false;
   bool _featured = false;
   bool _openNow = false;
 
@@ -2376,7 +2068,6 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
   void initState() {
     super.initState();
 
-    _verified = ref.read(verifiedOnlyProvider);
     _featured = ref.read(featuredOnlyProvider);
     _openNow = ref.read(openNowOnlyProvider);
   }
@@ -2431,18 +2122,6 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
           mainAxisSize: MainAxisSize.min,
           children: [
             _PreferenceRow(
-              icon: Icons.verified_outlined,
-              title: 'Verificados',
-              subtitle: 'Negocios y prestadores verificados.',
-              value: _verified,
-              onChanged: (value) {
-                setState(() {
-                  _verified = value;
-                });
-              },
-            ),
-            const SizedBox(height: 7),
-            _PreferenceRow(
               icon: Icons.star_outline_rounded,
               title: 'Destacados',
               subtitle: 'Perfiles con mayor visibilidad.',
@@ -2473,14 +2152,13 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
 
   void _reset() {
     setState(() {
-      _verified = false;
       _featured = false;
       _openNow = false;
     });
   }
 
   void _apply() {
-    ref.read(verifiedOnlyProvider.notifier).state = _verified;
+    ref.read(verifiedOnlyProvider.notifier).state = false;
     ref.read(featuredOnlyProvider.notifier).state = _featured;
     ref.read(openNowOnlyProvider.notifier).state = _openNow;
 

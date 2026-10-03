@@ -4,12 +4,14 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/ranco_empty_state.dart';
 import '../../../core/widgets/ranco_error_state.dart';
+import '../../../core/widgets/ranco_site_footer.dart';
 import '../../../core/widgets/ranco_skeleton.dart';
 import '../../../features/businesses/application/business_providers.dart';
 import '../../../shared/models/category.dart';
 import '../../../theme/ranco_colors.dart';
 import '../../../theme/ranco_decoration.dart';
 import '../application/category_providers.dart';
+import 'category_editorial_order.dart';
 
 class CategoriesScreen extends ConsumerStatefulWidget {
   const CategoriesScreen({
@@ -198,7 +200,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
             categories.when(
               data: (items) {
                 final filtered = _filterCategories(
-                  items,
+                  sortCategoriesForPresentation(items),
                   _query,
                 );
 
@@ -318,11 +320,11 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                               ) {
                                 final width = constraints.maxWidth;
 
-                                final columns = width >= 1120
+                                final columns = width >= 1000
                                     ? 4
-                                    : width >= 820
+                                    : width >= 720
                                         ? 3
-                                        : width >= 540
+                                        : width >= 480
                                             ? 2
                                             : 1;
 
@@ -414,6 +416,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                 );
               },
             ),
+            const RancoFooterSliver(),
           ],
         ),
       ),
@@ -603,10 +606,8 @@ class _CategoryTileState extends State<_CategoryTile> {
               16,
             ),
             child: Container(
-              height: 108,
-              padding: const EdgeInsets.all(
-                14,
-              ),
+              height: 72,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(
                   16,
@@ -616,103 +617,66 @@ class _CategoryTileState extends State<_CategoryTile> {
                       ? accent.withValues(
                           alpha: .52,
                         )
-                      : RancoDecoration.softBorder,
+                      : isEmergency
+                          ? const Color(0xFFF0D2C7)
+                          : RancoDecoration.softBorder,
                   width: _hovered ? 1.2 : 1,
                 ),
-                gradient: isEmergency
-                    ? const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Color(
-                            0xFFFFFCFA,
-                          ),
-                          Color(
-                            0xFFFFF6F2,
-                          ),
-                        ],
-                      )
-                    : null,
+                color: isEmergency ? const Color(0xFFFFF8F5) : null,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              // Una sola affordance: toda la tarjeta + chevron.
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 38,
-                        height: 38,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: iconBackground,
-                          borderRadius: BorderRadius.circular(
-                            11,
-                          ),
-                        ),
-                        child: Icon(
-                          _categoryIcon(
-                            category,
-                          ),
-                          size: 20,
-                          color: accent,
-                        ),
+                  Container(
+                    width: 38,
+                    height: 38,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: iconBackground,
+                      borderRadius: BorderRadius.circular(
+                        11,
                       ),
-                      const Spacer(),
-                      AnimatedContainer(
-                        duration: const Duration(
-                          milliseconds: 160,
-                        ),
-                        transform: Matrix4.translationValues(
-                          _hovered ? 2 : 0,
-                          0,
-                          0,
-                        ),
-                        child: Icon(
-                          Icons.arrow_forward_rounded,
-                          size: 18,
-                          color: _hovered
-                              ? accent
-                              : const Color(
-                                  0xFF8A9A92,
-                                ),
-                        ),
+                    ),
+                    child: Icon(
+                      _categoryIcon(
+                        category,
                       ),
-                    ],
-                  ),
-                  const Spacer(),
-                  Text(
-                    category.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: RancoColors.textPrimary,
-                      fontSize: 14,
-                      height: 1.1,
-                      fontWeight: FontWeight.w800,
+                      size: 20,
+                      color: accent,
                     ),
                   ),
-                  const SizedBox(
-                    height: 4,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      category.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: RancoColors.textPrimary,
+                        fontSize: 14.5,
+                        height: 1.2,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
-                  Row(
-                    children: [
-                      Text(
-                        'Ver servicios',
-                        style: TextStyle(
-                          color: _hovered ? accent : RancoColors.textSecondary,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(
-                        width: 4,
-                      ),
-                      Icon(
-                        Icons.arrow_forward_rounded,
-                        size: 13,
-                        color: _hovered ? accent : RancoColors.textSecondary,
-                      ),
-                    ],
+                  AnimatedContainer(
+                    duration: const Duration(
+                      milliseconds: 160,
+                    ),
+                    transform: Matrix4.translationValues(
+                      _hovered ? 2 : 0,
+                      0,
+                      0,
+                    ),
+                    child: Icon(
+                      Icons.chevron_right_rounded,
+                      size: 20,
+                      color: _hovered
+                          ? accent
+                          : const Color(
+                              0xFF8A9A92,
+                            ),
+                    ),
                   ),
                 ],
               ),

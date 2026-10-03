@@ -7,6 +7,7 @@ import '../../../core/layout/ranco_responsive.dart';
 import '../../../core/errors/app_failure.dart';
 import '../../../core/widgets/ranco_app_bar.dart';
 import '../../../core/widgets/ranco_error_state.dart';
+import '../../../core/widgets/ranco_page_empty_state.dart';
 import '../../../shared/models/app_notification.dart';
 import '../../../theme/ranco_colors.dart';
 import '../application/notification_providers.dart';
@@ -20,6 +21,9 @@ class NotificationsScreen extends ConsumerWidget {
     ref.watch(notificationsRealtimeProvider);
 
     final notifications = ref.watch(notificationListProvider);
+    // "Leer todo" solo cuando hay algo sin leer.
+    final hasUnread =
+        notifications.valueOrNull?.any((item) => item.isUnread) ?? false;
 
     return Scaffold(
       backgroundColor: RancoColors.canvas,
@@ -27,10 +31,11 @@ class NotificationsScreen extends ConsumerWidget {
         title: 'Notificaciones',
         fallbackRoute: '/account',
         actions: [
-          TextButton(
-            onPressed: () => _markAllRead(ref),
-            child: const Text('Leer todo'),
-          ),
+          if (hasUnread)
+            TextButton(
+              onPressed: () => _markAllRead(ref),
+              child: const Text('Marcar todo como leído'),
+            ),
         ],
       ),
       body: notifications.when(
@@ -226,14 +231,12 @@ class _EmptyNotifications extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(24),
-        child: Text(
-          'No tienes notificaciones por ahora.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: RancoColors.textSecondary),
-        ),
+    return const SingleChildScrollView(
+      child: RancoPageEmptyState(
+        icon: Icons.notifications_none_rounded,
+        title: 'No tienes notificaciones',
+        message: 'Cuando haya novedades sobre tus solicitudes o tu cuenta '
+            'aparecerán aquí.',
       ),
     );
   }

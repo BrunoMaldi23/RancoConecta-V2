@@ -10,10 +10,47 @@ class RancoSkeleton extends StatelessWidget {
     return Card(
       child: SizedBox(
         height: height,
-        child: Center(
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: Theme.of(context).colorScheme.primary,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(8),
+                          )),
+                      const SizedBox(height: 10),
+                      FractionallySizedBox(
+                        widthFactor: .68,
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(8),
+                            )),
+                      ),
+                    ]),
+              ),
+            ],
           ),
         ),
       ),

@@ -2,12 +2,35 @@ import 'package:flutter/material.dart';
 
 import '../../theme/ranco_tokens.dart';
 
+/// Anchos máximos por tipo de vista. Evitan contenido diminuto en monitores
+/// grandes y tarjetas estiradas en exceso.
 enum RancoContainerWidth {
+  /// Home, Explorar, Categorías, Guardados: 1240–1280.
   standard,
+
+  /// Vistas de gestión anchas.
   wide,
+
+  /// Formularios de varias secciones.
   form,
+
+  /// Ficha de negocio: 1120–1150.
   detail,
+
+  /// Contenido de una columna.
   narrow,
+
+  /// Flujo de reserva: 1080.
+  booking,
+
+  /// Acceso / registro: 480.
+  auth,
+
+  /// Páginas legales: 960.
+  legal,
+
+  /// Panel administrativo: hasta 1400.
+  admin,
 }
 
 extension RancoResponsiveContext on BuildContext {
@@ -59,11 +82,15 @@ class RancoContentContainer extends StatelessWidget {
   static double _maxWidth(RancoContainerWidth width, double viewport) {
     final large = viewport >= RancoBreakpoints.large;
     return switch (width) {
+      RancoContainerWidth.auth => 480,
       RancoContainerWidth.narrow => 640,
       RancoContainerWidth.form => 760,
-      RancoContainerWidth.detail => large ? 1200 : 1080,
+      RancoContainerWidth.legal => 960,
+      RancoContainerWidth.booking => 1080,
+      RancoContainerWidth.detail => large ? 1150 : 1120,
+      RancoContainerWidth.standard => large ? 1280 : 1240,
       RancoContainerWidth.wide => large ? 1360 : 1280,
-      RancoContainerWidth.standard => large ? 1320 : 1180,
+      RancoContainerWidth.admin => 1400,
     };
   }
 }
@@ -76,6 +103,7 @@ class RancoResponsiveGrid extends StatelessWidget {
     this.runSpacing = RancoSpacing.md,
     this.maxColumns = 4,
     this.minColumns = 1,
+    this.equalHeightRows = false,
     super.key,
   });
 
@@ -85,6 +113,10 @@ class RancoResponsiveGrid extends StatelessWidget {
   final double runSpacing;
   final int maxColumns;
   final int minColumns;
+
+  /// Iguala la altura de los elementos de cada fila (tarjetas con distinta
+  /// metadata). Los hijos no deben usar LayoutBuilder.
+  final bool equalHeightRows;
 
   @override
   Widget build(BuildContext context) {
@@ -100,16 +132,50 @@ class RancoResponsiveGrid extends StatelessWidget {
         final itemWidth =
             (constraints.maxWidth - spacing * (columns - 1)) / columns;
 
-        return Wrap(
-          spacing: spacing,
-          runSpacing: runSpacing,
-          children: [
-            for (final child in children)
-              SizedBox(
-                width: itemWidth,
-                child: child,
-              ),
-          ],
+        if (equalHeightRows) {
+          return SizedBox(
+            width: constraints.maxWidth,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var start = 0;
+                    start < children.length;
+                    start += columns) ...[
+                  if (start > 0) SizedBox(height: runSpacing),
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (var index = start;
+                            index < start + columns && index < children.length;
+                            index++) ...[
+                          if (index > start) SizedBox(width: spacing),
+                          SizedBox(width: itemWidth, child: children[index]),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        }
+
+        // Ancho completo: un único elemento queda alineado al inicio, no
+        // centrado por el contenedor padre.
+        return SizedBox(
+          width: constraints.maxWidth,
+          child: Wrap(
+            spacing: spacing,
+            runSpacing: runSpacing,
+            children: [
+              for (final child in children)
+                SizedBox(
+                  width: itemWidth,
+                  child: child,
+                ),
+            ],
+          ),
         );
       },
     );

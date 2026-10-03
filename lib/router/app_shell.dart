@@ -3,13 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../config/app_config.dart';
+import '../core/widgets/ranco_brand.dart';
 import '../features/admin/application/admin_providers.dart';
 import '../features/auth/application/auth_controller.dart';
+import '../features/auth/presentation/visitor_contact_validation.dart';
+import '../features/businesses/application/business_providers.dart';
 import '../features/messaging/application/messaging_providers.dart';
 import '../features/locations/application/location_providers.dart';
+import '../features/locations/presentation/location_selector.dart';
 import '../features/notifications/application/notification_providers.dart';
 import '../features/provider_dashboard/application/provider_dashboard_providers.dart';
 import '../features/profile/application/profile_providers.dart';
+import '../shared/models/profile.dart';
 import '../theme/ranco_colors.dart';
 import '../theme/ranco_tokens.dart';
 import 'ranco_navigation_drawer.dart';
@@ -32,6 +37,20 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (GoRouterState.of(context).uri.path == '/' &&
+        (ref.read(businessSearchQueryProvider).isNotEmpty ||
+            ref.read(selectedCategoryIdProvider) != null ||
+            ref.read(selectedLocationProvider) != null ||
+            ref.read(verifiedOnlyProvider) ||
+            ref.read(featuredOnlyProvider) ||
+            ref.read(openNowOnlyProvider))) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted && GoRouterState.of(context).uri.path == '/') {
+          ref.read(businessSearchQueryProvider.notifier).state = '';
+          clearBusinessFilters(ref);
+        }
+      });
+    }
     ref.watch(messagingRealtimeProvider);
     ref.watch(notificationsRealtimeProvider);
 
@@ -46,16 +65,21 @@ class AppShell extends ConsumerWidget {
     final auth = ref.watch(authStateProvider);
     final user = auth.valueOrNull;
     final isSignedIn = user != null;
-    final showLoginAction = !isSignedIn && !auth.isLoading;
+    final isVisitor = user?.isAnonymous == true;
     final selectedLocation = ref.watch(selectedLocationProvider);
-    final activeBusiness = user == null
-        ? null
-        : ref.watch(activeProviderBusinessProvider).valueOrNull;
-    final adminRole =
-        user == null ? null : ref.watch(currentAdminRoleProvider).valueOrNull;
-
     final profile =
         user == null ? null : ref.watch(currentProfileProvider).valueOrNull;
+    final activeBusiness =
+        !isVisitor && profile != null && !profile.role.canAccessAdmin
+            ? ref.watch(activeProviderBusinessProvider).valueOrNull
+            : null;
+    final adminRole =
+        user == null ? null : ref.watch(currentAdminRoleProvider).valueOrNull;
+    final visitorHasProfile = isVisitor &&
+        (profile?.fullName?.trim().length ?? 0) >= 3 &&
+        isValidChileanWhatsapp(profile?.phone);
+    final publicVisitor = !isSignedIn || (isVisitor && !visitorHasProfile);
+    final showLoginAction = publicVisitor && !auth.isLoading;
 
     final rawProfileName = profile?.fullName?.trim() ?? '';
     final userDisplayName = rawProfileName.isNotEmpty
@@ -65,6 +89,10 @@ class AppShell extends ConsumerWidget {
     final userInitial = userDisplayName.isNotEmpty
         ? userDisplayName.substring(0, 1).toUpperCase()
         : 'U';
+    final visibleBranches =
+        publicVisitor ? const [0, 1] : const [0, 1, 2, 3, 4];
+    final isProvider = !isVisitor &&
+        (profile?.role == ProfileRole.provider || activeBusiness != null);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -83,15 +111,17 @@ class AppShell extends ConsumerWidget {
                   currentIndex: navigationShell.currentIndex,
                   currentPath: GoRouterState.of(context).uri.path,
                   destinations: _destinations,
+                  visibleBranches: visibleBranches,
+                  visitor: isVisitor,
                   unreadAccount: unreadAccount,
                   unreadMessages: chatEnabled ? unreadMessages : 0,
                   unreadNotifications: unreadNotifications,
-                  showMessages: chatEnabled,
-                  showProvider: activeBusiness != null,
+                  showMessages: chatEnabled && !isVisitor,
+                  showProvider: isProvider,
                   showAdmin: adminRole != null,
-                  isSignedIn: isSignedIn,
+                  isSignedIn: !publicVisitor,
                   showLoginAction: showLoginAction,
-                  onBranchSelected: _goBranch,
+                  onBranchSelected: (index) => _goBranch(index, ref),
                   onSignOut: () async {
                     await signOutAndGoToSignIn(context, ref);
                   },
@@ -103,13 +133,14 @@ class AppShell extends ConsumerWidget {
                       _DesktopTopBar(
                         locationName:
                             selectedLocation?.name ?? 'Todas las localidades',
-                        isSignedIn: user != null,
-                        hasProviderBusiness: activeBusiness != null,
+                        isSignedIn: !publicVisitor,
                         unreadNotifications: unreadNotifications,
                         userName: userDisplayName,
                         userInitial: userInitial,
-                        currentPath: GoRouterState.of(context).uri.path,
+                        onLocationTap: () => showLocationPicker(context, ref),
                       ),
+                    // El footer público vive dentro del scroll de cada
+                    // página (RancoFooterSliver) para no tapar contenido.
                     Expanded(child: navigationShell),
                   ],
                 ),
@@ -120,31 +151,77 @@ class AppShell extends ConsumerWidget {
               ? null
               : SafeArea(
                   top: false,
-                  child: NavigationBar(
-                    selectedIndex: navigationShell.currentIndex,
-                    onDestinationSelected: _goBranch,
-                    destinations: [
-                      for (final indexed in _destinations.indexed)
-                        NavigationDestination(
-                          icon: _BadgedIcon(
-                            icon: indexed.$2.icon,
-                            count: indexed.$1 == 4 ? unreadAccount : 0,
-                          ),
-                          selectedIcon: _BadgedIcon(
-                            icon: indexed.$2.selectedIcon,
-                            count: indexed.$1 == 4 ? unreadAccount : 0,
-                          ),
-                          label: indexed.$2.label,
+                  child: isProvider
+                      ? NavigationBar(
+                          selectedIndex:
+                              navigationShell.currentIndex == 2 ? 1 : 2,
+                          onDestinationSelected: (index) {
+                            if (index == 0) {
+                              context.go('/provider/dashboard');
+                            } else if (index == 1) {
+                              context.go('/provider/requests');
+                            } else {
+                              _goBranch(4, ref);
+                            }
+                          },
+                          destinations: const [
+                            NavigationDestination(
+                                icon: Icon(Icons.storefront_outlined),
+                                label: 'Mi negocio'),
+                            NavigationDestination(
+                                icon: Icon(Icons.assignment_outlined),
+                                label: 'Solicitudes'),
+                            NavigationDestination(
+                                icon: Icon(Icons.settings_outlined),
+                                label: 'Configuración'),
+                          ],
+                        )
+                      : NavigationBar(
+                          selectedIndex: visibleBranches
+                                  .contains(navigationShell.currentIndex)
+                              ? visibleBranches
+                                  .indexOf(navigationShell.currentIndex)
+                              : 0,
+                          onDestinationSelected: (index) {
+                            if (publicVisitor &&
+                                index == visibleBranches.length) {
+                              context.go(
+                                  isVisitor ? '/sign-in?choose=1' : '/sign-in');
+                            } else {
+                              _goBranch(visibleBranches[index], ref);
+                            }
+                          },
+                          destinations: [
+                            for (final branch in visibleBranches)
+                              NavigationDestination(
+                                icon: _BadgedIcon(
+                                  icon: _destinations[branch].icon,
+                                  count: branch == 4 ? unreadAccount : 0,
+                                ),
+                                selectedIcon: _BadgedIcon(
+                                  icon: _destinations[branch].selectedIcon,
+                                  count: branch == 4 ? unreadAccount : 0,
+                                ),
+                                label: _destinations[branch].label,
+                              ),
+                            if (showLoginAction)
+                              const NavigationDestination(
+                                icon: Icon(Icons.login_rounded),
+                                label: 'Ingresar',
+                              ),
+                          ],
                         ),
-                    ],
-                  ),
                 ),
         );
       },
     );
   }
 
-  void _goBranch(int index) {
+  void _goBranch(int index, WidgetRef ref) {
+    if (index == 0) {
+      ref.read(businessSearchQueryProvider.notifier).state = '';
+      clearBusinessFilters(ref);
+    }
     navigationShell.goBranch(
       index,
       initialLocation: index == navigationShell.currentIndex,
@@ -152,34 +229,30 @@ class AppShell extends ConsumerWidget {
   }
 }
 
+/// Barra superior desktop. Solo contiene lo que no está en el sidebar:
+/// localidad, acceso para prestadores y, con sesión, notificaciones y cuenta.
 class _DesktopTopBar extends StatelessWidget {
   const _DesktopTopBar({
     required this.locationName,
     required this.isSignedIn,
-    required this.hasProviderBusiness,
     required this.unreadNotifications,
     required this.userName,
     required this.userInitial,
-    required this.currentPath,
+    required this.onLocationTap,
   });
 
   final String locationName;
   final bool isSignedIn;
-  final bool hasProviderBusiness;
   final int unreadNotifications;
   final String userName;
   final String userInitial;
-  final String currentPath;
+  final VoidCallback onLocationTap;
 
   @override
   Widget build(BuildContext context) {
-    final exploreSelected = currentPath.startsWith('/explore');
-
     return Container(
-      height: 68,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 28,
-      ),
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: RancoSpacing.xl),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(
@@ -190,68 +263,39 @@ class _DesktopTopBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _TopBarPill(
-            icon: Icons.location_on_outlined,
-            label: locationName,
-            trailing: Icons.keyboard_arrow_down_rounded,
-            onTap: () {
-              context.go('/explore');
-            },
+          Tooltip(
+            message: 'Cambiar localidad',
+            child: _TopBarPill(
+              icon: Icons.location_on_outlined,
+              label: locationName,
+              trailing: Icons.keyboard_arrow_down_rounded,
+              onTap: onLocationTap,
+            ),
           ),
           const Spacer(),
-          if (hasProviderBusiness)
-            _TopBarPill(
-              icon: Icons.storefront_outlined,
-              label: 'Mi negocio',
-              onTap: () {
-                context.go('/provider/dashboard');
-              },
-            )
-          else if (!isSignedIn)
+          if (!isSignedIn)
             _TopBarTextAction(
               label: 'Para prestadores',
               onTap: () {
                 context.go('/provider/join');
               },
-            ),
-          const SizedBox(width: 8),
-          _TopBarPill(
-            icon: Icons.search_rounded,
-            label: 'Explorar',
-            selected: exploreSelected,
-            onTap: () {
-              context.go('/explore');
-            },
-          ),
-          const SizedBox(width: 8),
-          _TopBarNotificationButton(
-            count: unreadNotifications,
-            onTap: () {
-              if (isSignedIn) {
+            )
+          else ...[
+            _TopBarNotificationButton(
+              count: unreadNotifications,
+              onTap: () {
                 context.go('/notifications');
-              } else {
-                context.go('/sign-in');
-              }
-            },
-          ),
-          const SizedBox(width: 8),
-          if (isSignedIn)
+              },
+            ),
+            const SizedBox(width: RancoSpacing.sm),
             _TopBarUserButton(
               name: userName,
               initial: userInitial,
               onTap: () {
                 context.go('/account');
               },
-            )
-          else
-            _TopBarPill(
-              icon: Icons.login_rounded,
-              label: 'Ingresar',
-              selected: true,
-              onTap: () {
-                context.go('/sign-in');
-              },
             ),
+          ],
         ],
       ),
     );
@@ -264,20 +308,17 @@ class _TopBarPill extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.trailing,
-    this.selected = false,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
   final IconData? trailing;
-  final bool selected;
 
   @override
   Widget build(BuildContext context) {
-    final background = selected ? const Color(0xFFE8F4EF) : Colors.white;
-
-    final border = selected ? const Color(0xFFD4E8DF) : const Color(0xFFDDE7E2);
+    const background = Colors.white;
+    const border = Color(0xFFDDE7E2);
 
     return Material(
       color: background,
@@ -444,62 +485,64 @@ class _TopBarUserButton extends StatelessWidget {
     final compactName =
         name.trim().isEmpty ? 'Usuario' : name.trim().split(' ').first;
 
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
+    return Tooltip(
+      message: 'Mi cuenta',
+      child: Material(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        child: Container(
-          height: 42,
-          padding: const EdgeInsets.fromLTRB(
-            5,
-            4,
-            9,
-            4,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: const Color(0xFFDDE7E2),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            height: 42,
+            padding: const EdgeInsets.fromLTRB(
+              5,
+              4,
+              9,
+              4,
             ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFDDEFE7),
-                  shape: BoxShape.circle,
-                ),
-                child: Text(
-                  initial,
-                  style: const TextStyle(
-                    color: RancoColors.forest,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: const Color(0xFFDDE7E2),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFDDEFE7),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    initial,
+                    style: const TextStyle(
+                      color: RancoColors.forest,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                compactName,
-                style: const TextStyle(
-                  color: RancoColors.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+                const SizedBox(width: 8),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 140),
+                  child: Text(
+                    compactName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: RancoColors.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 4),
-              const Icon(
-                Icons.keyboard_arrow_down_rounded,
-                size: 17,
-                color: Color(0xFF6D7E76),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -543,6 +586,8 @@ class _DesktopSidebar extends StatelessWidget {
     required this.currentIndex,
     required this.currentPath,
     required this.destinations,
+    required this.visibleBranches,
+    required this.visitor,
     required this.unreadAccount,
     required this.unreadMessages,
     required this.unreadNotifications,
@@ -559,6 +604,8 @@ class _DesktopSidebar extends StatelessWidget {
   final int currentIndex;
   final String currentPath;
   final List<_Destination> destinations;
+  final List<int> visibleBranches;
+  final bool visitor;
   final int unreadAccount;
   final int unreadMessages;
   final int unreadNotifications;
@@ -572,6 +619,15 @@ class _DesktopSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Widget branchItem(int branch) => _SidebarItem(
+          icon: destinations[branch].icon,
+          selectedIcon: destinations[branch].selectedIcon,
+          label: destinations[branch].label,
+          selected: currentIndex == branch,
+          badgeCount: branch == 4 ? unreadAccount : 0,
+          onTap: () => onBranchSelected(branch),
+        );
+
     return Container(
       width: width,
       decoration: const BoxDecoration(
@@ -582,45 +638,49 @@ class _DesktopSidebar extends StatelessWidget {
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
+          padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const _SidebarBrand(),
-              const SizedBox(height: 24),
+              const SizedBox(height: 18),
               Expanded(
                 child: ListView(
                   children: [
-                    for (final indexed in destinations.indexed)
+                    // Agrupación: Descubrir / Tu actividad / Cuenta / Gestión.
+                    if (isSignedIn) const _SidebarSectionLabel('Descubrir'),
+                    for (final branch in visibleBranches.where((b) => b <= 1))
+                      branchItem(branch),
+                    if (isSignedIn) ...[
+                      const SizedBox(height: RancoSpacing.sm),
+                      const _SidebarSectionLabel('Tu actividad'),
+                      for (final branch
+                          in visibleBranches.where((b) => b == 2 || b == 3))
+                        branchItem(branch),
+                      if (showMessages)
+                        _SidebarItem(
+                          icon: Icons.chat_bubble_outline_rounded,
+                          selectedIcon: Icons.chat_bubble_rounded,
+                          label: 'Mensajes',
+                          selected: currentPath.startsWith('/messages'),
+                          badgeCount: unreadMessages,
+                          onTap: () => context.go('/messages'),
+                        ),
                       _SidebarItem(
-                        icon: indexed.$2.icon,
-                        selectedIcon: indexed.$2.selectedIcon,
-                        label: indexed.$2.label,
-                        selected: currentIndex == indexed.$1,
-                        badgeCount: indexed.$1 == 4 ? unreadAccount : 0,
-                        onTap: () => onBranchSelected(indexed.$1),
+                        icon: Icons.notifications_none_rounded,
+                        selectedIcon: Icons.notifications_rounded,
+                        label: 'Notificaciones',
+                        selected: currentPath.startsWith('/notifications'),
+                        badgeCount: unreadNotifications,
+                        onTap: () => context.go('/notifications'),
                       ),
-                    const SizedBox(height: 10),
-                    const _SidebarSectionLabel('Actividad'),
-                    if (showMessages)
-                      _SidebarItem(
-                        icon: Icons.chat_bubble_outline_rounded,
-                        selectedIcon: Icons.chat_bubble_rounded,
-                        label: 'Mensajes',
-                        selected: currentPath.startsWith('/messages'),
-                        badgeCount: unreadMessages,
-                        onTap: () => context.go('/messages'),
-                      ),
-                    _SidebarItem(
-                      icon: Icons.notifications_none_rounded,
-                      selectedIcon: Icons.notifications_rounded,
-                      label: 'Notificaciones',
-                      selected: currentPath.startsWith('/notifications'),
-                      badgeCount: unreadNotifications,
-                      onTap: () => context.go('/notifications'),
-                    ),
+                      const SizedBox(height: RancoSpacing.sm),
+                      const _SidebarSectionLabel('Cuenta'),
+                      for (final branch in visibleBranches.where((b) => b == 4))
+                        branchItem(branch),
+                    ],
                     if (showProvider) ...[
-                      const SizedBox(height: 10),
+                      const SizedBox(height: RancoSpacing.sm),
                       const _SidebarSectionLabel('Gestión'),
                       _SidebarItem(
                         icon: Icons.storefront_outlined,
@@ -631,8 +691,8 @@ class _DesktopSidebar extends StatelessWidget {
                       ),
                     ],
                     if (showAdmin) ...[
-                      const SizedBox(height: 10),
-                      const _SidebarSectionLabel('Admin'),
+                      const SizedBox(height: RancoSpacing.sm),
+                      const _SidebarSectionLabel('Administración'),
                       _SidebarItem(
                         icon: Icons.admin_panel_settings_outlined,
                         selectedIcon: Icons.admin_panel_settings_rounded,
@@ -659,7 +719,8 @@ class _DesktopSidebar extends StatelessWidget {
                   selectedIcon: Icons.login_rounded,
                   label: 'Ingresar',
                   selected: false,
-                  onTap: () => context.go('/sign-in'),
+                  onTap: () =>
+                      context.go(visitor ? '/sign-in?choose=1' : '/sign-in'),
                 ),
             ],
           ),
@@ -674,44 +735,18 @@ class _SidebarBrand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image.asset(
-            'assets/branding/ranco_logo_login.png',
-            width: 38,
-            height: 38,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(
-              width: 38,
-              height: 38,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE5F1EC),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.landscape_outlined,
-                color: RancoColors.forest,
-              ),
-            ),
-          ),
+    // Bloque de marca de ~60 px: emblema real legible + logotipo tipográfico.
+    return Semantics(
+      button: true,
+      label: 'Ranco Conecta, ir al inicio',
+      child: InkWell(
+        onTap: () => context.go('/'),
+        borderRadius: BorderRadius.circular(12),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+          child: RancoBrandLockup(subtitle: 'Lago Ranco'),
         ),
-        const SizedBox(width: 10),
-        const Expanded(
-          child: Text(
-            'Ranco Conecta',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: RancoColors.forest,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -724,14 +759,14 @@ class _SidebarSectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
+      padding: const EdgeInsets.fromLTRB(12, 10, 8, 4),
       child: Text(
         label.toUpperCase(),
         style: const TextStyle(
-          color: RancoColors.textSecondary,
-          fontSize: 10.5,
-          fontWeight: FontWeight.w900,
-          letterSpacing: .45,
+          color: Color(0xFF7A8B83),
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          letterSpacing: .6,
         ),
       ),
     );
@@ -759,14 +794,12 @@ class _SidebarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const dangerColor = Color(0xFF8F2D3A);
-    const dangerBorder = Color(0xFFE8C9D0);
-    const dangerBackground = Color(0xFFFFF7F8);
+    const dangerColor = Color(0xFF9A3A44);
 
     final foreground = danger
         ? dangerColor
         : selected
-            ? RancoColors.forest
+            ? RancoColors.primaryDark
             : RancoColors.textPrimary;
 
     final iconColor = danger
@@ -775,75 +808,42 @@ class _SidebarItem extends StatelessWidget {
             ? RancoColors.forest
             : RancoColors.slate;
 
-    final background = danger
-        ? dangerBackground
-        : selected
-            ? const Color(0xFFEAF4F0)
-            : Colors.transparent;
-
-    final borderColor = danger
-        ? dangerBorder
-        : selected
-            ? RancoColors.forest.withValues(
-                alpha: .18,
-              )
-            : Colors.transparent;
-
+    // Activo: fondo suave + texto verde + indicador lateral (sin borde).
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: 2,
-      ),
-      child: Tooltip(
-        message: label,
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: Semantics(
+        selected: selected,
+        button: true,
         child: Material(
-          color: background,
-          borderRadius: BorderRadius.circular(13),
+          color: selected ? const Color(0xFFEAF4F0) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(13),
+            borderRadius: BorderRadius.circular(10),
             mouseCursor: SystemMouseCursors.click,
-            child: AnimatedContainer(
-              duration: RancoDurations.fast,
-              constraints: const BoxConstraints(
-                minHeight: 46,
-              ),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-              ),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(
-                  13,
-                ),
-                border: Border.all(
-                  color: borderColor,
-                ),
-              ),
+            hoverColor:
+                danger ? const Color(0xFFFBEFF1) : const Color(0xFFF2F8F5),
+            focusColor: const Color(0x332F7D57),
+            child: SizedBox(
+              height: danger ? 38 : 40,
               child: Row(
                 children: [
                   AnimatedContainer(
                     duration: RancoDurations.fast,
                     width: 3,
-                    height: 24,
+                    height: 20,
                     decoration: BoxDecoration(
-                      color: danger
-                          ? dangerColor
-                          : selected
-                              ? RancoColors.forest
-                              : Colors.transparent,
+                      color: selected ? RancoColors.forest : Colors.transparent,
                       borderRadius: BorderRadius.circular(99),
                     ),
                   ),
-                  const SizedBox(
-                    width: 9,
-                  ),
+                  const SizedBox(width: 9),
                   Icon(
                     selected ? selectedIcon : icon,
-                    size: 20,
+                    size: danger ? 18 : 20,
                     color: iconColor,
                   ),
-                  const SizedBox(
-                    width: 10,
-                  ),
+                  const SizedBox(width: 11),
                   Expanded(
                     child: Text(
                       label,
@@ -851,18 +851,21 @@ class _SidebarItem extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: foreground,
-                        fontSize: 13.5,
-                        fontWeight: danger
-                            ? FontWeight.w700
-                            : selected
-                                ? FontWeight.w800
+                        fontSize: danger ? 13 : 13.5,
+                        fontWeight: selected
+                            ? FontWeight.w800
+                            : danger
+                                ? FontWeight.w600
                                 : FontWeight.w600,
                       ),
                     ),
                   ),
                   if (badgeCount > 0)
-                    Badge.count(
-                      count: badgeCount > 99 ? 99 : badgeCount,
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Badge.count(
+                        count: badgeCount > 99 ? 99 : badgeCount,
+                      ),
                     ),
                 ],
               ),

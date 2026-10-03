@@ -1,423 +1,56 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../shared/models/business.dart';
 import '../../../theme/ranco_colors.dart';
+import '../../discovery/application/business_card_data.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../favorites/application/favorite_providers.dart';
 import '../../favorites/data/favorites_repository.dart';
 import '../../provider_dashboard/data/business_media_repository.dart';
+import 'business_avatar.dart';
+
+/// home: destacados; explore: grilla comparativa (alturas reservadas para
+/// alinear filas); saved: como explore pero sin alturas reservadas.
+enum BusinessCardVariant { home, explore, saved }
 
 class BusinessCard extends ConsumerWidget {
   const BusinessCard({
     required this.business,
+    this.variant = BusinessCardVariant.explore,
+    this.exploreData,
+    this.fillHeight = false,
     super.key,
   });
 
   final Business business;
+  final BusinessCardVariant variant;
+  final BusinessCardData? exploreData;
+
+  /// En grillas de filas con altura igualada: el CTA baja al final para
+  /// quedar alineado entre tarjetas. Requiere altura acotada.
+  final bool fillHeight;
 
   @override
-  Widget build(
-    BuildContext context,
-    WidgetRef ref,
-  ) {
-    final coverage = business.coverage
-        .map(
-          (location) => location.name,
-        )
-        .take(2)
-        .join(' · ');
+  Widget build(BuildContext context, WidgetRef ref) {
+    final data = exploreData ?? BusinessCardData.fromBusiness(business);
+    final mediaRepository = ref.read(businessMediaRepositoryProvider);
+    final coverPath = data.coverImagePath;
+    final logoPath = data.logoImagePath;
+    final favorite = ref.watch(isFavoriteProvider(business.id));
 
-    final serviceName = business.services.isNotEmpty
-        ? business.services.first.subcategory.name
-        : business.type.label;
-
-    final isLodging = business.type == BusinessType.lodging;
-
-    final openNow = _isOpenNow(
-      business.hours,
-      DateTime.now(),
-    );
-
-    final favorite = ref.watch(
-      isFavoriteProvider(
-        business.id,
-      ),
-    );
-
-    final mediaRepository = ref.read(
-      businessMediaRepositoryProvider,
-    );
-
-    final coverPath = business.coverPath;
-
-    final coverUrl = coverPath == null
-        ? null
-        : mediaRepository.publicUrl(
-            coverPath,
-          );
-
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(
-        22,
-      ),
-      child: InkWell(
-        mouseCursor: SystemMouseCursors.click,
-        onTap: () {
-          context.go(
-            '/business/${business.id}',
-          );
-        },
-        borderRadius: BorderRadius.circular(
-          22,
-        ),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(
-              22,
-            ),
-            border: Border.all(
-              color: const Color(
-                0xFFD4E1DB,
-              ),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  10,
-                  10,
-                  10,
-                  0,
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(
-                    18,
-                  ),
-                  child: SizedBox(
-                    height: 145,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        if (coverUrl != null)
-                          Image.network(
-                            coverUrl,
-                            fit: BoxFit.cover,
-                            errorBuilder: (
-                              context,
-                              error,
-                              stackTrace,
-                            ) {
-                              return _FallbackHero(
-                                type: business.type,
-                              );
-                            },
-                          ),
-                        if (coverUrl == null)
-                          _FallbackHero(
-                            type: business.type,
-                          ),
-                        if (coverUrl != null)
-                          const DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Color(
-                                    0x18000000,
-                                  ),
-                                  Color(
-                                    0x55000000,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        if (business.isFeatured)
-                          const Positioned(
-                            top: 10,
-                            left: 10,
-                            child: _HeroBadge(
-                              icon: Icons.star_rounded,
-                              label: 'Destacado',
-                              foregroundColor: Color(
-                                0xFF895A13,
-                              ),
-                              backgroundColor: Color(
-                                0xFFFFF1CF,
-                              ),
-                            ),
-                          ),
-                        if (business.isVerified)
-                          const Positioned(
-                            top: 10,
-                            right: 10,
-                            child: _HeroBadge(
-                              icon: Icons.verified_rounded,
-                              label: 'Verificado',
-                              foregroundColor: RancoColors.forest,
-                              backgroundColor: Colors.white,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  14,
-                  14,
-                  14,
-                  14,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            business.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(
-                                0xFF2F433A,
-                              ),
-                              fontSize: 17,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(
-                      height: 4,
-                    ),
-                    Text(
-                      serviceName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(
-                          0xFF60736A,
-                        ),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(
-                      height: 10,
-                    ),
-                    Wrap(
-                      spacing: 7,
-                      runSpacing: 7,
-                      children: [
-                        if (business.ratingAvg > 0)
-                          _InfoBadge(
-                            icon: Icons.star_rounded,
-                            label:
-                                '${business.ratingAvg.toStringAsFixed(1)} (${business.reviewCount})',
-                            iconColor: const Color(
-                              0xFFB7791F,
-                            ),
-                          ),
-                        if (!isLodging)
-                          _AvailabilityBadge(
-                            openNow: openNow,
-                          ),
-                        if (isLodging) const _LodgingBadge(),
-                      ],
-                    ),
-                    if (coverage.isNotEmpty) ...[
-                      const SizedBox(
-                        height: 10,
-                      ),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.location_on_outlined,
-                            size: 16,
-                            color: RancoColors.forest,
-                          ),
-                          const SizedBox(
-                            width: 4,
-                          ),
-                          Expanded(
-                            child: Text(
-                              coverage,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(
-                                  0xFF73847C,
-                                ),
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                    const SizedBox(
-                      height: 14,
-                    ),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: FilledButton(
-                            onPressed: () {
-                              context.go(
-                                '/business/${business.id}',
-                              );
-                            },
-                            style: FilledButton.styleFrom(
-                              minimumSize: const Size.fromHeight(
-                                46,
-                              ),
-                              backgroundColor: RancoColors.forest,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(
-                                  14,
-                                ),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  isLodging ? 'Ver alojamiento' : 'Ver perfil',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                const SizedBox(
-                                  width: 7,
-                                ),
-                                const Icon(
-                                  Icons.arrow_forward_rounded,
-                                  size: 18,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(
-                          width: 8,
-                        ),
-                        favorite.when(
-                          data: (isFavorite) {
-                            return SizedBox(
-                              width: 48,
-                              height: 46,
-                              child: Tooltip(
-                                message: isFavorite
-                                    ? 'Quitar de guardados'
-                                    : 'Guardar prestador',
-                                child: OutlinedButton(
-                                  onPressed: () async {
-                                    await _toggleFavorite(
-                                      context,
-                                      ref,
-                                      isFavorite,
-                                    );
-                                  },
-                                  style: OutlinedButton.styleFrom(
-                                    padding: EdgeInsets.zero,
-                                    backgroundColor: isFavorite
-                                        ? const Color(
-                                            0xFFE4F1EB,
-                                          )
-                                        : Colors.white,
-                                    side: BorderSide(
-                                      color: isFavorite
-                                          ? RancoColors.forest
-                                          : const Color(
-                                              0xFFD5E2DC,
-                                            ),
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(
-                                        14,
-                                      ),
-                                    ),
-                                  ),
-                                  child: Icon(
-                                    isFavorite
-                                        ? Icons.favorite_rounded
-                                        : Icons.favorite_border_rounded,
-                                    color: RancoColors.forest,
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                          loading: () => const SizedBox(
-                            width: 48,
-                            height: 46,
-                            child: Center(
-                              child: SizedBox(
-                                width: 19,
-                                height: 19,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                            ),
-                          ),
-                          error: (
-                            error,
-                            stackTrace,
-                          ) =>
-                              SizedBox(
-                            width: 48,
-                            height: 46,
-                            child: OutlinedButton(
-                              onPressed: () async {
-                                await _toggleFavorite(
-                                  context,
-                                  ref,
-                                  false,
-                                );
-                              },
-                              style: OutlinedButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                side: const BorderSide(
-                                  color: Color(
-                                    0xFFD5E2DC,
-                                  ),
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(
-                                    14,
-                                  ),
-                                ),
-                              ),
-                              child: const Icon(
-                                Icons.favorite_border_rounded,
-                                color: RancoColors.forest,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return _BusinessCardContent(
+      variant: variant,
+      data: data,
+      fillHeight: fillHeight,
+      priceFrom: business.services.firstOrNull?.priceFrom,
+      imageUrl: coverPath == null ? null : mediaRepository.publicUrl(coverPath),
+      avatarUrl: data.providerAvatarUrl ??
+          (logoPath == null ? null : mediaRepository.publicUrl(logoPath)),
+      favorite: favorite,
+      onFavoriteTap: (isFavorite) => _toggleFavorite(context, ref, isFavorite),
     );
   }
 
@@ -491,327 +124,421 @@ class BusinessCard extends ConsumerWidget {
       },
     );
   }
-
-  bool _isOpenNow(
-    List<BusinessHour> hours,
-    DateTime now,
-  ) {
-    if (hours.isEmpty) {
-      return false;
-    }
-
-    BusinessHour? today;
-
-    for (final hour in hours) {
-      if (hour.dayOfWeek == now.weekday) {
-        today = hour;
-        break;
-      }
-    }
-
-    if (today == null ||
-        today.isClosed ||
-        today.openTime == null ||
-        today.closeTime == null) {
-      return false;
-    }
-
-    final open = _timeToMinutes(
-      today.openTime!,
-    );
-
-    final close = _timeToMinutes(
-      today.closeTime!,
-    );
-
-    if (open == null || close == null) {
-      return false;
-    }
-
-    final current = (now.hour * 60) + now.minute;
-
-    return current >= open && current <= close;
-  }
-
-  int? _timeToMinutes(
-    String value,
-  ) {
-    final parts = value.split(':');
-
-    if (parts.length < 2) {
-      return null;
-    }
-
-    final hour = int.tryParse(parts[0]);
-
-    final minute = int.tryParse(parts[1]);
-
-    if (hour == null || minute == null) {
-      return null;
-    }
-
-    return (hour * 60) + minute;
-  }
 }
 
-class _FallbackHero extends StatelessWidget {
-  const _FallbackHero({
-    required this.type,
+class _BusinessCardContent extends StatelessWidget {
+  const _BusinessCardContent({
+    required this.variant,
+    required this.data,
+    required this.fillHeight,
+    required this.priceFrom,
+    required this.imageUrl,
+    required this.avatarUrl,
+    required this.favorite,
+    required this.onFavoriteTap,
   });
 
-  final BusinessType type;
+  final BusinessCardVariant variant;
+  final BusinessCardData data;
+  final bool fillHeight;
+  final int? priceFrom;
+  final String? imageUrl;
+  final String? avatarUrl;
+  final AsyncValue<bool> favorite;
+  final ValueChanged<bool> onFavoriteTap;
+
+  static final _money =
+      NumberFormat.currency(locale: 'es_CL', symbol: r'$', decimalDigits: 0);
+
+  /// Datos clave según vertical. Se muestran como máximo 3 filas para que la
+  /// tarjeta no intente resumir toda la ficha.
+  List<_CardDetail> _details(bool isHome) {
+    final location = data.location;
+    final isLodging = data.type == BusinessType.lodging;
+    final isService = data.type == BusinessType.service ||
+        data.type == BusinessType.emergency;
+    final pricePerNight = data.lodging?.pricePerNight;
+    final guests = data.lodging?.maxGuests;
+    final beds = data.lodging?.beds;
+    final capacity = [
+      if (guests != null) '$guests ${guests == 1 ? 'huésped' : 'huéspedes'}',
+      if (beds != null) '$beds ${beds == 1 ? 'cama' : 'camas'}',
+    ].join(' · ');
+    final hasHours = data.businessHours.isNotEmpty;
+    final openNow = data.isOpenNow(DateTime.now());
+
+    final details = <_CardDetail>[
+      if (location != null && location.isNotEmpty)
+        _CardDetail(Icons.location_on_outlined, location),
+      if (!isHome && isService && data.coverage.isNotEmpty)
+        _CardDetail(Icons.near_me_outlined, 'Cobertura: ${data.coverage}'),
+      if (isLodging && pricePerNight != null)
+        _CardDetail(
+          Icons.payments_outlined,
+          '${_money.format(pricePerNight)} / noche',
+        ),
+      if (!isHome && isLodging && capacity.isNotEmpty)
+        _CardDetail(Icons.groups_outlined, capacity),
+      if (!isHome && !isLodging && hasHours)
+        _CardDetail(
+          Icons.schedule_rounded,
+          openNow ? 'En horario' : 'Consulta el horario',
+        ),
+      if (!isLodging && priceFrom != null)
+        _CardDetail(
+          Icons.payments_outlined,
+          'Desde ${_money.format(priceFrom)}',
+        ),
+    ];
+    return details.take(isHome ? 2 : 3).toList();
+  }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    return ColoredBox(
-      color: const Color(
-        0xFFE5F1EC,
+  Widget build(BuildContext context) {
+    final isHome = variant == BusinessCardVariant.home;
+    final reserveHeights = variant == BusinessCardVariant.explore;
+    final icon = _exploreIconFor(data);
+    final details = _details(isHome);
+    final showRating = !isHome && data.rating > 0;
+
+    Widget fallback() => _ExploreHeroFallback(
+          label: data.serviceName,
+          slug: data.serviceSlug,
+          icon: icon,
+          type: data.type,
+          logoUrl: avatarUrl,
+        );
+
+    return Material(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: const BorderSide(color: Color(0xFFD8E4DC)),
       ),
-      child: Center(
-        child: Container(
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(
-              18,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => context.go('/business/${data.id}'),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Stack(
+              children: [
+                AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: imageUrl == null
+                      ? fallback()
+                      : Image.network(
+                          imageUrl!,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, progress) =>
+                              progress == null ? child : fallback(),
+                          errorBuilder: (context, error, stackTrace) =>
+                              fallback(),
+                        ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: _FavoriteButton(
+                    favorite: favorite,
+                    onTap: onFavoriteTap,
+                  ),
+                ),
+              ],
             ),
-          ),
-          child: Icon(
-            switch (type) {
-              BusinessType.service => Icons.handyman_outlined,
-              BusinessType.commerce => Icons.storefront_outlined,
-              BusinessType.gastronomy => Icons.restaurant_outlined,
-              BusinessType.lodging => Icons.bed_outlined,
-              BusinessType.tourism => Icons.terrain_outlined,
-              BusinessType.emergency => Icons.emergency_outlined,
-            },
-            color: RancoColors.forest,
-            size: 30,
-          ),
+            _expandIf(
+              fillHeight,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ConstrainedBox(
+                      // Dos líneas reservadas en Explorar para alinear títulos.
+                      constraints:
+                          BoxConstraints(minHeight: reserveHeights ? 40 : 0),
+                      child: Text(
+                        data.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: RancoColors.textPrimary,
+                          fontSize: 16,
+                          height: 1.2,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      data.serviceName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: RancoColors.primary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                          minHeight: reserveHeights && !fillHeight ? 66 : 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          for (final detail in details)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: _ExploreCardDetail(
+                                icon: detail.icon,
+                                text: detail.text,
+                              ),
+                            ),
+                          if (showRating)
+                            _ExploreCardDetail(
+                              icon: Icons.star_rounded,
+                              iconColor: const Color(0xFFC88A12),
+                              text:
+                                  '${data.rating.toStringAsFixed(1)} · ${data.reviewsCount} ${data.reviewsCount == 1 ? 'reseña' : 'reseñas'}',
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (fillHeight) const Spacer(),
+                    SizedBox(
+                      height: 40,
+                      child: FilledButton.tonal(
+                        onPressed: () => context.go('/business/${data.id}'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: RancoColors.primarySoft,
+                          foregroundColor: RancoColors.primaryDark,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Ver detalle',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
+
+  static Widget _expandIf(bool expand, Widget child) =>
+      expand ? Expanded(child: child) : child;
 }
 
-class _HeroBadge extends StatelessWidget {
-  const _HeroBadge({
-    required this.icon,
-    required this.label,
-    required this.foregroundColor,
-    required this.backgroundColor,
-  });
+class _CardDetail {
+  const _CardDetail(this.icon, this.text);
 
   final IconData icon;
-  final String label;
-  final Color foregroundColor;
-  final Color backgroundColor;
+  final String text;
+}
+
+class _FavoriteButton extends StatelessWidget {
+  const _FavoriteButton({required this.favorite, required this.onTap});
+
+  final AsyncValue<bool> favorite;
+  final ValueChanged<bool> onTap;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 6,
-      ),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(
-          20,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 15,
-            color: foregroundColor,
-          ),
-          const SizedBox(
-            width: 4,
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              color: foregroundColor,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
+  Widget build(BuildContext context) {
+    final isFavorite = favorite.valueOrNull ?? false;
+    return Material(
+      color: Colors.white.withValues(alpha: .94),
+      shape: const CircleBorder(),
+      elevation: 1,
+      shadowColor: Colors.black26,
+      child: SizedBox(
+        width: 40,
+        height: 40,
+        child: favorite.isLoading
+            ? const Center(
+                child: SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            : IconButton(
+                tooltip:
+                    isFavorite ? 'Quitar de guardados' : 'Guardar prestador',
+                onPressed: () => onTap(isFavorite),
+                iconSize: 20,
+                color: isFavorite ? const Color(0xFFB63C49) : RancoColors.pine,
+                icon: Icon(
+                  isFavorite
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                ),
+              ),
       ),
     );
   }
 }
 
-class _InfoBadge extends StatelessWidget {
-  const _InfoBadge({
+class _ExploreCardDetail extends StatelessWidget {
+  const _ExploreCardDetail({
     required this.icon,
-    required this.label,
-    required this.iconColor,
+    required this.text,
+    this.iconColor = RancoColors.primary,
   });
 
   final IconData icon;
-  final String label;
+  final String text;
   final Color iconColor;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 6,
-      ),
-      decoration: BoxDecoration(
-        color: const Color(
-          0xFFF4F7F5,
-        ),
-        borderRadius: BorderRadius.circular(
-          20,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 15,
-            color: iconColor,
-          ),
-          const SizedBox(
-            width: 4,
-          ),
-          Text(
-            label,
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: iconColor),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: Color(
-                0xFF52645C,
-              ),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+              color: Color(0xFF52655C),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-class _LodgingBadge extends StatelessWidget {
-  const _LodgingBadge();
-
-  @override
-  Widget build(
-    BuildContext context,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 6,
-      ),
-      decoration: BoxDecoration(
-        color: const Color(
-          0xFFE4F1EB,
-        ),
-        borderRadius: BorderRadius.circular(
-          20,
-        ),
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.calendar_month_outlined,
-            size: 14,
-            color: RancoColors.forest,
-          ),
-          SizedBox(
-            width: 5,
-          ),
-          Text(
-            'Consulta disponibilidad',
-            style: TextStyle(
-              color: RancoColors.forest,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AvailabilityBadge extends StatelessWidget {
-  const _AvailabilityBadge({
-    required this.openNow,
+class _ExploreHeroFallback extends StatelessWidget {
+  const _ExploreHeroFallback({
+    required this.label,
+    required this.slug,
+    required this.icon,
+    required this.type,
+    this.logoUrl,
   });
 
-  final bool openNow;
+  final String label;
+  final String? slug;
+  final IconData icon;
+  final BusinessType type;
+
+  /// Logo del negocio: se usa como marca cuando no hay fotografía de portada.
+  final String? logoUrl;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final foreground = openNow
-        ? const Color(
-            0xFF267A55,
-          )
-        : const Color(
-            0xFF8C6840,
-          );
+  Widget build(BuildContext context) {
+    final category = '${slug ?? ''} $label'.toLowerCase();
+    final (start, end) = category.contains('electric')
+        ? (const Color(0xFFFFF3D8), const Color(0xFFF4DB9F))
+        : category.contains('mecan')
+            ? (const Color(0xFFE8EEEE), const Color(0xFFCAD9D7))
+            : category.contains('gasfit') || category.contains('plumb')
+                ? (const Color(0xFFE5F2F2), const Color(0xFFC6DFDB))
+                : switch (type) {
+                    BusinessType.lodging => (
+                        const Color(0xFFE2EFEA),
+                        const Color(0xFFC7DDD5)
+                      ),
+                    BusinessType.gastronomy => (
+                        const Color(0xFFFFF0DE),
+                        const Color(0xFFF0D9BC)
+                      ),
+                    BusinessType.tourism => (
+                        const Color(0xFFE6F2E4),
+                        const Color(0xFFBDD9C5)
+                      ),
+                    BusinessType.emergency => (
+                        const Color(0xFFFFEDE4),
+                        const Color(0xFFF4D0BF)
+                      ),
+                    _ => (const Color(0xFFEAF3E8), const Color(0xFFD0E4D7)),
+                  };
 
-    final background = openNow
-        ? const Color(
-            0xFFE4F3EB,
-          )
-        : const Color(
-            0xFFF5EEE5,
-          );
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 6,
-      ),
+    return DecoratedBox(
       decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(
-          20,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [start, end],
         ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(
-              color: foreground,
-              shape: BoxShape.circle,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (logoUrl != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Image.network(
+                  logoUrl!,
+                  width: 64,
+                  height: 64,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      Icon(icon, size: 40, color: RancoColors.forest),
+                ),
+              )
+            else
+              Container(
+                width: 56,
+                height: 56,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .78),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 28, color: RancoColors.primaryDark),
+              ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: RancoColors.primaryDark,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
-          ),
-          const SizedBox(
-            width: 5,
-          ),
-          Text(
-            openNow ? 'Disponible ahora' : 'Fuera de horario',
-            style: TextStyle(
-              color: foreground,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
+
+IconData _exploreIconFor(BusinessCardData data) {
+  final slug = data.serviceSlug?.toLowerCase() ?? '';
+  if (slug.contains('electric')) return Icons.bolt_outlined;
+  if (slug.contains('mecan')) return Icons.build_outlined;
+  if (slug.contains('gasfit') || slug.contains('plumb')) {
+    return Icons.plumbing_outlined;
+  }
+  if (slug.contains('aseo') || slug.contains('clean')) {
+    return Icons.cleaning_services_outlined;
+  }
+  if (slug.contains('jardin') || slug.contains('garden')) {
+    return Icons.yard_outlined;
+  }
+  return businessIconForType(data.type);
 }

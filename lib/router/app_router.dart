@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,8 +9,10 @@ import '../config/app_build_info.dart';
 import '../core/debug/bootstrap_debug_logger.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/presentation/sign_in_screen.dart';
+import '../features/auth/presentation/access_screen.dart';
 
 import '../features/admin/presentation/admin_screens.dart';
+import '../features/admin/presentation/admin_settings_screens.dart';
 
 import '../features/businesses/data/business_repository.dart';
 
@@ -29,10 +32,13 @@ import '../features/gastronomy/presentation/provider_gastronomy_screens.dart';
 import '../features/gastronomy/presentation/table_reservation_screen.dart';
 
 import '../features/profile/presentation/account_screen.dart';
+import '../features/profile/presentation/account_security_screen.dart';
 
 import '../features/profile/presentation/edit_profile_screen.dart';
+import '../features/profile/application/profile_providers.dart';
 
 import '../features/lodging_bookings/presentation/provider_bookings_screen.dart';
+import '../features/legal/presentation/legal_screen.dart';
 
 import '../features/messaging/presentation/messages_screen.dart';
 
@@ -66,16 +72,21 @@ import '../features/service_requests/presentation/requests_screen.dart';
 import '../router/app_shell.dart';
 
 import '../shared/models/business.dart';
+import '../shared/models/profile.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final refreshListenable = GoRouterRefreshNotifier(ref);
+  var recoveryReturnPending =
+      kIsWeb && Uri.base.queryParameters['recovery'] == '1';
 
   ref.onDispose(
     refreshListenable.dispose,
   );
 
   return GoRouter(
-    initialLocation: '/sign-in',
+    initialLocation: kIsWeb && Uri.base.path != '/'
+        ? '${Uri.base.path}${Uri.base.hasQuery ? '?${Uri.base.query}' : ''}'
+        : '/sign-in',
     refreshListenable: refreshListenable,
     redirect: (context, state) {
       final path = state.uri.path;
@@ -83,18 +94,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final user = auth.valueOrNull;
 
       final providerManagementRoute = _isProviderManagementRoute(path);
+      final providerRoute =
+          path == '/provider' || path.startsWith('/provider/');
 
       final adminRoute = path.startsWith('/admin');
 
-      final protected = (path.startsWith('/business/') &&
-              path.endsWith(
-                '/request',
-              )) ||
-          (path.startsWith('/business/') &&
-              path.endsWith(
-                '/table-reservation',
-              )) ||
-          path.startsWith(
+      final protected = path.startsWith(
             '/requests/',
           ) ||
           path.startsWith(
@@ -104,12 +109,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             '/notifications',
           ) ||
           path == '/account/edit' ||
+          path == '/account/security' ||
           providerManagementRoute ||
           adminRoute;
 
-      if (auth.isLoading &&
-          !auth.hasValue &&
-          (protected || path == '/bootstrap')) {
+      if (auth.isLoading && !auth.hasValue) {
         logBootstrapEvent('AUTH_BOOTSTRAP_START');
         return _bootstrapRoute(state);
       }
@@ -133,8 +137,32 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return _nextOrHome(state);
       }
 
+      if (recoveryReturnPending && user != null) {
+        recoveryReturnPending = false;
+        if (path != '/account/security') return '/account/security';
+      }
+
       if (path == '/sign-in' && user != null) {
+        if (user.isAnonymous) {
+          if (state.uri.queryParameters['choose'] == '1') return null;
+          final next = _nextOrHome(state);
+          if (next == '/') return '/';
+          return next;
+        }
         return _nextOrHome(state);
+      }
+
+      if (path == '/visitor/profile' && user != null && !user.isAnonymous) {
+        return '/account';
+      }
+
+      if (user?.isAnonymous == true &&
+          (providerManagementRoute || adminRoute)) {
+        return providerManagementRoute
+            ? Uri(path: '/provider/sign-in', queryParameters: {
+                'next': state.uri.toString(),
+              }).toString()
+            : '/explore';
       }
 
       if (protected && user == null) {
@@ -146,6 +174,29 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         );
 
         return loginUri.toString();
+      }
+
+      if (providerRoute && user != null && !user.isAnonymous) {
+        final profile = ref.read(currentProfileProvider);
+        if (profile.isLoading && !profile.hasValue) {
+          return _bootstrapRoute(state);
+        }
+        if (profile.hasError) {
+          return path == '/bootstrap' ? null : _bootstrapRoute(state);
+        }
+        final role = profile.valueOrNull?.role;
+        if (role?.canAccessAdmin == true) return '/admin';
+        if (providerManagementRoute &&
+            role != ProfileRole.provider &&
+            role != ProfileRole.customer) {
+          return '/provider/join';
+        }
+      }
+
+      if (path == '/provider') {
+        return user == null || user.isAnonymous
+            ? '/provider/join'
+            : '/provider/dashboard';
       }
 
       if (providerManagementRoute && user != null) {
@@ -275,8 +326,33 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/sign-in',
+        builder: (context, state) => AccessScreen(
+          nextRoute: state.uri.queryParameters['next'],
+        ),
+      ),
+      GoRoute(
+        path: '/terminos',
+        builder: (context, state) => const LegalScreen(privacy: false),
+      ),
+      GoRoute(
+        path: '/politica-privacidad',
+        builder: (context, state) => const LegalScreen(privacy: true),
+      ),
+      GoRoute(
+        path: '/contacto',
+        builder: (context, state) => const ContactScreen(),
+      ),
+      GoRoute(
+        path: '/visitor/profile',
+        builder: (context, state) => VisitorProfileScreen(
+          nextRoute: state.uri.queryParameters['next'],
+        ),
+      ),
+      GoRoute(
+        path: '/provider/sign-in',
         builder: (context, state) => SignInScreen(
           nextRoute: state.uri.queryParameters['next'],
+          providerAccess: true,
         ),
       ),
       GoRoute(
@@ -373,51 +449,67 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           nextRoute: state.uri.queryParameters['next'],
         ),
       ),
-      GoRoute(
-        path: '/admin',
-        builder: (context, state) => const AdminDashboardScreen(),
-      ),
-      GoRoute(
-        path: '/admin/businesses',
-        builder: (context, state) {
-          final status = BusinessPublicationStatus.parseOrDefault(
-            state.uri.queryParameters['status'] ?? 'pending_review',
-          );
-
-          return AdminBusinessesScreen(initialStatus: status);
-        },
-      ),
-      GoRoute(
-        path: '/admin/businesses/pending',
-        builder: (context, state) => const AdminBusinessesScreen(
-          initialStatus: BusinessPublicationStatus.pendingReview,
+      ShellRoute(
+        builder: (context, state, child) => AdminWorkspaceShell(
+          path: state.uri.path,
+          child: child,
         ),
-      ),
-      GoRoute(
-        path: '/admin/businesses/:id',
-        builder: (context, state) => AdminBusinessDetailScreen(
-          businessId: state.pathParameters['id']!,
-        ),
-      ),
-      GoRoute(
-        path: '/admin/users',
-        builder: (context, state) => const AdminPlaceholderScreen(
-          title: 'Usuarios',
-          message:
-              'La base ya protege perfiles por RLS. Para listar y gestionar usuarios desde admin falta exponer un RPC dedicado; no se muestran datos simulados.',
-        ),
-      ),
-      GoRoute(
-        path: '/admin/audit',
-        builder: (context, state) => const AdminPlaceholderScreen(
-          title: 'Auditoría',
-          message:
-              'Los eventos se registran en backend. La vista se activará cuando exista una consulta admin segura para audit_logs.',
-        ),
+        routes: [
+          GoRoute(
+            path: '/admin',
+            builder: (context, state) => const AdminDashboardScreen(),
+          ),
+          GoRoute(
+            path: '/admin/businesses',
+            builder: (context, state) => AdminBusinessesScreen(
+              initialStatus: state.uri.queryParameters['status'] == null
+                  ? null
+                  : BusinessPublicationStatus.parseOrDefault(
+                      state.uri.queryParameters['status'],
+                    ),
+            ),
+          ),
+          GoRoute(
+            path: '/admin/businesses/pending',
+            builder: (context, state) => const AdminBusinessesScreen(
+              initialStatus: BusinessPublicationStatus.pendingReview,
+            ),
+          ),
+          GoRoute(
+            path: '/admin/businesses/:id',
+            builder: (context, state) => AdminBusinessDetailScreen(
+              businessId: state.pathParameters['id']!,
+            ),
+          ),
+          GoRoute(
+            path: '/admin/users',
+            builder: (context, state) => const AdminUsersScreen(),
+          ),
+          GoRoute(
+            path: '/admin/categories',
+            builder: (context, state) => const AdminCategoriesScreen(),
+          ),
+          GoRoute(
+            path: '/admin/settings',
+            builder: (context, state) => const AdminWhatsAppSettingsScreen(),
+          ),
+          GoRoute(
+            path: '/admin/analytics',
+            builder: (context, state) => const AdminAnalyticsScreen(),
+          ),
+          GoRoute(
+            path: '/admin/audit',
+            builder: (context, state) => const AdminAuditScreen(),
+          ),
+        ],
       ),
       GoRoute(
         path: '/account/edit',
         builder: (context, state) => const EditProfileScreen(),
+      ),
+      GoRoute(
+        path: '/account/security',
+        builder: (context, state) => const AccountSecurityScreen(),
       ),
       GoRoute(
         path: '/business/:id/availability',
@@ -453,6 +545,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/requests/:id',
         builder: (context, state) => RequestDetailScreen(
           requestId: state.pathParameters['id']!,
+          justSent: state.uri.queryParameters['sent'] == '1',
+          attachmentsFailed:
+              state.uri.queryParameters['attachments'] == 'failed',
         ),
       ),
     ],
@@ -485,9 +580,9 @@ bool _isProviderManagementRoute(String path) {
       path == '/provider/table-reservations';
 }
 
-String _bootstrapRoute(GoRouterState state) {
+String? _bootstrapRoute(GoRouterState state) {
   if (state.uri.path == '/bootstrap') {
-    return '/bootstrap';
+    return null;
   }
 
   return Uri(
@@ -552,16 +647,22 @@ class GoRouterRefreshNotifier extends ChangeNotifier {
       providerContextProvider,
       (_, __) => notifyListeners(),
     );
+    _profileSubscription = ref.listen<AsyncValue<Object?>>(
+      currentProfileProvider,
+      (_, __) => notifyListeners(),
+    );
   }
 
   final Ref ref;
   late final ProviderSubscription<AsyncValue<Object?>> _authSubscription;
   late final ProviderSubscription<AsyncValue<Object?>> _providerSubscription;
+  late final ProviderSubscription<AsyncValue<Object?>> _profileSubscription;
 
   @override
   void dispose() {
     _authSubscription.close();
     _providerSubscription.close();
+    _profileSubscription.close();
 
     super.dispose();
   }

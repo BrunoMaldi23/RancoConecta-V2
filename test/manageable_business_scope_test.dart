@@ -6,10 +6,27 @@ import 'package:ranco_conecta_2/config/app_config.dart';
 import 'package:ranco_conecta_2/features/provider_dashboard/application/provider_context_state.dart';
 import 'package:ranco_conecta_2/features/provider_dashboard/application/provider_dashboard_providers.dart';
 import 'package:ranco_conecta_2/features/provider_dashboard/data/provider_business_repository.dart';
+import 'package:ranco_conecta_2/features/profile/application/profile_providers.dart';
 import 'package:ranco_conecta_2/shared/models/business.dart';
 import 'package:ranco_conecta_2/shared/models/business_capability.dart';
+import 'package:ranco_conecta_2/shared/models/profile.dart';
 
 void main() {
+  test('provider scope migration separates admin reads from management', () {
+    final sql = File(
+      'supabase/migrations/20261001220000_separate_admin_provider_context.sql',
+    ).readAsStringSync();
+
+    expect(sql, contains("p.role = 'provider'"));
+    expect(sql, contains("p.role = 'customer'"));
+    expect(sql, contains('function public.my_manageable_businesses()'));
+    expect(sql, contains('where public.current_user_is_provider()'));
+    expect(sql, contains('function public.user_can_manage_business'));
+    expect(sql, contains('not public.user_can_manage_business'));
+    expect(sql, contains('drop policy if exists "owners update businesses"'));
+    expect(sql, contains('provider access required'));
+  });
+
   test('manageable business SQL scopes administration by auth.uid membership',
       () {
     final sql = File(
@@ -62,6 +79,14 @@ void main() {
       () async {
     final container = ProviderContainer(
       overrides: [
+        currentProfileProvider.overrideWith((ref) async => const Profile(
+              id: 'provider-1',
+              fullName: 'Proveedor',
+              phone: null,
+              avatarUrl: null,
+              role: ProfileRole.provider,
+              accountStatus: 'active',
+            )),
         myProviderBusinessesProvider.overrideWith(
           (ref) async => [_business('own-1', BusinessType.service)],
         ),

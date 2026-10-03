@@ -5,6 +5,7 @@ class Category {
     required this.slug,
     required this.iconKey,
     required this.themeKey,
+    this.active = true,
   });
 
   final String id;
@@ -12,6 +13,7 @@ class Category {
   final String slug;
   final String iconKey;
   final String themeKey;
+  final bool active;
 }
 
 class Subcategory {

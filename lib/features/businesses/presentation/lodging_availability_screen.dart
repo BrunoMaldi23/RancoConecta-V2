@@ -6,11 +6,20 @@ import 'package:go_router/go_router.dart';
 
 import '../../../shared/models/business.dart';
 import '../../../theme/ranco_colors.dart';
-import '../../auth/application/auth_controller.dart';
+import '../../auth/presentation/visitor_contact_sheet.dart';
+import '../../../core/telemetry/telemetry.dart';
 import '../../lodging_bookings/data/lodging_booking_repository.dart';
+import '../../lodging_bookings/application/lodging_booking_providers.dart';
+import '../../service_requests/application/service_request_providers.dart';
 import '../../provider_dashboard/application/provider_dashboard_providers.dart';
 import '../../provider_dashboard/data/business_media_repository.dart';
 import '../../provider_dashboard/data/lodging_calendar_repository.dart';
+import 'selected_lodging_dates.dart';
+
+final _lodgingVisitorDraftProvider = StateProvider.family<
+    ({DateTimeRange range, int guests, String message})?, String>(
+  (ref, businessId) => null,
+);
 
 class LodgingAvailabilityScreen extends ConsumerStatefulWidget {
   const LodgingAvailabilityScreen({
@@ -28,12 +37,62 @@ class LodgingAvailabilityScreen extends ConsumerStatefulWidget {
 class _LodgingAvailabilityScreenState
     extends ConsumerState<LodgingAvailabilityScreen> {
   DateTimeRange? _range;
+  DateTimeRange? _summaryRange;
+  Future<List<LodgingCalendarDay>>? _summaryCalendar;
+  List<DateTime> _selectedDates = [];
+  bool _manualDates = false;
+
+  List<DateTimeRange> get _manualGroups => groupSelectedNights(_selectedDates);
 
   int _guests = 1;
 
   final _messageController = TextEditingController();
 
   bool _creating = false;
+
+  Future<List<LodgingCalendarDay>> _summaryAvailability() {
+    final range = _range!;
+    if (_summaryCalendar == null ||
+        _summaryRange?.start != range.start ||
+        _summaryRange?.end != range.end) {
+      _summaryRange = range;
+      _summaryCalendar = ref.read(lodgingCalendarRepositoryProvider).listRange(
+            businessId: widget.business.id,
+            from: range.start,
+            to: range.end,
+          );
+    }
+    return _summaryCalendar!;
+  }
+
+  @override
+  void didUpdateWidget(covariant LodgingAvailabilityScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.business.id != widget.business.id) {
+      _summaryRange = null;
+      _summaryCalendar = null;
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final draft = ref.read(_lodgingVisitorDraftProvider(widget.business.id));
+    if (draft != null) {
+      _range = draft.range;
+      _guests = draft.guests;
+      _messageController.text = draft.message;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            ref.read(_lodgingVisitorDraftProvider(widget.business.id)) ==
+                draft) {
+          ref
+              .read(_lodgingVisitorDraftProvider(widget.business.id).notifier)
+              .state = null;
+        }
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -144,15 +203,7 @@ class _LodgingAvailabilityScreenState
             }
 
             return FutureBuilder<List<LodgingCalendarDay>>(
-              future: ref
-                  .read(
-                    lodgingCalendarRepositoryProvider,
-                  )
-                  .listRange(
-                    businessId: widget.business.id,
-                    from: _range!.start,
-                    to: _range!.end,
-                  ),
+              future: _summaryAvailability(),
               builder: (
                 context,
                 snapshot,
@@ -181,17 +232,23 @@ class _LodgingAvailabilityScreenState
 
                 final entries = snapshot.data ?? const <LodgingCalendarDay>[];
 
-                final nights = _range!.end
-                    .difference(
-                      _range!.start,
-                    )
-                    .inDays;
+                final nights = _manualDates
+                    ? _selectedDates.length
+                    : _range!.end
+                        .difference(
+                          _range!.start,
+                        )
+                        .inDays;
 
-                final blocked = _hasBlockedNight(
-                  entries,
-                  _range!.start,
-                  nights,
-                );
+                final blocked = _manualDates
+                    ? entries.any((entry) =>
+                        entry.isBlocked &&
+                        _selectedDates.any((day) => _sameDay(day, entry.date)))
+                    : _hasBlockedNight(
+                        entries,
+                        _range!.start,
+                        nights,
+                      );
 
                 if (blocked) {
                   return const _BookingAsideCard(
@@ -205,7 +262,11 @@ class _LodgingAvailabilityScreenState
                   );
                 }
 
-                if (nights < lodging.minNights) {
+                if ((_manualDates &&
+                        _manualGroups.any((group) =>
+                            group.end.difference(group.start).inDays <
+                            lodging.minNights)) ||
+                    (!_manualDates && nights < lodging.minNights)) {
                   return _BookingAsideCard(
                     child: _MessageCard(
                       icon: Icons.nights_stay_outlined,
@@ -217,7 +278,12 @@ class _LodgingAvailabilityScreenState
                   );
                 }
 
-                if (lodging.maxNights != null && nights > lodging.maxNights!) {
+                if (lodging.maxNights != null &&
+                    (_manualDates
+                        ? _manualGroups.any((group) =>
+                            group.end.difference(group.start).inDays >
+                            lodging.maxNights!)
+                        : nights > lodging.maxNights!)) {
                   return _BookingAsideCard(
                     child: _MessageCard(
                       icon: Icons.event_busy_outlined,
@@ -229,12 +295,22 @@ class _LodgingAvailabilityScreenState
                   );
                 }
 
-                final baseTotal = _calculateBaseTotal(
-                  entries: entries,
-                  start: _range!.start,
-                  nights: nights,
-                  standardPrice: lodging.pricePerNight,
-                );
+                final baseTotal = _manualDates
+                    ? _selectedDates.fold<int>(
+                        0,
+                        (total, day) =>
+                            total +
+                            _calculateBaseTotal(
+                                entries: entries,
+                                start: day,
+                                nights: 1,
+                                standardPrice: lodging.pricePerNight))
+                    : _calculateBaseTotal(
+                        entries: entries,
+                        start: _range!.start,
+                        nights: nights,
+                        standardPrice: lodging.pricePerNight,
+                      );
 
                 final extraGuests = math.max(
                   _guests - lodging.includedGuests,
@@ -290,7 +366,7 @@ class _LodgingAvailabilityScreenState
                                     color: Color(
                                       0xFF718078,
                                     ),
-                                    fontSize: 10.5,
+                                    fontSize: 12.5,
                                   ),
                                 ),
                               ],
@@ -303,6 +379,7 @@ class _LodgingAvailabilityScreenState
                       ),
                       _SummaryCard(
                         range: _range!,
+                        selectedDates: _manualDates ? _selectedDates : null,
                         nights: nights,
                         baseTotal: baseTotal,
                         extraTotal: extraTotal,
@@ -369,7 +446,7 @@ class _LodgingAvailabilityScreenState
                                 color: Color(
                                   0xFF718078,
                                 ),
-                                fontSize: 10.5,
+                                fontSize: 12,
                                 height: 1.35,
                               ),
                             ),
@@ -401,12 +478,12 @@ class _LodgingAvailabilityScreenState
                 height: 5,
               ),
               const Text(
-                'Selecciona las fechas y quienes viajar\u00e1n.',
+                'Selecciona las fechas y qui\u00e9nes viajar\u00e1n.',
                 style: TextStyle(
                   color: Color(
                     0xFF718078,
                   ),
-                  fontSize: 12.5,
+                  fontSize: 13.5,
                 ),
               ),
               const SizedBox(
@@ -416,11 +493,25 @@ class _LodgingAvailabilityScreenState
                 number: '1',
                 title: 'Elige tus fechas',
                 primary: true,
-                subtitle: 'Selecciona entrada y salida.',
-                child: _DateSelectionBox(
-                  range: _range,
-                  onTap: _openDateSelector,
-                ),
+                divided: false,
+                subtitle: 'Selecciona un rango o noches específicas.',
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _DateSelectionBox(
+                          range: _range,
+                          manual: _manualDates,
+                          selectedDates: _selectedDates,
+                          onTap: _openDateSelector),
+                      if (_manualDates && _selectedDates.isNotEmpty)
+                        Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(
+                                'Días elegidos: ${_selectedDates.map(_dateLabel).join(' · ')}',
+                                style: const TextStyle(
+                                    color: RancoColors.forest,
+                                    fontWeight: FontWeight.w700))),
+                    ]),
               ),
               const SizedBox(
                 height: 12,
@@ -550,7 +641,7 @@ class _LodgingAvailabilityScreenState
                 viewport,
               ) {
                 final availableWidth = math.min(
-                  1180.0,
+                  1080.0,
                   viewport.maxWidth - 44,
                 );
 
@@ -594,8 +685,10 @@ class _LodgingAvailabilityScreenState
                                 const SizedBox(
                                   width: 20,
                                 ),
+                                // Resumen siempre visible: columna con scroll
+                                // propio al lado del formulario (no anidado).
                                 SizedBox(
-                                  width: 390,
+                                  width: 370,
                                   height: double.infinity,
                                   child: SingleChildScrollView(
                                     padding: const EdgeInsets.only(
@@ -697,13 +790,15 @@ class _LodgingAvailabilityScreenState
       return;
     }
 
-    final selected = await showModalBottomSheet<DateTimeRange>(
+    final selected = await showModalBottomSheet<_DateSelection>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
         return _CustomDateRangeSheet(
           initialRange: _range,
+          initialDates: _selectedDates,
+          initialManual: _manualDates,
           blockedDays: blockedDays,
         );
       },
@@ -714,7 +809,10 @@ class _LodgingAvailabilityScreenState
     }
 
     setState(() {
-      _range = selected;
+      _range = selected.range;
+      _selectedDates = selected.dates;
+      _manualDates = selected.manual;
+      _summaryCalendar = null;
     });
   }
 
@@ -724,8 +822,11 @@ class _LodgingAvailabilityScreenState
     if (range == null) {
       return;
     }
+    Telemetry.capture('start_booking');
 
-    final nights = range.end.difference(range.start).inDays;
+    final nights = _manualDates
+        ? _selectedDates.length
+        : range.end.difference(range.start).inDays;
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -740,7 +841,9 @@ class _LodgingAvailabilityScreenState
             'Confirmar solicitud',
           ),
           content: Text(
-            'Estás por solicitar una reserva para $nights ${nights == 1 ? 'noche' : 'noches'} y $_guests ${_guests == 1 ? 'huésped' : 'huéspedes'}.\n\nEl anfitrión deberá aceptar tu solicitud antes de que la reserva quede confirmada.',
+            _manualDates
+                ? 'Solicitarás ${_manualGroups.length} ${_manualGroups.length == 1 ? 'reserva' : 'reservas'} para $nights ${nights == 1 ? 'noche' : 'noches'} seleccionadas y $_guests ${_guests == 1 ? 'huésped' : 'huéspedes'}. Cada tramo consecutivo se envía por separado. El anfitrión deberá aceptar cada solicitud.'
+                : 'Estás por solicitar una reserva para $nights ${nights == 1 ? 'noche' : 'noches'} y $_guests ${_guests == 1 ? 'huésped' : 'huéspedes'}.\n\nEl anfitrión deberá aceptar tu solicitud antes de que la reserva quede confirmada.',
             textAlign: TextAlign.center,
           ),
           actions: [
@@ -772,6 +875,10 @@ class _LodgingAvailabilityScreenState
       return;
     }
 
+    final consented = await ensureVisitorContactAndConsent(context, ref,
+        action: 'lodging_booking');
+    if (!mounted || !consented) return;
+
     await _createBooking();
   }
 
@@ -782,29 +889,25 @@ class _LodgingAvailabilityScreenState
       return;
     }
 
-    final user = ref.read(authStateProvider).valueOrNull;
-
-    if (user == null) {
-      context.go('/sign-in');
-      return;
-    }
-
     setState(() {
       _creating = true;
     });
 
+    var sent = 0;
     try {
-      await ref
-          .read(
-            lodgingBookingRepositoryProvider,
-          )
-          .create(
-            businessId: widget.business.id,
-            checkIn: range.start,
-            checkOut: range.end,
-            guests: _guests,
-            message: _messageController.text,
-          );
+      for (final segment in _manualDates ? _manualGroups : [range]) {
+        await ref.read(lodgingBookingRepositoryProvider).create(
+              businessId: widget.business.id,
+              checkIn: segment.start,
+              checkOut: segment.end,
+              guests: _guests,
+              message: _messageController.text,
+            );
+        sent++;
+        ref.invalidate(myCustomerActivityProvider);
+        ref.invalidate(lodgingBookingsForBusinessProvider(widget.business.id));
+      }
+      Telemetry.capture('complete_booking');
 
       if (!mounted) {
         return;
@@ -823,8 +926,10 @@ class _LodgingAvailabilityScreenState
             title: const Text(
               'Solicitud enviada',
             ),
-            content: const Text(
-              'El anfitrión recibió tu solicitud de reserva.',
+            content: Text(
+              sent == 1
+                  ? 'El anfitrión recibió tu solicitud de reserva.'
+                  : 'El anfitrión recibió $sent solicitudes de reserva.',
               textAlign: TextAlign.center,
             ),
             actions: [
@@ -858,6 +963,25 @@ class _LodgingAvailabilityScreenState
         return;
       }
 
+      if (_manualDates && sent > 0) {
+        final completed = _manualGroups.take(sent).toList();
+        final remaining = _selectedDates
+            .where((day) => !completed.any(
+                  (segment) =>
+                      !day.isBefore(segment.start) && day.isBefore(segment.end),
+                ))
+            .toList();
+        setState(() {
+          _selectedDates = remaining;
+          _range = remaining.isEmpty
+              ? null
+              : DateTimeRange(
+                  start: remaining.first,
+                  end: remaining.last.add(const Duration(days: 1)),
+                );
+        });
+      }
+
       ScaffoldMessenger.of(
         context,
       ).hideCurrentSnackBar();
@@ -867,7 +991,9 @@ class _LodgingAvailabilityScreenState
       ).showSnackBar(
         SnackBar(
           content: Text(
-            'No pudimos crear la reserva: $error',
+            sent == 0
+                ? 'No pudimos crear la reserva: $error'
+                : 'Se enviaron $sent solicitudes, pero una solicitud posterior falló: $error. Revisa tus reservas antes de reintentar.',
           ),
         ),
       );
@@ -1021,7 +1147,7 @@ class _PropertyHeader extends StatelessWidget {
                     ),
                   ),
                   child: SizedBox(
-                    height: 132,
+                    height: 104,
                     width: double.infinity,
                     child: _PropertyImage(
                       coverUrl: coverUrl,
@@ -1055,9 +1181,9 @@ class _PropertyHeader extends StatelessWidget {
         }
 
         return Container(
-          height: 108,
+          height: 88,
           padding: const EdgeInsets.all(
-            9,
+            8,
           ),
           decoration: BoxDecoration(
             color: Colors.white,
@@ -1077,7 +1203,7 @@ class _PropertyHeader extends StatelessWidget {
                   12,
                 ),
                 child: SizedBox(
-                  width: 138,
+                  width: 112,
                   height: double.infinity,
                   child: _PropertyImage(
                     coverUrl: coverUrl,
@@ -1657,6 +1783,7 @@ class _BookingSection extends StatelessWidget {
     required this.subtitle,
     required this.child,
     this.primary = false,
+    this.divided = true,
   });
 
   final String number;
@@ -1665,38 +1792,22 @@ class _BookingSection extends StatelessWidget {
   final Widget child;
   final bool primary;
 
+  /// Separador superior: las secciones se distinguen con divisores y
+  /// espacio, no con bordes propios (evita tarjeta dentro de tarjeta).
+  final bool divided;
+
   @override
   Widget build(
     BuildContext context,
   ) {
-    return AnimatedContainer(
-      duration: const Duration(
-        milliseconds: 180,
-      ),
-      padding: EdgeInsets.all(
-        primary ? 18 : 15,
-      ),
+    return Container(
+      padding: EdgeInsets.only(top: divided ? 18 : 4, bottom: 6),
       decoration: BoxDecoration(
-        color: primary
-            ? const Color(
-                0xFFF8FCFA,
+        border: divided
+            ? const Border(
+                top: BorderSide(color: Color(0xFFE5ECE8)),
               )
-            : const Color(
-                0xFFFCFDFC,
-              ),
-        borderRadius: BorderRadius.circular(
-          16,
-        ),
-        border: Border.all(
-          color: primary
-              ? const Color(
-                  0xFFBFD9CC,
-                )
-              : const Color(
-                  0xFFE3EAE6,
-                ),
-          width: primary ? 1.2 : 1,
-        ),
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1748,9 +1859,9 @@ class _BookingSection extends StatelessWidget {
                       subtitle,
                       style: const TextStyle(
                         color: Color(
-                          0xFF7A8982,
+                          0xFF6F7F78,
                         ),
-                        fontSize: 10.5,
+                        fontSize: 12.5,
                       ),
                     ),
                   ],
@@ -1759,8 +1870,8 @@ class _BookingSection extends StatelessWidget {
               if (primary) const _RequiredPill(),
             ],
           ),
-          SizedBox(
-            height: primary ? 16 : 13,
+          const SizedBox(
+            height: 12,
           ),
           child,
         ],
@@ -1802,10 +1913,14 @@ class _RequiredPill extends StatelessWidget {
 class _DateSelectionBox extends StatelessWidget {
   const _DateSelectionBox({
     required this.range,
+    required this.manual,
+    required this.selectedDates,
     required this.onTap,
   });
 
   final DateTimeRange? range;
+  final bool manual;
+  final List<DateTime> selectedDates;
   final VoidCallback onTap;
 
   @override
@@ -1858,7 +1973,7 @@ class _DateSelectionBox extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _DateMini(
-                      label: 'ENTRADA',
+                      label: manual ? 'PRIMER DÍA' : 'ENTRADA',
                       value: _LodgingAvailabilityScreenState._dateLabel(
                         range!.start,
                       ),
@@ -1872,9 +1987,9 @@ class _DateSelectionBox extends StatelessWidget {
                   ),
                   Expanded(
                     child: _DateMini(
-                      label: 'SALIDA',
+                      label: manual ? 'ÚLTIMO DÍA' : 'SALIDA',
                       value: _LodgingAvailabilityScreenState._dateLabel(
-                        range!.end,
+                        manual ? selectedDates.last : range!.end,
                       ),
                       alignEnd: true,
                     ),
@@ -2022,13 +2137,26 @@ class _GuestSelector extends StatelessWidget {
   }
 }
 
+class _DateSelection {
+  const _DateSelection(
+      {required this.range, required this.dates, required this.manual});
+
+  final DateTimeRange range;
+  final List<DateTime> dates;
+  final bool manual;
+}
+
 class _CustomDateRangeSheet extends StatefulWidget {
   const _CustomDateRangeSheet({
     required this.initialRange,
+    required this.initialDates,
+    required this.initialManual,
     required this.blockedDays,
   });
 
   final DateTimeRange? initialRange;
+  final List<DateTime> initialDates;
+  final bool initialManual;
 
   final List<LodgingCalendarDay> blockedDays;
 
@@ -2041,6 +2169,8 @@ class _CustomDateRangeSheetState extends State<_CustomDateRangeSheet> {
 
   DateTime? _start;
   DateTime? _end;
+  late bool _manual;
+  late Set<DateTime> _dates;
 
   @override
   void initState() {
@@ -2056,17 +2186,20 @@ class _CustomDateRangeSheetState extends State<_CustomDateRangeSheet> {
     _start = widget.initialRange?.start;
 
     _end = widget.initialRange?.end;
+    _manual = widget.initialManual;
+    _dates = widget.initialDates.toSet();
   }
 
   @override
   Widget build(
     BuildContext context,
   ) {
+    // Alto según contenido (máx. 90 %): sin franja vacía bajo el calendario.
     return Container(
-      height: MediaQuery.sizeOf(
-            context,
-          ).height *
-          .78,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * .9,
+        maxWidth: 560,
+      ),
       decoration: const BoxDecoration(
         color: Color(
           0xFFF9FBFA,
@@ -2079,199 +2212,251 @@ class _CustomDateRangeSheetState extends State<_CustomDateRangeSheet> {
       ),
       child: SafeArea(
         top: false,
-        child: Column(
-          children: [
-            const SizedBox(
-              height: 10,
-            ),
-            Container(
-              width: 44,
-              height: 4,
-              decoration: BoxDecoration(
-                color: const Color(
-                  0xFFD0D9D4,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                height: 10,
+              ),
+              Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(
+                    0xFFD0D9D4,
+                  ),
+                  borderRadius: BorderRadius.circular(
+                    20,
+                  ),
                 ),
-                borderRadius: BorderRadius.circular(
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
                   20,
+                  18,
+                  20,
+                  10,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Elige tus fechas',
+                            style: TextStyle(
+                              fontSize: 21,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          Text(
+                            _manual
+                                ? 'Elige las noches que necesitas'
+                                : 'Selecciona entrada y salida',
+                            style: const TextStyle(
+                              color: Color(
+                                0xFF718078,
+                              ),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        Navigator.pop(
+                          context,
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.close_rounded,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                18,
-                20,
-                10,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(
+                        value: false,
+                        label: Text('Por rango'),
+                        icon: Icon(Icons.date_range_outlined)),
+                    ButtonSegment(
+                        value: true,
+                        label: Text('Días específicos'),
+                        icon: Icon(Icons.event_available_outlined)),
+                  ],
+                  selected: {_manual},
+                  onSelectionChanged: (values) => setState(() {
+                    if (_manual == values.first) return;
+                    _manual = values.first;
+                    _start = null;
+                    _end = null;
+                    _dates.clear();
+                  }),
+                ),
               ),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: 10),
+              if (_manual && _dates.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                        'Noches seleccionadas: ${(_dates.toList()..sort()).map(_LodgingAvailabilityScreenState._dateLabel).join(' · ')}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: RancoColors.forest)),
+                  ),
+                ),
+              if (!_manual && _start != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.all(
+                      13,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(
+                        0xFFE4F2EB,
+                      ),
+                      borderRadius: BorderRadius.circular(
+                        15,
+                      ),
+                    ),
+                    child: Row(
                       children: [
-                        Text(
-                          'Elige tus fechas',
-                          style: TextStyle(
-                            fontSize: 21,
-                            fontWeight: FontWeight.w900,
+                        Expanded(
+                          child: _DateMini(
+                            label: 'ENTRADA',
+                            value: _LodgingAvailabilityScreenState._dateLabel(
+                              _start!,
+                            ),
                           ),
                         ),
-                        Text(
-                          'Selecciona entrada y salida',
-                          style: TextStyle(
-                            color: Color(
-                              0xFF718078,
-                            ),
-                            fontSize: 12,
+                        const Icon(
+                          Icons.arrow_forward_rounded,
+                          color: RancoColors.forest,
+                        ),
+                        Expanded(
+                          child: _DateMini(
+                            label: 'SALIDA',
+                            value: _end == null
+                                ? 'Selecciona'
+                                : _LodgingAvailabilityScreenState._dateLabel(
+                                    _end!,
+                                  ),
+                            alignEnd: true,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  IconButton(
-                    onPressed: () {
-                      Navigator.pop(
-                        context,
-                      );
-                    },
-                    icon: const Icon(
-                      Icons.close_rounded,
-                    ),
+                ),
+              if (!_manual && _start != null && _end != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('${_end!.difference(_start!).inDays} noches',
+                        style: const TextStyle(
+                            color: RancoColors.forest,
+                            fontWeight: FontWeight.w800)),
                   ),
-                ],
+                ),
+              const SizedBox(
+                height: 10,
               ),
-            ),
-            if (_start != null)
               Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
+                  horizontal: 18,
                 ),
-                child: Container(
-                  padding: const EdgeInsets.all(
-                    13,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(
-                      0xFFE4F2EB,
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        setState(() {
+                          _month = DateTime(
+                            _month.year,
+                            _month.month - 1,
+                          );
+                        });
+                      },
+                      icon: const Icon(
+                        Icons.chevron_left_rounded,
+                      ),
                     ),
-                    borderRadius: BorderRadius.circular(
-                      15,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _DateMini(
-                          label: 'ENTRADA',
-                          value: _LodgingAvailabilityScreenState._dateLabel(
-                            _start!,
-                          ),
+                    Expanded(
+                      child: Text(
+                        _monthLabel(
+                          _month,
+                        ),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
-                      const Icon(
-                        Icons.arrow_forward_rounded,
-                        color: RancoColors.forest,
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        setState(() {
+                          _month = DateTime(
+                            _month.year,
+                            _month.month + 1,
+                          );
+                        });
+                      },
+                      icon: const Icon(
+                        Icons.chevron_right_rounded,
                       ),
-                      Expanded(
-                        child: _DateMini(
-                          label: 'SALIDA',
-                          value: _end == null
-                              ? 'Selecciona'
-                              : _LodgingAvailabilityScreenState._dateLabel(
-                                  _end!,
-                                ),
-                          alignEnd: true,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-            const SizedBox(
-              height: 10,
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 18,
-              ),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _month = DateTime(
-                          _month.year,
-                          _month.month - 1,
-                        );
-                      });
-                    },
-                    icon: const Icon(
-                      Icons.chevron_left_rounded,
+              const Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: 18,
+                ),
+                child: Row(
+                  children: [
+                    _DayHeader(
+                      'L',
                     ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      _monthLabel(
-                        _month,
-                      ),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w900,
-                      ),
+                    _DayHeader(
+                      'M',
                     ),
-                  ),
-                  IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _month = DateTime(
-                          _month.year,
-                          _month.month + 1,
-                        );
-                      });
-                    },
-                    icon: const Icon(
-                      Icons.chevron_right_rounded,
+                    _DayHeader(
+                      'M',
                     ),
-                  ),
-                ],
+                    _DayHeader(
+                      'J',
+                    ),
+                    _DayHeader(
+                      'V',
+                    ),
+                    _DayHeader(
+                      'S',
+                    ),
+                    _DayHeader(
+                      'D',
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: 18,
+              const SizedBox(
+                height: 6,
               ),
-              child: Row(
-                children: [
-                  _DayHeader(
-                    'L',
-                  ),
-                  _DayHeader(
-                    'M',
-                  ),
-                  _DayHeader(
-                    'M',
-                  ),
-                  _DayHeader(
-                    'J',
-                  ),
-                  _DayHeader(
-                    'V',
-                  ),
-                  _DayHeader(
-                    'S',
-                  ),
-                  _DayHeader(
-                    'D',
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(
-              height: 6,
-            ),
-            Expanded(
-              child: Padding(
+              Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 18,
                 ),
@@ -2279,77 +2464,119 @@ class _CustomDateRangeSheetState extends State<_CustomDateRangeSheet> {
                   month: _month,
                   start: _start,
                   end: _end,
+                  manualDates: _manual ? _dates : const {},
+                  manual: _manual,
                   blockedDays: widget.blockedDays,
                   onDateSelected: _selectDate,
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                10,
-                20,
-                16,
-              ),
-              child: Column(
-                children: [
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _CalendarLegend(
-                        color: Color(
-                          0xFFE4F2EB,
+              Padding(
+                // Leyenda pegada al calendario y CTA inmediatamente debajo.
+                padding: const EdgeInsets.fromLTRB(
+                  20,
+                  6,
+                  20,
+                  16,
+                ),
+                child: Column(
+                  children: [
+                    const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _CalendarLegend(
+                          color: Color(
+                            0xFFE4F2EB,
+                          ),
+                          label: 'Disponible',
                         ),
-                        label: 'Disponible',
-                      ),
-                      SizedBox(
-                        width: 14,
-                      ),
-                      _CalendarLegend(
-                        color: Color(
-                          0xFFFFE4DE,
+                        SizedBox(
+                          width: 14,
                         ),
-                        label: 'No disponible',
-                      ),
-                    ],
-                  ),
-                  const SizedBox(
-                    height: 12,
-                  ),
-                  FilledButton(
-                    onPressed: _start != null && _end != null
-                        ? () {
-                            Navigator.pop(
-                              context,
-                              DateTimeRange(
-                                start: _start!,
-                                end: _end!,
-                              ),
-                            );
-                          }
-                        : null,
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(
-                        52,
-                      ),
-                      backgroundColor: RancoColors.forest,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          15,
+                        _CalendarLegend(
+                          color: Color(
+                            0xFFFFE4DE,
+                          ),
+                          label: 'No disponible',
                         ),
+                        SizedBox(width: 14),
+                        _CalendarLegend(
+                            color: RancoColors.forest, label: 'Seleccionado'),
+                      ],
+                    ),
+                    const SizedBox(
+                      height: 12,
+                    ),
+                    FilledButton(
+                      onPressed: _manual
+                          ? (_dates.isEmpty
+                              ? null
+                              : () {
+                                  final dates = _dates.toList()..sort();
+                                  Navigator.pop(
+                                      context,
+                                      _DateSelection(
+                                          range: DateTimeRange(
+                                              start: dates.first,
+                                              end: dates.last.add(
+                                                  const Duration(days: 1))),
+                                          dates: dates,
+                                          manual: true));
+                                })
+                          : _start != null && _end != null
+                              ? () {
+                                  Navigator.pop(
+                                    context,
+                                    _DateSelection(
+                                      range: DateTimeRange(
+                                          start: _start!, end: _end!),
+                                      dates: [
+                                        for (var day = _start!;
+                                            day.isBefore(_end!);
+                                            day = day
+                                                .add(const Duration(days: 1)))
+                                          day
+                                      ],
+                                      manual: false,
+                                    ),
+                                  );
+                                }
+                              : null,
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(
+                          50,
+                        ),
+                        backgroundColor: RancoColors.forest,
+                        foregroundColor: Colors.white,
+                        // Deshabilitado legible: gris neutro, no verde pálido.
+                        disabledBackgroundColor: const Color(0xFFE3E8E5),
+                        disabledForegroundColor: const Color(0xFF55655D),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            14,
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        _manual
+                            ? _dates.isEmpty
+                                ? 'Selecciona los d\u00edas'
+                                : 'Confirmar ${_dates.length} ${_dates.length == 1 ? 'd\u00eda' : 'd\u00edas'}'
+                            : _start == null
+                                ? 'Selecciona la fecha de llegada'
+                                : _end == null
+                                    ? 'Selecciona la fecha de salida'
+                                    : () {
+                                        final nights =
+                                            _end!.difference(_start!).inDays;
+                                        return 'Confirmar $nights ${nights == 1 ? 'noche' : 'noches'}';
+                                      }(),
                       ),
                     ),
-                    child: Text(
-                      _end == null
-                          ? 'Selecciona la fecha de salida'
-                          : 'Confirmar fechas',
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -2365,6 +2592,10 @@ class _CustomDateRangeSheetState extends State<_CustomDateRangeSheet> {
     }
 
     setState(() {
+      if (_manual) {
+        if (!_dates.add(date)) _dates.remove(date);
+        return;
+      }
       if (_start == null ||
           _end != null ||
           date.isBefore(
@@ -2463,6 +2694,8 @@ class _MonthSelectorGrid extends StatelessWidget {
     required this.month,
     required this.start,
     required this.end,
+    required this.manualDates,
+    required this.manual,
     required this.blockedDays,
     required this.onDateSelected,
   });
@@ -2470,6 +2703,8 @@ class _MonthSelectorGrid extends StatelessWidget {
   final DateTime month;
   final DateTime? start;
   final DateTime? end;
+  final Set<DateTime> manualDates;
+  final bool manual;
   final List<LodgingCalendarDay> blockedDays;
   final ValueChanged<DateTime> onDateSelected;
 
@@ -2505,122 +2740,170 @@ class _MonthSelectorGrid extends StatelessWidget {
       today.day,
     );
 
-    return GridView.builder(
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: cells,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 7,
-        crossAxisSpacing: 5,
-        mainAxisSpacing: 5,
-      ),
-      itemBuilder: (
-        context,
-        index,
-      ) {
-        final day = index - offset + 1;
+    return LayoutBuilder(builder: (context, constraints) {
+      // Celdas de hasta 44px de alto: evita semanas enormes en desktop.
+      final spacing = manual ? 5.0 : 0.0;
+      final cellWidth = (constraints.maxWidth - spacing * 6) / 7;
+      final cellHeight = math.min(cellWidth, 44.0);
+      return GridView.builder(
+        shrinkWrap: true,
+        padding: EdgeInsets.zero,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: cells,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 7,
+          crossAxisSpacing: spacing,
+          mainAxisSpacing: 4,
+          childAspectRatio: cellWidth / cellHeight,
+        ),
+        itemBuilder: (
+          context,
+          index,
+        ) {
+          final day = index - offset + 1;
 
-        if (day < 1 || day > count) {
-          return const SizedBox();
-        }
+          if (day < 1 || day > count) {
+            return const SizedBox();
+          }
 
-        final date = DateTime(
-          month.year,
-          month.month,
-          day,
-        );
+          final date = DateTime(
+            month.year,
+            month.month,
+            day,
+          );
 
-        final isPast = date.isBefore(
-          todayDate,
-        );
+          final isPast = date.isBefore(
+            todayDate,
+          );
 
-        final blocked = _isBlocked(
-          date,
-        );
+          final blocked = _isBlocked(
+            date,
+          );
 
-        final isStart = start != null &&
-            _sameDate(
-              date,
-              start!,
+          final isStart = start != null &&
+              _sameDate(
+                date,
+                start!,
+              );
+
+          final isEnd = end != null &&
+              _sameDate(
+                date,
+                end!,
+              );
+
+          final inRange = start != null &&
+              end != null &&
+              date.isAfter(
+                start!,
+              ) &&
+              date.isBefore(
+                end!,
+              );
+
+          Color background = Colors.transparent;
+
+          Color textColor = const Color(
+            0xFF30443B,
+          );
+
+          if (blocked) {
+            background = const Color(
+              0xFFFFE4DE,
             );
-
-        final isEnd = end != null &&
-            _sameDate(
-              date,
-              end!,
+            textColor = const Color(
+              0xFFAE5A47,
             );
+          }
 
-        final inRange = start != null &&
-            end != null &&
-            date.isAfter(
-              start!,
-            ) &&
-            date.isBefore(
-              end!,
+          if (inRange && !manual) {
+            background = const Color(
+              0xFFDDF1E7,
             );
+          }
 
-        Color background = Colors.transparent;
+          if ((isStart || isEnd) && !manual ||
+              manualDates.any((selected) => _sameDate(selected, date))) {
+            background = RancoColors.forest;
+            textColor = Colors.white;
+          }
 
-        Color textColor = const Color(
-          0xFF30443B,
-        );
+          if (isPast) {
+            textColor = const Color(
+              0xFFB4BBB7,
+            );
+          }
 
-        if (blocked) {
-          background = const Color(
-            0xFFFFE4DE,
-          );
-          textColor = const Color(
-            0xFFAE5A47,
-          );
-        }
+          final selectedManual = manual &&
+              manualDates.any((selected) => _sameDate(selected, date));
 
-        if (inRange) {
-          background = const Color(
-            0xFFDDF1E7,
-          );
-        }
+          // Rango continuo: extremos redondeados hacia afuera, tramo intermedio
+          // recto. Días específicos: cada día es una pastilla independiente.
+          const round = Radius.circular(12);
+          final radius = manual || (!inRange && !isStart && !isEnd)
+              ? BorderRadius.circular(12)
+              : isStart && (isEnd || end == null)
+                  ? BorderRadius.circular(12)
+                  : isStart
+                      ? const BorderRadius.horizontal(left: round)
+                      : isEnd
+                          ? const BorderRadius.horizontal(right: round)
+                          : BorderRadius.zero;
+          // El tramo del rango también pinta detrás de los extremos.
+          final rangeTrack = !manual && end != null && (isStart || isEnd);
 
-        if (isStart || isEnd) {
-          background = RancoColors.forest;
-          textColor = Colors.white;
-        }
+          final status = blocked
+              ? 'no disponible'
+              : isPast
+                  ? 'fecha pasada'
+                  : (isStart || isEnd || inRange || selectedManual)
+                      ? 'seleccionado'
+                      : 'disponible';
 
-        if (isPast) {
-          textColor = const Color(
-            0xFFB4BBB7,
-          );
-        }
-
-        return InkWell(
-          onTap: isPast || blocked
-              ? null
-              : () {
-                  onDateSelected(
-                    date,
-                  );
-                },
-          borderRadius: BorderRadius.circular(
-            12,
-          ),
-          child: Container(
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: background,
-              borderRadius: BorderRadius.circular(
-                12,
+          return Semantics(
+            button: !(isPast || blocked),
+            selected: isStart || isEnd || inRange || selectedManual,
+            label: 'D\u00eda $day, $status',
+            excludeSemantics: true,
+            child: InkWell(
+              onTap: isPast || blocked
+                  ? null
+                  : () {
+                      onDateSelected(
+                        date,
+                      );
+                    },
+              borderRadius: radius,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: rangeTrack ? const Color(0xFFDDF1E7) : null,
+                  borderRadius: radius,
+                ),
+                child: Container(
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: background,
+                    borderRadius:
+                        rangeTrack ? BorderRadius.circular(12) : radius,
+                  ),
+                  child: Text(
+                    '$day',
+                    style: TextStyle(
+                      color: textColor,
+                      fontWeight:
+                          isStart || isEnd ? FontWeight.w900 : FontWeight.w600,
+                      // No depender solo del color para "no disponible".
+                      decoration: blocked ? TextDecoration.lineThrough : null,
+                      decorationColor: textColor,
+                    ),
+                  ),
+                ),
               ),
             ),
-            child: Text(
-              '$day',
-              style: TextStyle(
-                color: textColor,
-                fontWeight:
-                    isStart || isEnd ? FontWeight.w900 : FontWeight.w600,
-              ),
-            ),
-          ),
-        );
-      },
-    );
+          );
+        },
+      );
+    });
   }
 
   bool _isBlocked(
@@ -2720,6 +3003,7 @@ class _CalendarLegend extends StatelessWidget {
 class _SummaryCard extends StatelessWidget {
   const _SummaryCard({
     required this.range,
+    this.selectedDates,
     required this.nights,
     required this.baseTotal,
     required this.extraTotal,
@@ -2727,6 +3011,7 @@ class _SummaryCard extends StatelessWidget {
   });
 
   final DateTimeRange range;
+  final List<DateTime>? selectedDates;
   final int nights;
   final int baseTotal;
   final int extraTotal;
@@ -2753,8 +3038,9 @@ class _SummaryCard extends StatelessWidget {
           height: 15,
         ),
         _SummaryRow(
-          label:
-              '${_LodgingAvailabilityScreenState._dateLabel(range.start)} - ${_LodgingAvailabilityScreenState._dateLabel(range.end)}',
+          label: selectedDates == null
+              ? '${_LodgingAvailabilityScreenState._dateLabel(range.start)} - ${_LodgingAvailabilityScreenState._dateLabel(range.end)}'
+              : 'Días específicos: ${selectedDates!.map(_LodgingAvailabilityScreenState._dateLabel).join(' · ')}',
           value: '$nights ${nights == 1 ? 'noche' : 'noches'}',
         ),
         const SizedBox(

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../shared/models/business.dart';
 import '../../../theme/ranco_colors.dart';
 import '../../provider_dashboard/application/provider_dashboard_providers.dart';
 import '../../provider_dashboard/data/provider_business_repository.dart';
+import '../../admin/application/admin_providers.dart';
+import '../../admin/data/admin_settings_repository.dart';
 
 class ProviderBusinessStatusScreen extends ConsumerWidget {
   const ProviderBusinessStatusScreen({super.key});
@@ -41,6 +44,12 @@ class ProviderBusinessStatusScreen extends ConsumerWidget {
           final status = BusinessPublicationStatus.parseOrDefault(
             business.publicationStatus,
           );
+          final reviewWhatsApp =
+              status == BusinessPublicationStatus.pendingReview
+                  ? ref
+                      .watch(reviewWhatsAppDetailsProvider(business.id))
+                      .valueOrNull
+                  : null;
 
           return _StatusPanel(
             businesses: items,
@@ -78,6 +87,7 @@ class ProviderBusinessStatusScreen extends ConsumerWidget {
             ),
             statusLabel: status.label,
             submittedAt: business.submittedAt,
+            reviewWhatsApp: reviewWhatsApp,
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -260,6 +270,7 @@ class _StatusPanel extends StatelessWidget {
     this.onAction,
     this.secondaryActionLabel,
     this.onSecondaryAction,
+    this.reviewWhatsApp,
   });
 
   final IconData icon;
@@ -275,6 +286,7 @@ class _StatusPanel extends StatelessWidget {
   final VoidCallback? onAction;
   final String? secondaryActionLabel;
   final VoidCallback? onSecondaryAction;
+  final ReviewWhatsAppDetails? reviewWhatsApp;
 
   @override
   Widget build(BuildContext context) {
@@ -433,6 +445,22 @@ class _StatusPanel extends StatelessWidget {
                       TextButton(
                         onPressed: onSecondaryAction,
                         child: Text(secondaryActionLabel!),
+                      ),
+                    ],
+                    if (reviewWhatsApp != null) ...[
+                      const SizedBox(height: 14),
+                      OutlinedButton.icon(
+                        onPressed: () => launchUrl(
+                          reviewWhatsApp!.link,
+                          mode: LaunchMode.externalApplication,
+                        ),
+                        icon: const Icon(Icons.chat_outlined),
+                        label:
+                            const Text('Avisar al administrador por WhatsApp'),
+                      ),
+                      const Text(
+                        'Revisa el mensaje y confirma el envío en WhatsApp.',
+                        textAlign: TextAlign.center,
                       ),
                     ],
                   ],

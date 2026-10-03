@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/errors/app_failure.dart';
 import '../../../core/errors/failure_mapper.dart';
 import '../../../core/result/result.dart';
+import '../../../core/telemetry/telemetry.dart';
 import '../../../features/auth/data/supabase_auth_repository.dart';
 import '../../../shared/models/business.dart';
 
@@ -148,6 +150,7 @@ class AdminBusinessReviewRepository {
         ),
       );
     } catch (error) {
+      _logAdminRpcFailure('admin_business_review_stats', error);
       return Failure(
         mapSupabaseFailure(
           error,
@@ -158,7 +161,7 @@ class AdminBusinessReviewRepository {
   }
 
   Future<Result<AdminBusinessReviewPage>> list({
-    required BusinessPublicationStatus status,
+    BusinessPublicationStatus? status,
     BusinessType? businessType,
     String? search,
     int limit = 20,
@@ -176,17 +179,17 @@ class AdminBusinessReviewRepository {
     }
 
     try {
-      final rows = await client.rpc<List<dynamic>>(
-        'admin_business_review_queue',
+      final result = await client.rpc<Map<String, dynamic>>(
+        'admin_search_business_reviews',
         params: {
-          'p_status': status.value,
+          'p_status': status?.value,
           'p_business_type': businessType?.value,
           'p_search': search?.trim().isEmpty ?? true ? null : search!.trim(),
           'p_limit': limit,
           'p_offset': offset,
         },
       );
-      final items = rows
+      final items = (result['rows'] as List<dynamic>)
           .whereType<Map>()
           .map(
             (row) => AdminBusinessReviewSummary.fromJson(
@@ -198,10 +201,11 @@ class AdminBusinessReviewRepository {
       return Success(
         AdminBusinessReviewPage(
           items: items,
-          totalCount: items.isEmpty ? 0 : items.first.totalCount,
+          totalCount: (result['total_count'] as num).toInt(),
         ),
       );
     } catch (error) {
+      _logAdminRpcFailure('admin_search_business_reviews', error);
       return Failure(
         mapSupabaseFailure(
           error,
@@ -231,6 +235,7 @@ class AdminBusinessReviewRepository {
 
       return Success(AdminBusinessReviewDetail.fromJson(row));
     } catch (error) {
+      _logAdminRpcFailure('admin_business_review_detail', error);
       return Failure(
         mapSupabaseFailure(
           error,
@@ -270,12 +275,14 @@ class AdminBusinessReviewRepository {
     );
   }
 
-  Future<Result<void>> publish(String businessId) {
-    return _action(
+  Future<Result<void>> publish(String businessId) async {
+    final result = await _action(
       'admin_publish_business',
       {'p_business_id': businessId},
       'No pudimos publicar el negocio.',
     );
+    if (result is Success<void>) Telemetry.capture('provider_approved');
+    return result;
   }
 
   Future<Result<void>> suspend({
@@ -320,6 +327,7 @@ class AdminBusinessReviewRepository {
       await client.rpc(rpc, params: params);
       return const Success(null);
     } catch (error) {
+      _logAdminRpcFailure(rpc, error);
       return Failure(
         mapSupabaseFailure(
           error,
@@ -328,6 +336,25 @@ class AdminBusinessReviewRepository {
       );
     }
   }
+}
+
+void _logAdminRpcFailure(String rpc, Object error) {
+  if (!kDebugMode) return;
+  if (error is PostgrestException) {
+    debugPrint('Admin RPC $rpc failed: code=${error.code}; '
+        'message=${_safeDiagnostic(error.message)}; '
+        'details=${_safeDiagnostic(error.details)}; '
+        'hint=${_safeDiagnostic(error.hint)}');
+    return;
+  }
+  debugPrint('Admin RPC $rpc failed: ${error.runtimeType}');
+}
+
+String _safeDiagnostic(Object? value) {
+  final text = (value?.toString() ?? '')
+      .replaceAll(RegExp(r'[^\s@]+@[^\s@]+'), '[email]')
+      .replaceAll(RegExp(r'\b\+?\d{9,}\b'), '[number]');
+  return text.length <= 400 ? text : '${text.substring(0, 400)}…';
 }
 
 List<Map<String, dynamic>> _list(Object? value) {

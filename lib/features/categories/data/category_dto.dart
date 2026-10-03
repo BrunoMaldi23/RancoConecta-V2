@@ -7,6 +7,7 @@ class CategoryDto {
     required this.slug,
     required this.iconKey,
     required this.themeKey,
+    required this.active,
   });
 
   factory CategoryDto.fromJson(Map<String, dynamic> json) {
@@ -16,6 +17,7 @@ class CategoryDto {
       slug: json['slug'] as String,
       iconKey: json['icon_key'] as String,
       themeKey: json['theme_key'] as String,
+      active: json['active'] as bool? ?? true,
     );
   }
 
@@ -24,6 +26,7 @@ class CategoryDto {
   final String slug;
   final String iconKey;
   final String themeKey;
+  final bool active;
 
   Category toDomain() {
     return Category(
@@ -32,6 +35,7 @@ class CategoryDto {
       slug: slug,
       iconKey: iconKey,
       themeKey: themeKey,
+      active: active,
     );
   }
 }

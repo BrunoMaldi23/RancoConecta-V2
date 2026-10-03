@@ -2,13 +2,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/debug/bootstrap_debug_logger.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../profile/application/profile_providers.dart';
 import 'provider_dashboard_providers.dart';
 import 'provider_context_state.dart';
 
 final providerContextProvider =
     FutureProvider<ProviderContextState>((ref) async {
-  logBootstrapEvent('PROVIDER_CONTEXT_START');
-
   final auth = ref.watch(authStateProvider);
   if (auth.hasError) {
     throw auth.error!;
@@ -20,15 +19,30 @@ final providerContextProvider =
     );
   }
 
-  if (auth.valueOrNull == null) {
+  if (auth.valueOrNull == null || auth.valueOrNull!.isAnonymous) {
     return const ProviderContextState(
       status: ProviderContextStatus.unauthenticated,
     );
   }
 
+  final profile = await ref.watch(currentProfileProvider.future);
+  if (profile.role.canAccessAdmin) {
+    if (ref.read(activeProviderBusinessIdProvider) != null) {
+      Future.microtask(() {
+        ref.read(activeProviderBusinessIdProvider.notifier).state = null;
+      });
+    }
+    logBootstrapEvent('PROVIDER_CONTEXT_SKIPPED', {'role': profile.role.name});
+    return const ProviderContextState(
+      status: ProviderContextStatus.unauthenticated,
+    );
+  }
+
+  logBootstrapEvent('PROVIDER_CONTEXT_START');
+
   final businesses = await ref.watch(myProviderBusinessesProvider.future);
   logBootstrapEvent(
-    'MANAGEABLE_BUSINESSES_COUNT',
+    'OWNED_BUSINESSES_COUNT',
     {'count': businesses.length},
   );
 
@@ -54,15 +68,9 @@ final providerContextProvider =
     Future.microtask(() {
       ref.read(activeProviderBusinessIdProvider.notifier).state = null;
     });
-    logBootstrapEvent(
-      'ACTIVE_BUSINESS_RESET',
-      {'businessId': activeId},
-    );
+    logBootstrapEvent('ACTIVE_BUSINESS_REJECTED');
   } else {
-    logBootstrapEvent(
-      'ACTIVE_BUSINESS_VALIDATED',
-      {'businessId': activeBusiness.id},
-    );
+    logBootstrapEvent('ACTIVE_BUSINESS_VALIDATED');
   }
 
   return ProviderContextState(

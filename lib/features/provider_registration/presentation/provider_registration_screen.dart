@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/telemetry/telemetry.dart';
 
 import '../../../features/auth/data/supabase_auth_repository.dart';
 import '../../../features/categories/application/category_providers.dart';
@@ -148,7 +149,7 @@ class _ProviderRegistrationScreenState
                     child: FilledButton(
                       onPressed: () {
                         context.go(
-                          '/sign-in?next=/provider/register',
+                          '/provider/sign-in?next=/provider/register',
                         );
                       },
                       style: FilledButton.styleFrom(
@@ -1519,6 +1520,7 @@ class _ProviderRegistrationScreenState
 
     result.when(
       success: (_) {
+        Telemetry.capture('provider_register');
         ref.read(activeProviderBusinessIdProvider.notifier).state =
             _businessId!;
         ref.invalidate(

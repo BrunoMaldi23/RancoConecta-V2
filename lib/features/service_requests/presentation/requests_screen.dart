@@ -6,12 +6,16 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/widgets/ranco_app_bar.dart';
 import '../../../core/widgets/ranco_error_state.dart';
+import '../../../core/widgets/ranco_page_empty_state.dart';
+import '../../../core/widgets/ranco_status_badge.dart';
+import '../../../core/widgets/ranco_site_footer.dart';
 import '../../../config/app_config.dart';
 import '../../../shared/models/request_attachment.dart';
 import '../../../shared/models/service_request.dart';
 import '../../../shared/models/service_request_status.dart';
 import '../../../theme/ranco_colors.dart';
 import '../application/service_request_providers.dart';
+import '../domain/customer_activity_item.dart';
 import '../data/request_attachment_repository.dart';
 import '../data/quote_repository.dart';
 import '../../messaging/data/messaging_repository.dart';
@@ -30,7 +34,7 @@ class RequestsScreen extends ConsumerStatefulWidget {
 }
 
 class _RequestsScreenState extends ConsumerState<RequestsScreen> {
-  _RequestListFilter _filter = _RequestListFilter.active;
+  _RequestListFilter? _filter;
 
   @override
   Widget build(BuildContext context) {
@@ -44,11 +48,23 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
             return const _GuestRequests();
           }
 
-          final requests = ref.watch(myRequestsProvider);
+          final requests = ref.watch(myCustomerActivityProvider);
 
           return requests.when(
             data: (items) {
-              final filtered = items.where(_filter.includes).toList();
+              if (user.isAnonymous) {
+                return _VisitorRequestsView(
+                  items: items,
+                  onExplore: () => context.go('/explore'),
+                  onOpen: (route) => context.go(route),
+                );
+              }
+              final selectedFilter = _filter ??
+                  _RequestListFilter.values.firstWhere(
+                    (value) => items.any(value.includes),
+                    orElse: () => _RequestListFilter.active,
+                  );
+              final filtered = items.where(selectedFilter.includes).toList();
 
               return CustomScrollView(
                 slivers: [
@@ -61,8 +77,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
                     ),
                   ),
                   if (items.isEmpty)
-                    SliverFillRemaining(
-                      hasScrollBody: false,
+                    SliverToBoxAdapter(
                       child: _EmptyRequestsState(
                         onExplore: () {
                           context.go('/explore');
@@ -80,7 +95,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
                         ),
                         child: _RequestToolbar(
                           count: items.length,
-                          filter: _filter,
+                          filter: selectedFilter,
                           onFilterChanged: (value) {
                             setState(() {
                               _filter = value;
@@ -110,28 +125,24 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
                           return _RequestCard(
                             request: request,
                             onTap: () {
-                              context.go(
-                                '/requests/${request.id}',
-                              );
+                              context.go(request.detailRoute);
                             },
                           );
                         },
                       ),
                     ),
                   ],
+                  const RancoFooterSliver(),
                 ],
               );
             },
-            loading: () {
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
-            },
+            // Esqueleto estructural en vez de spinner centrado.
+            loading: () => const _VisitorRequestsLoading(),
             error: (error, stackTrace) {
               return RancoErrorState(
                 message: requestFailureMessage(error),
                 onRetry: () {
-                  ref.invalidate(myRequestsProvider);
+                  ref.invalidate(myCustomerActivityProvider);
                 },
               );
             },
@@ -143,13 +154,184 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
           );
         },
         error: (error, stackTrace) {
-          return const RancoErrorState(
+          return RancoErrorState(
             message: 'No pudimos leer la sesión.',
+            onRetry: () => ref.invalidate(authStateProvider),
           );
         },
       ),
     );
   }
+}
+
+enum _VisitorRequestStage {
+  pending('Pendiente'),
+  accepted('Aceptada'),
+  rejected('Rechazada'),
+  finished('Finalizada'),
+  other('Otros estados');
+
+  const _VisitorRequestStage(this.label);
+  final String label;
+
+  static _VisitorRequestStage of(CustomerActivityStage stage) =>
+      switch (stage) {
+        CustomerActivityStage.pending => pending,
+        CustomerActivityStage.accepted => accepted,
+        CustomerActivityStage.rejected => rejected,
+        CustomerActivityStage.finished => finished,
+        _ => other,
+      };
+}
+
+class _VisitorRequestsView extends StatelessWidget {
+  const _VisitorRequestsView({
+    required this.items,
+    required this.onExplore,
+    required this.onOpen,
+  });
+
+  final List<CustomerActivityItem> items;
+  final VoidCallback onExplore;
+  final ValueChanged<String> onOpen;
+
+  @override
+  Widget build(BuildContext context) => CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: SafeArea(
+              bottom: false,
+              child: Align(
+                alignment: Alignment.center,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 760),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 20, 18, 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Mis solicitudes',
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineMedium
+                                ?.copyWith(
+                                    color: RancoColors.textPrimary,
+                                    fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 5),
+                        Text(
+                          items.isEmpty
+                              ? 'Aquí podrás seguir las respuestas de los negocios.'
+                              : '${items.length} ${items.length == 1 ? 'solicitud' : 'solicitudes'} en tu perfil visitante.',
+                          style: const TextStyle(
+                              color: RancoColors.textSecondary, fontSize: 13),
+                        ),
+                        if (items.isNotEmpty) ...[
+                          const SizedBox(height: 14),
+                          Wrap(spacing: 7, runSpacing: 7, children: [
+                            for (final stage in _VisitorRequestStage.values)
+                              if (stage != _VisitorRequestStage.other ||
+                                  items.any((item) =>
+                                      _VisitorRequestStage.of(item.stage) ==
+                                      stage))
+                                _StageCount(
+                                  stage: stage,
+                                  count: items
+                                      .where((item) =>
+                                          _VisitorRequestStage.of(item.stage) ==
+                                          stage)
+                                      .length,
+                                ),
+                          ]),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (items.isEmpty)
+            SliverToBoxAdapter(
+              child: _EmptyRequestsState(onExplore: onExplore),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 28),
+              sliver: SliverList.separated(
+                itemCount: items.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 9),
+                itemBuilder: (context, index) => Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 724),
+                    child: _VisitorRequestCard(
+                      request: items[index],
+                      onTap: () => onOpen(items[index].detailRoute),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          const RancoFooterSliver(),
+        ],
+      );
+}
+
+class _StageCount extends StatelessWidget {
+  const _StageCount({required this.stage, required this.count});
+  final _VisitorRequestStage stage;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEAF4EF),
+          borderRadius: BorderRadius.circular(99),
+        ),
+        child: Text('${stage.label} · $count',
+            style: const TextStyle(
+                color: RancoColors.forest,
+                fontSize: 11,
+                fontWeight: FontWeight.w700)),
+      );
+}
+
+class _VisitorRequestCard extends StatelessWidget {
+  const _VisitorRequestCard({required this.request, required this.onTap});
+  final CustomerActivityItem request;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) =>
+      _ActivityRow(request: request, onTap: onTap, showDescription: true);
+}
+
+class _VisitorRequestsLoading extends StatelessWidget {
+  const _VisitorRequestsLoading();
+
+  @override
+  Widget build(BuildContext context) => Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: ListView(
+            padding: const EdgeInsets.all(18),
+            children: [
+              for (final width in [210.0, 130.0, 320.0, 320.0]) ...[
+                Container(
+                  width: width,
+                  height: width == 320 ? 104 : 20,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F0EB),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
 }
 
 enum _RequestListFilter {
@@ -167,24 +349,18 @@ enum _RequestListFilter {
     };
   }
 
-  bool includes(ServiceRequest request) {
+  bool includes(CustomerActivityItem request) {
     return switch (this) {
       _RequestListFilter.active =>
-        request.status == ServiceRequestStatus.submitted ||
-            request.status == ServiceRequestStatus.viewed,
-      _RequestListFilter.quotes =>
-        request.status == ServiceRequestStatus.quoted,
+        request.stage == CustomerActivityStage.pending && !request.isQuoted,
+      _RequestListFilter.quotes => request.isQuoted,
       _RequestListFilter.inProgress =>
-        request.status == ServiceRequestStatus.accepted ||
-            request.status == ServiceRequestStatus.scheduled ||
-            request.status == ServiceRequestStatus.inProgress,
+        request.stage == CustomerActivityStage.accepted,
       _RequestListFilter.finished =>
-        request.status == ServiceRequestStatus.completed ||
-            request.status == ServiceRequestStatus.confirmed ||
-            request.status == ServiceRequestStatus.reviewed ||
-            request.status == ServiceRequestStatus.cancelled ||
-            request.status == ServiceRequestStatus.rejected ||
-            request.status == ServiceRequestStatus.expired,
+        request.stage == CustomerActivityStage.finished ||
+            request.stage == CustomerActivityStage.cancelled ||
+            request.stage == CustomerActivityStage.rejected ||
+            request.stage == CustomerActivityStage.other,
     };
   }
 }
@@ -205,8 +381,7 @@ class _GuestRequests extends StatelessWidget {
             ),
           ),
         ),
-        SliverFillRemaining(
-          hasScrollBody: false,
+        SliverToBoxAdapter(
           child: _GuestState(
             onSignIn: () {
               context.go('/sign-in');
@@ -216,6 +391,7 @@ class _GuestRequests extends StatelessWidget {
             },
           ),
         ),
+        const RancoFooterSliver(),
       ],
     );
   }
@@ -321,9 +497,9 @@ class _GuestState extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
             24,
-            42,
+            40,
             24,
-            90,
+            40,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -409,83 +585,14 @@ class _EmptyRequestsState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 520,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            24,
-            38,
-            24,
-            90,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFDDF3E8),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(
-                  Icons.assignment_outlined,
-                  size: 25,
-                  color: RancoColors.forest,
-                ),
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'Aún no tienes solicitudes',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: RancoColors.textPrimary,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  height: 1.15,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Cuando contactes a un negocio o prestador podrás seguir aquí todo el proceso.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: RancoColors.textSecondary,
-                  fontSize: 13,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 20),
-              FilledButton.icon(
-                onPressed: onExplore,
-                icon: const Icon(
-                  Icons.search_rounded,
-                  size: 18,
-                ),
-                label: const Text(
-                  'Explorar negocios',
-                ),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(
-                    190,
-                    46,
-                  ),
-                  backgroundColor: RancoColors.forest,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(13),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return RancoPageEmptyState(
+      icon: Icons.assignment_outlined,
+      topSpacing: 88,
+      title: 'Aún no tienes solicitudes',
+      message: 'Cuando contactes a un negocio o envíes una reserva, podrás '
+          'seguir desde aquí su estado.',
+      actionLabel: 'Explorar negocios',
+      onAction: onExplore,
     );
   }
 }
@@ -563,146 +670,213 @@ class _RequestCard extends StatelessWidget {
     required this.onTap,
   });
 
-  final ServiceRequest request;
+  final CustomerActivityItem request;
   final VoidCallback onTap;
 
   @override
+  Widget build(BuildContext context) =>
+      _ActivityRow(request: request, onTap: onTap);
+}
+
+/// Fila compacta de solicitud/reserva, común a todas las verticales.
+class _ActivityRow extends StatelessWidget {
+  const _ActivityRow({
+    required this.request,
+    required this.onTap,
+    this.showDescription = false,
+  });
+
+  final CustomerActivityItem request;
+  final VoidCallback onTap;
+  final bool showDescription;
+
+  static (IconData, String) _typeOf(CustomerActivityType type) =>
+      switch (type) {
+        CustomerActivityType.lodging => (
+            Icons.bed_outlined,
+            'Reserva de alojamiento'
+          ),
+        CustomerActivityType.gastronomy => (
+            Icons.restaurant_outlined,
+            'Reserva de mesa'
+          ),
+        CustomerActivityType.tourism => (
+            Icons.terrain_outlined,
+            'Solicitud de turismo'
+          ),
+        CustomerActivityType.service => (
+            Icons.home_repair_service_outlined,
+            'Solicitud de servicio'
+          ),
+      };
+
+  @override
   Widget build(BuildContext context) {
+    final (icon, typeLabel) = _typeOf(request.type);
+    final date = DateFormat('dd/MM/yyyy').format(request.createdAt);
+    final description = request.description?.trim();
+    final status = _StatusChip(
+      label: _stageLabel(request.stage, request.statusLabel),
+      tone: _stageTone(request.stage),
+    );
+    const cta = Row(mainAxisSize: MainAxisSize.min, children: [
+      Text('Ver detalle',
+          style: TextStyle(
+              color: RancoColors.primaryDark,
+              fontSize: 13,
+              fontWeight: FontWeight.w700)),
+      SizedBox(width: 2),
+      Icon(Icons.chevron_right_rounded, size: 18, color: RancoColors.forest),
+    ]);
+
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(15),
+      borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(14),
         child: Container(
-          padding: const EdgeInsets.all(13),
+          padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(
-              color: const Color(0xFFD4E2DC),
-            ),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFDCE6E1)),
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE5F1EC),
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: const Icon(
-                  Icons.assignment_outlined,
-                  size: 20,
-                  color: RancoColors.forest,
-                ),
-              ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            request.businessName ?? 'Solicitud abierta',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: RancoColors.textPrimary,
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        _StatusChip(
-                          label: request.status.label,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      request.subcategoryName,
-                      maxLines: 1,
+          child: LayoutBuilder(builder: (context, constraints) {
+            final narrow = constraints.maxWidth < 460;
+            final details = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(request.businessName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: RancoColors.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800)),
+                const SizedBox(height: 2),
+                Text(typeLabel,
+                    style: const TextStyle(
+                        color: RancoColors.primary,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text('${request.summary} · $date',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: RancoColors.textSecondary, fontSize: 13)),
+                if (showDescription &&
+                    description != null &&
+                    description.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(description,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: RancoColors.textSecondary,
-                        fontSize: 12.5,
+                          color: RancoColors.textPrimary,
+                          fontSize: 13,
+                          height: 1.35)),
+                ],
+              ],
+            );
+            final leading = Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF5F2),
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Icon(icon, size: 20, color: RancoColors.primaryDark),
+            );
+            if (narrow) {
+              return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    leading,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          details,
+                          const SizedBox(height: 8),
+                          Row(children: [
+                            Flexible(child: status),
+                            const Spacer(),
+                            cta,
+                          ]),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Text(
-                          request.publicCode,
-                          style: const TextStyle(
-                            color: RancoColors.forest,
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const Spacer(),
-                        const Icon(
-                          Icons.chevron_right_rounded,
-                          size: 19,
-                          color: RancoColors.textSecondary,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                  ]);
+            }
+            return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              leading,
+              const SizedBox(width: 12),
+              Expanded(child: details),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [status, const SizedBox(height: 10), cta],
               ),
-            ],
-          ),
+            ]);
+          }),
         ),
       ),
     );
   }
 }
 
+/// Etiqueta de estado unificada por etapa.
+String _stageLabel(CustomerActivityStage stage, String fallback) =>
+    switch (stage) {
+      CustomerActivityStage.pending => 'Pendiente',
+      CustomerActivityStage.accepted => 'Aceptada',
+      CustomerActivityStage.rejected => 'Rechazada',
+      CustomerActivityStage.finished => 'Finalizada',
+      CustomerActivityStage.cancelled => 'Cancelada',
+      CustomerActivityStage.other => fallback,
+    };
+
+/// Pendiente ámbar, aceptada verde, rechazada rojo suave, finalizada neutra,
+/// cancelada gris.
+RancoStatusTone _stageTone(CustomerActivityStage stage) => switch (stage) {
+      CustomerActivityStage.pending => RancoStatusTone.warning,
+      CustomerActivityStage.accepted => RancoStatusTone.success,
+      CustomerActivityStage.rejected => RancoStatusTone.danger,
+      CustomerActivityStage.finished => RancoStatusTone.info,
+      CustomerActivityStage.cancelled => RancoStatusTone.muted,
+      CustomerActivityStage.other => RancoStatusTone.neutral,
+    };
+
 class _StatusChip extends StatelessWidget {
   const _StatusChip({
     required this.label,
+    this.tone,
   });
 
   final String label;
+  final RancoStatusTone? tone;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 4,
-      ),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE7F2ED),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          color: RancoColors.forest,
-          fontSize: 10.5,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => RancoStatusBadge(
+        label: label,
+        tone: tone ?? rancoToneForStatusLabel(label),
+      );
 }
 
 class RequestDetailScreen extends ConsumerWidget {
   const RequestDetailScreen({
     required this.requestId,
+    this.justSent = false,
+    this.attachmentsFailed = false,
     super.key,
   });
 
   final String requestId;
+  final bool justSent;
+  final bool attachmentsFailed;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -733,6 +907,13 @@ class RequestDetailScreen extends ConsumerWidget {
                   32,
                 ),
                 children: [
+                  if (justSent) ...[
+                    _VisitorRequestConfirmation(
+                      request: request,
+                      attachmentsFailed: attachmentsFailed,
+                    ),
+                    const SizedBox(height: 14),
+                  ],
                   _RequestDetailHeader(
                     request: request,
                   ),
@@ -864,6 +1045,63 @@ class RequestDetailScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _VisitorRequestConfirmation extends StatelessWidget {
+  const _VisitorRequestConfirmation({
+    required this.request,
+    required this.attachmentsFailed,
+  });
+
+  final ServiceRequest request;
+  final bool attachmentsFailed;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEAF4EF),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFCEE2D5)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(children: [
+              Icon(Icons.check_circle_rounded, color: RancoColors.forest),
+              SizedBox(width: 9),
+              Expanded(
+                child: Text('Solicitud enviada',
+                    style: TextStyle(
+                        color: RancoColors.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800)),
+              ),
+            ]),
+            const SizedBox(height: 10),
+            Text(request.businessName ?? 'Solicitud abierta'),
+            const SizedBox(height: 3),
+            Text(
+                'Fecha: ${DateFormat('dd/MM/yyyy').format(request.createdAt)}'),
+            const SizedBox(height: 3),
+            Text(
+                'Estado: ${request.status == ServiceRequestStatus.submitted || request.status == ServiceRequestStatus.viewed ? 'Pendiente de respuesta' : request.status.label}'),
+            if (attachmentsFailed) ...[
+              const SizedBox(height: 8),
+              const Text(
+                'La solicitud se envió, pero no pudimos adjuntar algunos archivos.',
+                style: TextStyle(color: RancoColors.textSecondary),
+              ),
+            ],
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => context.go('/requests'),
+              icon: const Icon(Icons.assignment_outlined),
+              label: const Text('Ver mis solicitudes'),
+            ),
+          ],
+        ),
+      );
 }
 
 class _ChatEntrySection extends ConsumerWidget {
@@ -1034,7 +1272,12 @@ class _QuotesSection extends ConsumerWidget {
       error: (error, stackTrace) => _DetailSection(
         title: 'Cotizaciones',
         children: [
-          Text(requestFailureMessage(error)),
+          const Text('No pudimos cargar las cotizaciones.'),
+          TextButton.icon(
+            onPressed: () => ref.invalidate(requestQuotesProvider(requestId)),
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Reintentar'),
+          ),
         ],
       ),
     );
@@ -1175,7 +1418,15 @@ class _AttachmentsSection extends ConsumerWidget {
       ),
       error: (error, stackTrace) => _DetailSection(
         title: 'Adjuntos',
-        children: [Text(requestFailureMessage(error))],
+        children: [
+          const Text('No pudimos cargar los adjuntos.'),
+          TextButton.icon(
+            onPressed: () =>
+                ref.invalidate(requestAttachmentsProvider(requestId)),
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Reintentar'),
+          ),
+        ],
       ),
     );
   }

@@ -61,7 +61,10 @@ void main() {
 
     expect(providers, contains('activeProviderBusinessProvider'));
     expect(providers, contains('lodgingDetailsProvider'));
-    expect(dashboard,
-        contains('ref.invalidate(serviceBusinessManagementProvider)'));
+    expect(
+      dashboard,
+      matches(
+          RegExp(r'ref\.invalidate\(\s*serviceBusinessManagementProvider\)')),
+    );
   });
 }

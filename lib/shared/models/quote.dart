@@ -82,6 +82,8 @@ class ProviderRequestItem {
     required this.operationId,
     required this.operationStatus,
     required this.createdAt,
+    this.guestName,
+    this.guestPhone,
   });
 
   final String requestId;
@@ -103,6 +105,8 @@ class ProviderRequestItem {
   final String? operationId;
   final String? operationStatus;
   final DateTime createdAt;
+  final String? guestName;
+  final String? guestPhone;
 
   String get stateLabel {
     if (operationStatus != null) {

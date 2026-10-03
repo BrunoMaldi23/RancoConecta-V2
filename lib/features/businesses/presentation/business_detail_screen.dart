@@ -19,7 +19,9 @@ import '../../../shared/models/business.dart';
 import '../../../theme/ranco_colors.dart';
 import '../../reviews/presentation/reviews_section.dart';
 import '../application/business_profile_presenter.dart';
+import '../../../core/telemetry/telemetry.dart';
 import '../application/business_providers.dart';
+import '../data/business_analytics_repository.dart';
 import 'business_avatar.dart';
 
 class BusinessDetailScreen extends ConsumerWidget {
@@ -67,6 +69,19 @@ class BusinessPublicProfile extends ConsumerStatefulWidget {
 
 class _BusinessPublicProfileState extends ConsumerState<BusinessPublicProfile> {
   bool _favoriteBusy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Telemetry.capture('view_business');
+    Future.microtask(() {
+      if (mounted) {
+        unawaited(ref
+            .read(businessAnalyticsRepositoryProvider)
+            .track(business.id, 'PROFILE_VIEW'));
+      }
+    });
+  }
 
   Business get business => widget.business;
 
@@ -317,6 +332,11 @@ class _BusinessPublicProfileState extends ConsumerState<BusinessPublicProfile> {
 
     result.when(
       success: (_) {
+        if (!isFavorite) {
+          unawaited(ref
+              .read(businessAnalyticsRepositoryProvider)
+              .track(business.id, 'SAVE_BUSINESS'));
+        }
         ref.invalidate(isFavoriteProvider(business.id));
         ref.invalidate(favoriteBusinessesProvider);
         _showSnack(
@@ -331,30 +351,15 @@ class _BusinessPublicProfileState extends ConsumerState<BusinessPublicProfile> {
   }
 
   void _requestService() {
-    final user = ref.read(authStateProvider).valueOrNull;
+    unawaited(ref
+        .read(businessAnalyticsRepositoryProvider)
+        .track(business.id, 'REQUEST_CONTACT'));
     final next = '/business/${business.id}/request';
-
-    if (user == null) {
-      context.go(
-        Uri(path: '/sign-in', queryParameters: {'next': next}).toString(),
-      );
-      return;
-    }
-
     context.go(next);
   }
 
   void _reserveTable() {
     final next = '/business/${business.id}/table-reservation';
-    final user = ref.read(authStateProvider).valueOrNull;
-
-    if (user == null) {
-      context.go(
-        Uri(path: '/sign-in', queryParameters: {'next': next}).toString(),
-      );
-      return;
-    }
-
     context.go(next);
   }
 
@@ -570,15 +575,17 @@ class _BusinessHero extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  BusinessAvatar(
-                    businessType: business.type,
-                    imageUrl: media.logoUrl,
-                    size: desktop ? 96 : 108,
-                    borderWidth: 4,
-                  ),
-                  SizedBox(
-                    width: desktop ? 16 : 14,
-                  ),
+                  if (media.logoUrl != null) ...[
+                    BusinessAvatar(
+                      businessType: business.type,
+                      imageUrl: media.logoUrl,
+                      size: desktop ? 80 : 64,
+                      borderWidth: 3,
+                    ),
+                    SizedBox(
+                      width: desktop ? 16 : 12,
+                    ),
+                  ],
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -601,15 +608,6 @@ class _BusinessHero extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            if (business.isVerified)
-                              const Padding(
-                                padding: EdgeInsets.only(left: 8, top: 3),
-                                child: Icon(
-                                  Icons.verified_rounded,
-                                  color: Colors.white,
-                                  size: 21,
-                                ),
-                              ),
                           ],
                         ),
                         const SizedBox(
@@ -639,12 +637,7 @@ class _BusinessHero extends StatelessWidget {
                                 _HeroStatusChip(
                                   icon: Icons.star_rounded,
                                   label:
-                                      '${business.ratingAvg.toStringAsFixed(1)}  ${business.reviewCount} ${business.reviewCount == 1 ? 'opinion' : 'opiniones'}',
-                                ),
-                              if (business.isVerified)
-                                const _HeroStatusChip(
-                                  icon: Icons.verified_rounded,
-                                  label: 'Verificado',
+                                      '${business.ratingAvg.toStringAsFixed(1)} · ${business.reviewCount} ${business.reviewCount == 1 ? 'opinión' : 'opiniones'}',
                                 ),
                               if (business.isFeatured)
                                 const _HeroStatusChip(
@@ -815,13 +808,6 @@ class _BadgeRail extends StatelessWidget {
           foreground: const Color(0xFF8A5B12),
           background: const Color(0xFFFFF4D8),
         ),
-      if (business.isVerified)
-        const _StatusChip(
-          icon: Icons.verified_rounded,
-          label: 'Verificado',
-          foreground: RancoColors.forest,
-          background: Color(0xFFE4F1EB),
-        ),
       if (business.isFeatured)
         const _StatusChip(
           icon: Icons.workspace_premium_rounded,
@@ -854,7 +840,7 @@ class _BadgeRail extends StatelessWidget {
   }
 }
 
-class _ActionBar extends StatelessWidget {
+class _ActionBar extends ConsumerWidget {
   const _ActionBar({
     required this.business,
     required this.showRequestCta,
@@ -874,7 +860,7 @@ class _ActionBar extends StatelessWidget {
   final VoidCallback onTableReservation;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return _SectionCard(
       padding: const EdgeInsets.all(12),
       child: Wrap(
@@ -898,7 +884,12 @@ class _ActionBar extends StatelessWidget {
               address: business.addressText!.trim(),
               locationName: business.primaryLocation?.name,
             ),
-          ..._contactActions(business),
+          ..._contactActions(business,
+              onEvent: (event) => unawaited(
+                    ref
+                        .read(businessAnalyticsRepositoryProvider)
+                        .track(business.id, event),
+                  )),
           _FavoriteButton(
             favorite: favorite.valueOrNull ?? false,
             busy: favoriteBusy || favorite.isLoading,
@@ -936,10 +927,63 @@ class _SidePanel extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) {
-    final contacts = _contactActions(
-      business,
-      fullWidth: true,
-    );
+    void track(String event) => unawaited(
+          ref
+              .read(businessAnalyticsRepositoryProvider)
+              .track(business.id, event),
+        );
+    final hasWhatsApp = _hasText(business.whatsapp);
+    final tertiary = <Widget>[
+      if (_hasText(business.phone))
+        _ContactAction(
+          icon: Icons.call_outlined,
+          label: 'Llamar',
+          fullWidth: true,
+          height: 40,
+          onPressed: () {
+            track('CLICK_PHONE');
+            _launchPhone(business.phone!);
+          },
+        ),
+      if (_hasText(business.email))
+        _ContactAction(
+          icon: Icons.mail_outline_rounded,
+          label: 'Correo',
+          fullWidth: true,
+          height: 40,
+          onPressed: () => _launchEmail(business.email!),
+        ),
+      if (_hasText(business.website))
+        _ContactAction(
+          icon: Icons.language_rounded,
+          label: 'Sitio web',
+          fullWidth: true,
+          height: 40,
+          onPressed: () => _launchUri(business.website!),
+        ),
+      if (_hasText(business.addressText))
+        _ContactAction(
+          icon: Icons.directions_outlined,
+          label: 'Cómo llegar',
+          fullWidth: true,
+          height: 40,
+          onPressed: () => _launchDirections(
+            business.addressText!.trim(),
+            business.primaryLocation?.name,
+          ),
+        ),
+      _FavoriteButton(
+        favorite: favorite.valueOrNull ?? false,
+        busy: favoriteBusy || favorite.isLoading,
+        onPressed: favorite.hasValue
+            ? () => onFavorite(
+                  favorite.valueOrNull ?? false,
+                )
+            : null,
+        fullWidth: true,
+        height: 40,
+      ),
+    ];
 
     final lodging = business.type == BusinessType.lodging
         ? ref.watch(
@@ -1018,7 +1062,7 @@ class _SidePanel extends ConsumerWidget {
                         _SideFact(
                           icon: Icons.groups_outlined,
                           value: '${details.maxGuests}',
-                          label: 'Huespedes',
+                          label: 'Huéspedes',
                         ),
                         _SideFact(
                           icon: Icons.king_bed_outlined,
@@ -1035,7 +1079,7 @@ class _SidePanel extends ConsumerWidget {
                           value: details.bathrooms.toStringAsFixed(
                             0,
                           ),
-                          label: 'Banos',
+                          label: 'Baños',
                         ),
                       ],
                     ),
@@ -1074,13 +1118,13 @@ class _SidePanel extends ConsumerWidget {
                                   if (details.checkOutTime.isNotEmpty)
                                     'Check-out ${details.checkOutTime}',
                                 ].join(
-                                  '  |  ',
+                                  '  ·  ',
                                 ),
                                 style: const TextStyle(
                                   color: Color(
                                     0xFF53675E,
                                   ),
-                                  fontSize: 11.5,
+                                  fontSize: 12.5,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
@@ -1245,34 +1289,36 @@ class _SidePanel extends ConsumerWidget {
               height: 12,
             ),
           ],
-          if (_hasText(
-            business.addressText,
-          )) ...[
-            _DirectionsButton(
-              address: business.addressText!.trim(),
-              locationName: business.primaryLocation?.name,
-              fullWidth: true,
+          if (hasWhatsApp) ...[
+            FilledButton.tonalIcon(
+              onPressed: () {
+                track('CLICK_WHATSAPP');
+                _launchWhatsApp(business.whatsapp!);
+              },
+              icon: const Icon(Icons.chat_outlined),
+              label: const Text('WhatsApp'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(46),
+                backgroundColor: RancoColors.primarySoft,
+                foregroundColor: RancoColors.primaryDark,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
             ),
-            const SizedBox(
-              height: 10,
-            ),
+            const SizedBox(height: 10),
           ],
-          for (var index = 0; index < contacts.length; index++) ...[
-            contacts[index],
-            const SizedBox(
-              height: 10,
-            ),
-          ],
-          _FavoriteButton(
-            favorite: favorite.valueOrNull ?? false,
-            busy: favoriteBusy || favorite.isLoading,
-            onPressed: favorite.hasValue
-                ? () => onFavorite(
-                      favorite.valueOrNull ?? false,
-                    )
-                : null,
-            fullWidth: true,
-          ),
+          LayoutBuilder(builder: (context, constraints) {
+            final itemWidth = (constraints.maxWidth - 8) / 2;
+            return Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final action in tertiary)
+                  SizedBox(width: itemWidth, child: action),
+              ],
+            );
+          }),
           if (business.type == BusinessType.commerce) ...[
             const SizedBox(
               height: 18,
@@ -1528,6 +1574,7 @@ class _AboutSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return _ProfileSection(
       title: 'Acerca',
+      framed: false,
       child: Text(
         description.trim(),
         style: const TextStyle(
@@ -2310,36 +2357,45 @@ class _ProfileSection extends StatelessWidget {
   const _ProfileSection({
     required this.title,
     required this.child,
+    this.framed = true,
   });
 
   final String title;
   final Widget child;
 
+  /// Sin marco: para bloques de texto corto donde una tarjeta grande sobra.
+  final bool framed;
+
   @override
   Widget build(BuildContext context) {
-    return _SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Color(
-                0xFF263E34,
-              ),
-              fontSize: 19,
-              height: 1.05,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -.2,
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: Color(
+              0xFF263E34,
             ),
+            fontSize: 19,
+            height: 1.05,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -.2,
           ),
-          const SizedBox(
-            height: 14,
-          ),
-          child,
-        ],
-      ),
+        ),
+        const SizedBox(
+          height: 14,
+        ),
+        child,
+      ],
     );
+    if (!framed) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(4, 6, 4, 2),
+        child: content,
+      );
+    }
+    return _SectionCard(child: content);
   }
 }
 
@@ -2582,12 +2638,14 @@ class _ContactAction extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.fullWidth = false,
+    this.height = 46,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onPressed;
   final bool fullWidth;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
@@ -2600,8 +2658,8 @@ class _ContactAction extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
       ),
       style: OutlinedButton.styleFrom(
-        minimumSize: Size(fullWidth ? double.infinity : 0, 46),
-        padding: const EdgeInsets.symmetric(horizontal: 14),
+        minimumSize: Size(fullWidth ? double.infinity : 0, height),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         foregroundColor: RancoColors.forest,
         side: const BorderSide(color: Color(0xFFD2E0D9)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -2618,12 +2676,14 @@ class _FavoriteButton extends StatelessWidget {
     required this.busy,
     required this.onPressed,
     this.fullWidth = false,
+    this.height = 46,
   });
 
   final bool favorite;
   final bool busy;
   final VoidCallback? onPressed;
   final bool fullWidth;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
@@ -2643,7 +2703,7 @@ class _FavoriteButton extends StatelessWidget {
         icon: child,
         label: Text(favorite ? 'Guardado' : 'Guardar'),
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size.fromHeight(46),
+          minimumSize: Size.fromHeight(height),
           foregroundColor: RancoColors.forest,
           side: const BorderSide(color: Color(0xFFD2E0D9)),
           shape:
@@ -2780,21 +2840,31 @@ class _ProfilePhoto {
   final String type;
 }
 
-List<Widget> _contactActions(Business business, {bool fullWidth = false}) {
+List<Widget> _contactActions(
+  Business business, {
+  bool fullWidth = false,
+  ValueChanged<String>? onEvent,
+}) {
   return [
     if (_hasText(business.phone))
       _ContactAction(
         icon: Icons.call_outlined,
         label: 'Llamar',
         fullWidth: fullWidth,
-        onPressed: () => _launchPhone(business.phone!),
+        onPressed: () {
+          onEvent?.call('CLICK_PHONE');
+          _launchPhone(business.phone!);
+        },
       ),
     if (_hasText(business.whatsapp))
       _ContactAction(
         icon: Icons.chat_outlined,
         label: 'WhatsApp',
         fullWidth: fullWidth,
-        onPressed: () => _launchWhatsApp(business.whatsapp!),
+        onPressed: () {
+          onEvent?.call('CLICK_WHATSAPP');
+          _launchWhatsApp(business.whatsapp!);
+        },
       ),
     if (_hasText(business.website))
       _ContactAction(

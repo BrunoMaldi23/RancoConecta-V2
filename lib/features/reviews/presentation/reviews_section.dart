@@ -112,58 +112,6 @@ class ReviewsSection extends ConsumerWidget {
           const SizedBox(
             height: 14,
           ),
-          myReview.when(
-            data: (current) {
-              return SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    if (user == null) {
-                      context.go('/sign-in');
-                      return;
-                    }
-
-                    _openReviewEditor(
-                      context,
-                      ref,
-                      current,
-                    );
-                  },
-                  icon: Icon(
-                    current == null
-                        ? Icons.rate_review_outlined
-                        : Icons.edit_outlined,
-                  ),
-                  label: Text(
-                    current == null
-                        ? 'Escribir una rese\u00f1a'
-                        : 'Editar mi rese\u00f1a',
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: RancoColors.forest,
-                    minimumSize: const Size.fromHeight(
-                      48,
-                    ),
-                    side: const BorderSide(
-                      color: Color(
-                        0xFFD5E2DC,
-                      ),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        14,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-            loading: () => const SizedBox.shrink(),
-            error: (_, __) => const SizedBox.shrink(),
-          ),
-          const SizedBox(
-            height: 16,
-          ),
           reviews.when(
             data: (items) {
               if (items.isEmpty) {
@@ -241,6 +189,57 @@ class ReviewsSection extends ConsumerWidget {
                 ),
               ],
             ),
+          ),
+          // Escribir una reseña es opcional: va después del contenido y con
+          // peso secundario, para no parecer requisito para leer opiniones.
+          const SizedBox(height: 12),
+          myReview.when(
+            data: (current) {
+              return Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    if (user == null) {
+                      context.go('/sign-in');
+                      return;
+                    }
+
+                    _openReviewEditor(
+                      context,
+                      ref,
+                      current,
+                    );
+                  },
+                  icon: Icon(
+                    current == null
+                        ? Icons.rate_review_outlined
+                        : Icons.edit_outlined,
+                    size: 18,
+                  ),
+                  label: Text(
+                    current == null
+                        ? 'Escribir una rese\u00f1a'
+                        : 'Editar mi rese\u00f1a',
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: RancoColors.forest,
+                    minimumSize: const Size(0, 42),
+                    side: const BorderSide(
+                      color: Color(
+                        0xFFD5E2DC,
+                      ),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        12,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
           ),
         ],
       ),
@@ -677,49 +676,55 @@ class _EmptyReviews extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 20,
+        horizontal: 14,
+        vertical: 12,
       ),
       decoration: BoxDecoration(
         color: const Color(
           0xFFF6F8F7,
         ),
         borderRadius: BorderRadius.circular(
-          16,
+          12,
         ),
       ),
-      child: const Column(
+      child: const Row(
         children: [
           Icon(
             Icons.chat_bubble_outline_rounded,
             color: Color(
               0xFF789086,
             ),
-            size: 30,
+            size: 22,
           ),
           SizedBox(
-            height: 8,
+            width: 12,
           ),
-          Text(
-            'A\u00fan no hay opiniones',
-            style: TextStyle(
-              color: Color(
-                0xFF40534A,
-              ),
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          SizedBox(
-            height: 4,
-          ),
-          Text(
-            'S\u00e9 el primero en compartir tu experiencia.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Color(
-                0xFF71827A,
-              ),
-              fontSize: 13,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'A\u00fan no hay opiniones',
+                  style: TextStyle(
+                    color: Color(
+                      0xFF40534A,
+                    ),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                SizedBox(
+                  height: 2,
+                ),
+                Text(
+                  'Las opiniones de visitantes aparecer\u00e1n aqu\u00ed.',
+                  style: TextStyle(
+                    color: Color(
+                      0xFF71827A,
+                    ),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

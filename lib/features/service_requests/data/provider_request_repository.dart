@@ -37,11 +37,30 @@ class ProviderRequestRepository {
         },
       );
 
+      final contactsByRequest = <String, Map<String, dynamic>>{};
+      if (rows.isNotEmpty) {
+        try {
+          final contacts = await client.rpc<List<dynamic>>(
+            'provider_request_contacts',
+            params: {'p_business_id': businessId},
+          );
+          for (final contact in contacts.whereType<Map>()) {
+            final data = Map<String, dynamic>.from(contact);
+            contactsByRequest[data['request_id'].toString()] = data;
+          }
+        } catch (_) {
+          // La cola existente sigue disponible mientras se despliega la RPC.
+        }
+      }
+
       return Success(
         rows
             .whereType<Map>()
             .map((row) => _providerRequestFromJson(
-                  Map<String, dynamic>.from(row),
+                  {
+                    ...Map<String, dynamic>.from(row),
+                    ...?contactsByRequest[row['request_id'].toString()]
+                  },
                 ))
             .toList(),
       );
@@ -128,5 +147,7 @@ ProviderRequestItem _providerRequestFromJson(Map<String, dynamic> json) {
     operationId: json['operation_id'] as String?,
     operationStatus: json['operation_status'] as String?,
     createdAt: DateTime.parse(json['created_at'] as String),
+    guestName: json['guest_name'] as String?,
+    guestPhone: json['guest_phone'] as String?,
   );
 }

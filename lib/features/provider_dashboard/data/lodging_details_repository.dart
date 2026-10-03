@@ -117,6 +117,27 @@ class LodgingDetailsRepository {
     );
   }
 
+  Future<Map<String, LodgingDetails>> getDetailsForBusinesses(
+    Iterable<String> businessIds,
+  ) async {
+    final ids = businessIds.toSet().toList();
+    if (ids.isEmpty) return const {};
+
+    final client = _client;
+    if (client == null) {
+      throw StateError('Supabase no esta configurado.');
+    }
+
+    final rows = await client
+        .from('lodging_details')
+        .select()
+        .inFilter('business_id', ids);
+    final details = rows
+        .map((row) => LodgingDetails.fromJson(Map<String, dynamic>.from(row)))
+        .toList();
+    return {for (final item in details) item.businessId: item};
+  }
+
   Future<void> updateInformation({
     required String businessId,
     required int maxGuests,

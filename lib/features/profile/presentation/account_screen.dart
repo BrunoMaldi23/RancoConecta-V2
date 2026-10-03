@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../config/app_config.dart';
 import '../../../core/layout/ranco_responsive.dart';
+import '../../../core/widgets/ranco_error_state.dart';
+import '../../../core/widgets/ranco_site_footer.dart';
 import '../../../router/session_actions.dart';
 import '../../../shared/models/profile.dart';
 import '../../../theme/ranco_colors.dart';
 import '../../auth/application/auth_controller.dart';
-import '../../messaging/application/messaging_providers.dart';
-import '../../notifications/application/notification_providers.dart';
+import '../../auth/data/supabase_auth_repository.dart';
+import '../../locations/application/location_providers.dart';
 import '../../provider_dashboard/application/provider_dashboard_providers.dart';
 import '../application/profile_providers.dart';
 
@@ -50,177 +51,198 @@ class AccountScreen extends ConsumerWidget {
                   )
                   .toUpperCase();
 
-              final email = user.email ?? 'Correo no disponible';
+              final isVisitor = user.isAnonymous;
+              if (isVisitor) {
+                final savedLocationId = ref
+                    .read(supabaseClientProvider)
+                    ?.auth
+                    .currentUser
+                    ?.userMetadata?['visitor_location_id']
+                    ?.toString();
+                final locations = ref.watch(locationsProvider).valueOrNull;
+                final location = locations
+                    ?.where((item) => item.id == savedLocationId)
+                    .firstOrNull;
+                return _VisitorAccountView(
+                  initial: initial,
+                  name: displayName,
+                  phone: profile.phone,
+                  locality: location?.name ??
+                      ref.watch(selectedLocationProvider)?.name,
+                  onEdit: () => context.push('/visitor/profile?next=/account'),
+                  onRequests: () => context.go('/requests'),
+                  onSignOut: () async {
+                    await signOutAndGoToSignIn(context, ref);
+                  },
+                );
+              }
+              final email = user.email ??
+                  (isVisitor ? 'Correo opcional' : 'Correo no disponible');
 
-              final isProvider = profile.role == ProfileRole.provider;
-              final chatEnabled =
-                  ref.watch(appConfigProvider).featureFlags.chatEnabled;
-              final unreadMessages =
-                  ref.watch(unreadMessagesCountProvider).valueOrNull ?? 0;
-              final unreadNotifications =
-                  ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
+              final isAdmin = profile.role.canAccessAdmin;
+              final activeBusiness = isAdmin
+                  ? null
+                  : ref.watch(activeProviderBusinessProvider).valueOrNull;
+              final isProvider = profile.role == ProfileRole.provider ||
+                  activeBusiness != null;
 
               return SafeArea(
                 top: false,
-                child: RancoContentContainer(
-                  width: RancoContainerWidth.detail,
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(
-                      0,
-                      18,
-                      0,
-                      30,
-                    ),
-                    children: [
-                      const _PageHeader(),
-                      const SizedBox(height: 14),
-                      _AccountProfile(
-                        initial: initial,
-                        name: displayName,
-                        email: email,
-                        role: profile.role.label,
-                        onEdit: () {
-                          context.push(
-                            '/account/edit',
-                          );
-                        },
-                      ),
-                      if (isProvider) ...[
-                        const SizedBox(height: 18),
-                        const _SectionLabel(
-                          text: 'Mi negocio',
-                        ),
-                        const SizedBox(height: 7),
-                        ref
-                            .watch(
-                              myProviderBusinessProvider,
-                            )
-                            .when(
-                              data: (business) {
-                                if (business == null) {
-                                  return _MissingBusinessCard(
-                                    onTap: () {
-                                      context.push(
-                                        '/provider/register',
-                                      );
-                                    },
-                                  );
-                                }
-
-                                return _ProviderBusinessCard(
-                                  name: business.name,
-                                  published:
-                                      business.publicationStatus == 'published',
-                                  status: business.publicationStatus,
-                                  lodging: business.isLodging,
-                                  onManage: () {
-                                    context.push(
-                                      '/provider/dashboard',
-                                    );
-                                  },
-                                  onBookings: () {
-                                    context.push(
-                                      '/provider/bookings',
-                                    );
-                                  },
-                                  onCalendar: () {
-                                    context.push(
-                                      '/provider/calendar',
-                                    );
-                                  },
-                                  onView: () {
-                                    context.push(
-                                      '/business/${business.id}',
-                                    );
-                                  },
-                                );
-                              },
-                              loading: () => const _BusinessLoading(),
-                              error: (_, __) => const _BusinessError(),
-                            ),
-                      ],
-                      if (!isProvider) ...[
-                        const SizedBox(height: 18),
-                        _BecomeProviderCard(
-                          onTap: () {
-                            context.push(
-                              '/provider/join',
-                            );
-                          },
-                        ),
-                      ],
-                      const SizedBox(height: 20),
-                      const _SectionLabel(
-                        text: 'Cuenta y soporte',
-                      ),
-                      const SizedBox(height: 7),
-                      _SettingsCard(
+                child: ListView(
+                  padding: const EdgeInsets.only(top: 18),
+                  children: [
+                    RancoContentContainer(
+                      width: RancoContainerWidth.form,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          _SettingsRow(
-                            icon: Icons.verified_user_outlined,
-                            title: 'Estado de la cuenta',
-                            subtitle: _accountStatusLabel(
-                              profile.accountStatus,
-                            ),
+                          _PageHeader(visitor: isVisitor),
+                          const SizedBox(height: 14),
+                          _AccountProfile(
+                            initial: initial,
+                            name: displayName,
+                            email: email,
+                            role: isVisitor ? 'Visitante' : profile.role.label,
+                            // Solo se muestra si la cuenta no está activa.
+                            statusWarning: _accountStatusLabel(
+                                        profile.accountStatus) ==
+                                    'Activa'
+                                ? null
+                                : _accountStatusLabel(profile.accountStatus),
+                            avatarUrl: profile.avatarUrl,
+                            onEdit: () {
+                              context.push(isVisitor
+                                  ? '/visitor/profile?next=/account'
+                                  : '/account/edit');
+                            },
                           ),
-                          if (chatEnabled) ...[
-                            const _SettingsDivider(),
-                            _SettingsRow(
-                              icon: Icons.chat_bubble_outline_rounded,
-                              title: 'Mensajes',
-                              subtitle: unreadMessages == 0
-                                  ? 'Conversaciones de solicitudes y reservas'
-                                  : '$unreadMessages sin leer',
-                              badgeCount: unreadMessages,
+                          if (isProvider) ...[
+                            const SizedBox(height: 18),
+                            const _SectionLabel(
+                              text: 'Negocio',
+                            ),
+                            const SizedBox(height: 7),
+                            ref
+                                .watch(
+                                  activeProviderBusinessProvider,
+                                )
+                                .when(
+                                  data: (business) {
+                                    if (business == null) {
+                                      return _MissingBusinessCard(
+                                        onTap: () {
+                                          context.push(
+                                            '/provider/register',
+                                          );
+                                        },
+                                      );
+                                    }
+
+                                    return _ProviderBusinessCard(
+                                      name: business.name,
+                                      published: business.publicationStatus ==
+                                          'published',
+                                      status: business.publicationStatus,
+                                      lodging: business.isLodging,
+                                      onManage: () {
+                                        context.push(
+                                          '/provider/dashboard',
+                                        );
+                                      },
+                                      onBookings: () {
+                                        context.push(
+                                          '/provider/bookings',
+                                        );
+                                      },
+                                      onCalendar: () {
+                                        context.push(
+                                          '/provider/calendar',
+                                        );
+                                      },
+                                      onView: () {
+                                        context.push(
+                                          '/business/${business.id}',
+                                        );
+                                      },
+                                    );
+                                  },
+                                  loading: () => const _BusinessLoading(),
+                                  error: (_, __) => const _BusinessError(),
+                                ),
+                          ],
+                          if (isAdmin) ...[
+                            const SizedBox(height: 18),
+                            const _SectionLabel(text: 'Administración'),
+                            const SizedBox(height: 7),
+                            _AdminPanelCard(onOpen: () => context.go('/admin')),
+                          ],
+                          if (!isProvider && !isAdmin && !isVisitor) ...[
+                            const SizedBox(height: 18),
+                            _BecomeProviderCard(
                               onTap: () {
-                                context.push('/messages');
+                                context.push(
+                                  '/provider/join',
+                                );
                               },
                             ),
                           ],
-                          const _SettingsDivider(),
-                          _SettingsRow(
-                            icon: Icons.notifications_none_rounded,
-                            title: 'Notificaciones',
-                            subtitle: unreadNotifications == 0
-                                ? 'Avisos de solicitudes, cotizaciones y reservas'
-                                : '$unreadNotifications pendientes',
-                            badgeCount: unreadNotifications,
-                            onTap: () {
-                              context.push('/notifications');
-                            },
-                          ),
-                          const _SettingsDivider(),
-                          _SettingsRow(
-                            icon: Icons.help_outline_rounded,
-                            title: 'Ayuda y soporte',
-                            subtitle: 'Preguntas frecuentes y contacto',
-                            onTap: () {
-                              // Ruta futura de ayuda.
+                          // Guardados, Solicitudes, Mensajes y Notificaciones
+                          // viven en la navegación principal; Ayuda en el
+                          // footer. Cuenta solo concentra perfil y acceso.
+                          if (!isVisitor) ...[
+                            const SizedBox(height: 20),
+                            const _SectionLabel(text: 'Seguridad y acceso'),
+                            const SizedBox(height: 7),
+                            _SettingsCard(
+                              children: [
+                                _SettingsRow(
+                                  icon: Icons.lock_outline,
+                                  title: 'Contraseña y sesión actual',
+                                  subtitle:
+                                      'Cambia tu contraseña o cierra esta sesión',
+                                  onTap: () =>
+                                      context.push('/account/security'),
+                                ),
+                              ],
+                            ),
+                          ],
+                          if (isVisitor) ...[
+                            const SizedBox(height: 14),
+                            const Card(
+                              color: Color(0xFFF1F7F3),
+                              child: Padding(
+                                padding: EdgeInsets.all(14),
+                                child: Text(
+                                  'Tu sesión visitante se conserva en este dispositivo. Si cierras sesión o borras los datos del navegador, perderás acceso a tus solicitudes.',
+                                  style: TextStyle(
+                                      color: RancoColors.textSecondary),
+                                ),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 14),
+                          _LogoutButton(
+                            onPressed: () async {
+                              await signOutAndGoToSignIn(context, ref);
                             },
                           ),
                         ],
                       ),
-                      const SizedBox(height: 14),
-                      _LogoutButton(
-                        onPressed: () async {
-                          await signOutAndGoToSignIn(context, ref);
-                        },
-                      ),
-                    ],
-                  ),
+                    ),
+                    const RancoSiteFooter(),
+                  ],
                 ),
               );
             },
             loading: () {
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
+              return user.isAnonymous
+                  ? const _VisitorAccountSkeleton()
+                  : const Center(child: CircularProgressIndicator());
             },
-            error: (_, __) {
-              return const Center(
-                child: Text(
-                  'No pudimos cargar tu perfil.',
-                ),
+            error: (error, __) {
+              return RancoErrorState(
+                message: profileFailureMessage(error),
+                onRetry: () => ref.invalidate(currentProfileProvider),
               );
             },
           );
@@ -231,10 +253,9 @@ class AccountScreen extends ConsumerWidget {
           );
         },
         error: (_, __) {
-          return const Center(
-            child: Text(
-              'No pudimos cargar tu sesión.',
-            ),
+          return RancoErrorState(
+            message: 'No pudimos cargar tu sesión.',
+            onRetry: () => ref.invalidate(authStateProvider),
           );
         },
       ),
@@ -242,8 +263,223 @@ class AccountScreen extends ConsumerWidget {
   }
 }
 
+class _VisitorAccountSkeleton extends StatelessWidget {
+  const _VisitorAccountSkeleton();
+
+  @override
+  Widget build(BuildContext context) => Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final height in [32.0, 16.0, 166.0, 150.0]) ...[
+                  Container(
+                    width: double.infinity,
+                    height: height,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F0EB),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+}
+
+class _VisitorAccountView extends StatelessWidget {
+  const _VisitorAccountView({
+    required this.initial,
+    required this.name,
+    required this.phone,
+    required this.locality,
+    required this.onEdit,
+    required this.onRequests,
+    required this.onSignOut,
+  });
+
+  final String initial;
+  final String name;
+  final String? phone;
+  final String? locality;
+  final VoidCallback onEdit;
+  final VoidCallback onRequests;
+  final VoidCallback onSignOut;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+        top: false,
+        child: ListView(
+          children: [
+            Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 22, 18, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text('Mi perfil',
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineMedium
+                              ?.copyWith(
+                                color: RancoColors.textPrimary,
+                                fontWeight: FontWeight.w900,
+                              )),
+                      const SizedBox(height: 5),
+                      const Text(
+                          'Tus datos de contacto para los negocios de Ranco.',
+                          maxLines: 2,
+                          style: TextStyle(
+                              color: RancoColors.textSecondary, fontSize: 13)),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: const Color(0xFFD4E2DC)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(children: [
+                              CircleAvatar(
+                                radius: 27,
+                                backgroundColor: const Color(0xFFE4F2EC),
+                                child: Text(initial,
+                                    style: const TextStyle(
+                                        color: RancoColors.forest,
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w900)),
+                              ),
+                              const SizedBox(width: 13),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                            color: RancoColors.textPrimary,
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.w800)),
+                                    const Text('Visitante',
+                                        style: TextStyle(
+                                            color: RancoColors.forest,
+                                            fontSize: 12)),
+                                  ],
+                                ),
+                              ),
+                            ]),
+                            const SizedBox(height: 17),
+                            _VisitorDetail(
+                                icon: Icons.phone_outlined,
+                                label: 'WhatsApp',
+                                value: phone?.trim().isNotEmpty == true
+                                    ? phone!.trim()
+                                    : 'Sin indicar'),
+                            const SizedBox(height: 11),
+                            _VisitorDetail(
+                                icon: Icons.place_outlined,
+                                label: 'Localidad',
+                                value: locality ?? 'Sin indicar'),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Card(
+                        color: Colors.white,
+                        margin: EdgeInsets.zero,
+                        child: Column(children: [
+                          ListTile(
+                            leading: const Icon(Icons.edit_outlined,
+                                color: RancoColors.forest),
+                            title: const Text('Editar datos',
+                                style: TextStyle(fontSize: 14)),
+                            trailing: const Icon(Icons.chevron_right_rounded),
+                            onTap: onEdit,
+                          ),
+                          const Divider(height: 1),
+                          ListTile(
+                            leading: const Icon(Icons.assignment_outlined,
+                                color: RancoColors.forest),
+                            title: const Text('Mis solicitudes',
+                                style: TextStyle(fontSize: 14)),
+                            trailing: const Icon(Icons.chevron_right_rounded),
+                            onTap: onRequests,
+                          ),
+                          const Divider(height: 1),
+                          ListTile(
+                            leading: const Icon(Icons.logout_rounded,
+                                color: RancoColors.forest),
+                            title: const Text('Cerrar sesión',
+                                style: TextStyle(fontSize: 14)),
+                            onTap: onSignOut,
+                          ),
+                        ]),
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'La sesión visitante se guarda en este dispositivo. Si cierras sesión o borras sus datos, perderás acceso a tus solicitudes.',
+                        maxLines: 3,
+                        style: TextStyle(
+                            color: RancoColors.textSecondary, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const RancoSiteFooter(),
+          ],
+        ),
+      );
+}
+
+class _VisitorDetail extends StatelessWidget {
+  const _VisitorDetail(
+      {required this.icon, required this.label, required this.value});
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Row(children: [
+        Icon(icon, size: 19, color: RancoColors.forest),
+        const SizedBox(width: 10),
+        SizedBox(
+            width: 76,
+            child: Text(label,
+                style: const TextStyle(
+                    color: RancoColors.textSecondary, fontSize: 12))),
+        Expanded(
+          child: Text(value,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  color: RancoColors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700)),
+        ),
+      ]);
+}
+
 class _PageHeader extends StatelessWidget {
-  const _PageHeader();
+  const _PageHeader({this.visitor = false});
+
+  final bool visitor;
 
   @override
   Widget build(BuildContext context) {
@@ -251,7 +487,7 @@ class _PageHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Cuenta',
+          visitor ? 'Perfil visitante' : 'Cuenta',
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 color: RancoColors.textPrimary,
                 fontWeight: FontWeight.w900,
@@ -260,9 +496,11 @@ class _PageHeader extends StatelessWidget {
               ),
         ),
         const SizedBox(height: 5),
-        const Text(
-          'Gestiona tu perfil y los accesos de tu cuenta.',
-          style: TextStyle(
+        Text(
+          visitor
+              ? 'Tus datos permiten que los prestadores respondan a tus solicitudes.'
+              : 'Gestiona tu perfil y los accesos de tu cuenta.',
+          style: const TextStyle(
             color: RancoColors.textSecondary,
             fontSize: 13,
             height: 1.35,
@@ -279,13 +517,17 @@ class _AccountProfile extends StatelessWidget {
     required this.name,
     required this.email,
     required this.role,
+    required this.avatarUrl,
     required this.onEdit,
+    this.statusWarning,
   });
 
   final String initial;
   final String name;
   final String email;
   final String role;
+  final String? statusWarning;
+  final String? avatarUrl;
   final VoidCallback onEdit;
 
   @override
@@ -294,7 +536,7 @@ class _AccountProfile extends StatelessWidget {
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(13),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
@@ -304,21 +546,31 @@ class _AccountProfile extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: 52,
+              height: 52,
               alignment: Alignment.center,
               decoration: const BoxDecoration(
                 color: Color(0xFFE4F2EC),
                 shape: BoxShape.circle,
               ),
-              child: Text(
-                initial,
-                style: const TextStyle(
-                  color: RancoColors.forest,
-                  fontSize: 21,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
+              child: avatarUrl?.isNotEmpty == true
+                  ? ClipOval(
+                      child: Image.network(
+                        avatarUrl!,
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Text(initial),
+                      ),
+                    )
+                  : Text(
+                      initial,
+                      style: const TextStyle(
+                        color: RancoColors.forest,
+                        fontSize: 21,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -342,40 +594,61 @@ class _AccountProfile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: RancoColors.textSecondary,
-                      fontSize: 11.5,
+                      fontSize: 13,
                     ),
                   ),
-                  const SizedBox(height: 5),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE1F4EA),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      role,
-                      style: const TextStyle(
-                        color: RancoColors.forest,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
+                  const SizedBox(height: 6),
+                  Wrap(spacing: 6, runSpacing: 4, children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE1F4EA),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        role,
+                        style: const TextStyle(
+                          color: RancoColors.forest,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
-                  ),
+                    if (statusWarning != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF1DC),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          'Cuenta: $statusWarning',
+                          style: const TextStyle(
+                            color: Color(0xFF8A5B12),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                  ]),
                 ],
               ),
             ),
             const SizedBox(width: 6),
-            IconButton(
-              tooltip: 'Editar perfil',
+            OutlinedButton.icon(
               onPressed: onEdit,
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(
-                Icons.edit_outlined,
-                size: 19,
-                color: RancoColors.forest,
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Editar'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: RancoColors.forest,
+                side: const BorderSide(color: Color(0xFFD2E0D9)),
+                visualDensity: VisualDensity.compact,
               ),
             ),
           ],
@@ -807,14 +1080,12 @@ class _SettingsRow extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
-    this.badgeCount = 0,
     this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
-  final int badgeCount;
   final VoidCallback? onTap;
 
   @override
@@ -865,19 +1136,10 @@ class _SettingsRow extends StatelessWidget {
             ),
           ),
           if (onTap != null)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (badgeCount > 0) ...[
-                  _MiniBadge(count: badgeCount),
-                  const SizedBox(width: 7),
-                ],
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 19,
-                  color: RancoColors.textSecondary,
-                ),
-              ],
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 19,
+              color: RancoColors.textSecondary,
             ),
         ],
       ),
@@ -891,45 +1153,6 @@ class _SettingsRow extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: content,
-    );
-  }
-}
-
-class _MiniBadge extends StatelessWidget {
-  const _MiniBadge({
-    required this.count,
-  });
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: RancoColors.forest,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        count > 99 ? '99+' : '$count',
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 10.5,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-}
-
-class _SettingsDivider extends StatelessWidget {
-  const _SettingsDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Divider(
-      height: 1,
-      indent: 56,
     );
   }
 }
@@ -1013,112 +1236,117 @@ class _GuestAccount extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: 520,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              24,
-              30,
-              24,
-              90,
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Cuenta',
-                  style: TextStyle(
-                    color: RancoColors.textPrimary,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
-                  ),
+      child: ListView(
+        children: [
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: 520,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  24,
+                  30,
+                  24,
+                  24,
                 ),
-                const SizedBox(height: 5),
-                const Text(
-                  'Gestiona tu perfil y tus preferencias.',
-                  style: TextStyle(
-                    color: RancoColors.textSecondary,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 42),
-                Center(
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 52,
-                        height: 52,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: const Color(
-                            0xFFDDF3E8,
-                          ),
-                          borderRadius: BorderRadius.circular(
-                            16,
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.person_outline_rounded,
-                          size: 25,
-                          color: RancoColors.forest,
-                        ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Cuenta',
+                      style: TextStyle(
+                        color: RancoColors.textPrimary,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
                       ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Inicia sesión en tu cuenta',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: RancoColors.textPrimary,
-                          fontSize: 19,
-                          fontWeight: FontWeight.w800,
-                        ),
+                    ),
+                    const SizedBox(height: 5),
+                    const Text(
+                      'Gestiona tu perfil y tus preferencias.',
+                      style: TextStyle(
+                        color: RancoColors.textSecondary,
+                        fontSize: 13,
                       ),
-                      const SizedBox(height: 7),
-                      const Text(
-                        'Accede a tus guardados, solicitudes y opciones de negocio.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: RancoColors.textSecondary,
-                          fontSize: 13,
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        width: 210,
-                        child: FilledButton.icon(
-                          onPressed: () {
-                            context.push(
-                              '/sign-in',
-                            );
-                          },
-                          icon: const Icon(
-                            Icons.login_rounded,
-                            size: 18,
-                          ),
-                          label: const Text(
-                            'Iniciar sesión',
-                          ),
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size.fromHeight(
-                              46,
+                    ),
+                    const SizedBox(height: 42),
+                    Center(
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 52,
+                            height: 52,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                0xFFDDF3E8,
+                              ),
+                              borderRadius: BorderRadius.circular(
+                                16,
+                              ),
                             ),
-                            backgroundColor: RancoColors.forest,
-                            foregroundColor: Colors.white,
+                            child: const Icon(
+                              Icons.person_outline_rounded,
+                              size: 25,
+                              color: RancoColors.forest,
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Inicia sesión en tu cuenta',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: RancoColors.textPrimary,
+                              fontSize: 19,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 7),
+                          const Text(
+                            'Accede a tus guardados, solicitudes y opciones de negocio.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: RancoColors.textSecondary,
+                              fontSize: 13,
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            width: 210,
+                            child: FilledButton.icon(
+                              onPressed: () {
+                                context.push(
+                                  '/sign-in',
+                                );
+                              },
+                              icon: const Icon(
+                                Icons.login_rounded,
+                                size: 18,
+                              ),
+                              label: const Text(
+                                'Iniciar sesión',
+                              ),
+                              style: FilledButton.styleFrom(
+                                minimumSize: const Size.fromHeight(
+                                  46,
+                                ),
+                                backgroundColor: RancoColors.forest,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
+          const RancoSiteFooter(),
+        ],
       ),
     );
   }
@@ -1174,5 +1402,75 @@ String _publicationLabel(
 
     default:
       return status;
+  }
+}
+
+class _AdminPanelCard extends StatelessWidget {
+  const _AdminPanelCard({required this.onOpen});
+
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFDDE8E3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: RancoColors.primarySoft,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.admin_panel_settings_outlined,
+              color: RancoColors.forest,
+            ),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Panel administrativo',
+                  style: TextStyle(
+                    color: RancoColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                SizedBox(height: 3),
+                Text(
+                  'Gestiona negocios, usuarios, revisiones y configuración '
+                  'de Ranco Conecta.',
+                  style: TextStyle(
+                    color: RancoColors.textSecondary,
+                    fontSize: 13,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          FilledButton(
+            onPressed: onOpen,
+            style: FilledButton.styleFrom(
+              backgroundColor: RancoColors.forest,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Abrir panel'),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -4,11 +4,22 @@ import '../../../core/errors/app_failure.dart';
 import '../../../shared/models/request_attachment.dart';
 import '../../../shared/models/quote.dart';
 import '../../../shared/models/service_request.dart';
+import '../../auth/application/auth_controller.dart';
 import '../../provider_dashboard/application/provider_dashboard_providers.dart';
+import '../data/customer_activity_repository.dart';
 import '../data/provider_request_repository.dart';
 import '../data/quote_repository.dart';
 import '../data/request_attachment_repository.dart';
 import '../data/service_request_repository.dart';
+import '../domain/customer_activity_item.dart';
+
+final myCustomerActivityProvider = FutureProvider<List<CustomerActivityItem>>(
+  (ref) async {
+    final user = await ref.watch(authStateProvider.future);
+    if (user == null) return const [];
+    return ref.watch(customerActivityRepositoryProvider).listMine(user.id);
+  },
+);
 
 final myRequestsProvider = FutureProvider<List<ServiceRequest>>((ref) async {
   final result =
