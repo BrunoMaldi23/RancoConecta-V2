@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../auth/application/auth_controller.dart';
 import '../../../features/profile/application/profile_providers.dart';
 import '../../../shared/models/business.dart';
 import '../../../shared/models/profile.dart';
@@ -8,41 +9,69 @@ import '../data/admin_settings_repository.dart';
 import '../../../shared/models/category.dart';
 
 final adminCategoriesProvider = FutureProvider<List<Category>>(
-  (ref) => ref.watch(adminSettingsRepositoryProvider).listCategories(),
+  (ref) async {
+    await ref.watch(authStateProvider.future);
+    return ref.watch(adminSettingsRepositoryProvider).listCategories();
+  },
 );
 
 final adminWhatsAppSettingsProvider = FutureProvider<AdminWhatsAppSettings>(
-  (ref) => ref.watch(adminSettingsRepositoryProvider).getWhatsAppSettings(),
+  (ref) async {
+    await ref.watch(authStateProvider.future);
+    return ref.watch(adminSettingsRepositoryProvider).getWhatsAppSettings();
+  },
 );
 
 final adminAnalyticsSummaryProvider = FutureProvider<Map<String, int>>(
-  (ref) => ref.watch(adminSettingsRepositoryProvider).analyticsSummary(),
+  (ref) async {
+    await ref.watch(authStateProvider.future);
+    return ref.watch(adminSettingsRepositoryProvider).analyticsSummary();
+  },
 );
 
 final adminUsersProvider = FutureProvider.family<AdminUsersPage,
-    ({int page, int pageSize, String? search, String? role})>(
-  (ref, query) => ref.watch(adminSettingsRepositoryProvider).listUsers(
-        page: query.page,
-        pageSize: query.pageSize,
-        search: query.search,
-        role: query.role,
-      ),
+    ({int page, int pageSize, String? search, String? role, String? status})>(
+  (ref, query) async {
+    await ref.watch(authStateProvider.future);
+    return ref.watch(adminSettingsRepositoryProvider).listUsers(
+          page: query.page,
+          pageSize: query.pageSize,
+          search: query.search,
+          role: query.role,
+          status: query.status,
+        );
+  },
 );
+
+final adminAuditEventsProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  await ref.watch(authStateProvider.future);
+  return ref.watch(adminSettingsRepositoryProvider).listAuditEvents();
+});
+
+final adminUserMutationsReadyProvider = FutureProvider<bool>((ref) async {
+  await ref.watch(authStateProvider.future);
+  return ref.watch(adminSettingsRepositoryProvider).userMutationsReady();
+});
 
 final reviewWhatsAppDetailsProvider =
     FutureProvider.family<ReviewWhatsAppDetails?, String>(
-  (ref, businessId) => ref
-      .watch(adminSettingsRepositoryProvider)
-      .reviewWhatsAppDetails(businessId),
+  (ref, businessId) async {
+    await ref.watch(authStateProvider.future);
+    return ref
+        .watch(adminSettingsRepositoryProvider)
+        .reviewWhatsAppDetails(businessId);
+  },
 );
 
 final currentAdminRoleProvider = FutureProvider<ProfileRole?>((ref) async {
   final profile = await ref.watch(currentProfileProvider.future);
-
-  return profile.role.canAccessAdmin ? profile.role : null;
+  if (profile.role != ProfileRole.admin) return null;
+  return profile.role;
 });
 
 final adminReviewStatsProvider = FutureProvider<Map<String, int>>((ref) async {
+  await ref.watch(authStateProvider.future);
   final result = await ref.watch(adminBusinessReviewRepositoryProvider).stats();
 
   return result.when(
@@ -60,6 +89,7 @@ final adminBusinessReviewPageProvider = FutureProvider.family<
       int limit,
       int offset,
     })>((ref, query) async {
+  await ref.watch(authStateProvider.future);
   final result = await ref.watch(adminBusinessReviewRepositoryProvider).list(
         status: query.status,
         businessType: query.businessType,
@@ -77,6 +107,7 @@ final adminBusinessReviewPageProvider = FutureProvider.family<
 final adminBusinessReviewDetailProvider =
     FutureProvider.family<AdminBusinessReviewDetail, String>(
         (ref, businessId) async {
+  await ref.watch(authStateProvider.future);
   final result =
       await ref.watch(adminBusinessReviewRepositoryProvider).detail(businessId);
 

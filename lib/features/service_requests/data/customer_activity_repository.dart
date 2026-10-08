@@ -67,7 +67,8 @@ class CustomerActivityRepository {
       SupabaseClient client, String userId) async {
     final rows = await client
         .from('lodging_bookings')
-        .select('id,business_id,check_in,check_out,status,created_at,'
+        .select(
+            'id,business_id,check_in,check_out,guests,nights,guest_message,status,created_at,'
             'businesses(name)')
         .eq('guest_user_id', userId)
         .order('created_at', ascending: false);
@@ -83,7 +84,15 @@ class CustomerActivityRepository {
         stage: CustomerActivityItem.lodgingStage(status),
         statusLabel: _lodgingLabel(status),
         summary: 'Alojamiento · ${row['check_in']} al ${row['check_out']}',
-        detailRoute: '/business/$businessId',
+        detailRoute: '/requests/lodging/${row['id']}',
+        details: {
+          'Entrada': row['check_in'].toString(),
+          'Salida': row['check_out'].toString(),
+          'Noches': row['nights'].toString(),
+          'Huéspedes': row['guests'].toString(),
+          if ((row['guest_message'] as String?)?.trim().isNotEmpty == true)
+            'Mensaje': (row['guest_message'] as String).trim(),
+        },
       );
     }).toList();
   }
@@ -92,7 +101,8 @@ class CustomerActivityRepository {
       SupabaseClient client, String userId) async {
     final rows = await client
         .from('gastronomy_table_reservations')
-        .select('id,business_id,reservation_date,reservation_time,status,'
+        .select(
+            'id,business_id,reservation_date,reservation_time,guests,message,status,'
             'created_at,businesses(name)')
         .eq('user_id', userId)
         .order('created_at', ascending: false);
@@ -109,7 +119,14 @@ class CustomerActivityRepository {
         stage: CustomerActivityItem.gastronomyStage(status),
         statusLabel: _gastronomyLabel(status),
         summary: 'Reserva de mesa · ${row['reservation_date']} $time',
-        detailRoute: '/business/$businessId',
+        detailRoute: '/requests/gastronomy/${row['id']}',
+        details: {
+          'Fecha': row['reservation_date'].toString(),
+          'Hora': time,
+          'Personas': row['guests'].toString(),
+          if ((row['message'] as String?)?.trim().isNotEmpty == true)
+            'Mensaje': (row['message'] as String).trim(),
+        },
       );
     }).toList();
   }

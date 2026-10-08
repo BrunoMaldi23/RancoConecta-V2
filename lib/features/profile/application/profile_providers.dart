@@ -14,7 +14,8 @@ final currentProfileProvider = FutureProvider<Profile>((ref) async {
       message: 'Debes ingresar para ver tu perfil.',
     );
   }
-  final result = await ref.watch(profileRepositoryProvider).getCurrentProfile();
+  final result =
+      await ref.watch(profileRepositoryProvider).getCurrentProfile(user.id);
   return result.when(
     success: (profile) {
       logBootstrapEvent('AUTH_ROLE_RESOLVED', {'role': profile.role.name});

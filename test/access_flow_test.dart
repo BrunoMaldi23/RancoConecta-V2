@@ -27,6 +27,34 @@ import 'package:ranco_conecta_2/shared/models/quote.dart';
 import 'package:ranco_conecta_2/router/app_router.dart';
 
 void main() {
+  testWidgets('recovery requires a session and rejects an expired link',
+      (tester) async {
+    final auth = _FakeAuthRepository();
+    await _pumpFlow(tester, auth: auth, startRoute: '/reset-password');
+    expect(find.text('El enlace caducó o ya fue utilizado.'), findsOneWidget);
+    expect(find.text('Guardar contraseña'), findsNothing);
+  });
+
+  testWidgets('recovered password is confirmed and returns to provider login',
+      (tester) async {
+    final auth = _FakeAuthRepository()
+      .._current = const AuthUser(
+          id: 'provider-1',
+          email: 'provider@example.com',
+          emailConfirmed: true);
+    await _pumpFlow(tester, auth: auth, startRoute: '/reset-password');
+    await tester.enterText(find.byType(TextFormField).at(0), 'clave-segura');
+    await tester.enterText(find.byType(TextFormField).at(1), 'otra-clave');
+    await tester.tap(find.text('Guardar contraseña'));
+    await tester.pump();
+    expect(find.text('Las contraseñas no coinciden.'), findsOneWidget);
+    await tester.enterText(find.byType(TextFormField).at(1), 'clave-segura');
+    await tester.tap(find.text('Guardar contraseña'));
+    await tester.pumpAndSettle();
+    expect(auth.recoveredPassword, 'clave-segura');
+    expect(find.text('Acceso proveedor'), findsOneWidget);
+  });
+
   test('WhatsApp accepts Chilean mobile formats only', () {
     expect(isValidChileanWhatsapp('+56 9 1234 5678'), isTrue);
     expect(isValidChileanWhatsapp('912345678'), isTrue);
@@ -81,6 +109,54 @@ void main() {
       expect(find.text('Cuenta UI'), findsOneWidget);
     });
   }
+
+  testWidgets('provider login waits for the new profile before navigation',
+      (tester) async {
+    final gate = Completer<void>();
+    await _pumpFlow(tester, auth: _FakeAuthRepository(), profileGate: gate);
+    await _tapVisible(tester,
+        find.widgetWithText(OutlinedButton, 'Continuar como prestador'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+        find.byType(TextFormField).at(0), 'provider@example.com');
+    await tester.enterText(find.byType(TextFormField).at(1), 'clave-segura');
+    await _tapVisible(tester, find.widgetWithText(FilledButton, 'Ingresar'));
+    await tester.pump();
+    expect(find.text('Cuenta UI'), findsNothing);
+    expect(find.text('Acceso proveedor'), findsOneWidget);
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('Cuenta UI'), findsOneWidget);
+  });
+
+  testWidgets('provider signup retains its email return route', (tester) async {
+    final auth = _FakeAuthRepository();
+    await _pumpFlow(tester, auth: auth);
+    await _tapVisible(tester,
+        find.widgetWithText(OutlinedButton, 'Continuar como prestador'));
+    await tester.pumpAndSettle();
+    await _tapVisible(tester,
+        find.widgetWithText(OutlinedButton, 'Ser parte de Ranco Conecta'));
+    await tester.pumpAndSettle();
+    await _tapVisible(tester, find.text('Crear mi acceso'));
+    await tester.pumpAndSettle();
+    expect(find.text('Crea tu acceso'), findsOneWidget);
+    final fields = find.byType(TextFormField);
+    await tester.enterText(fields.at(0), 'Proveedor Prueba');
+    await tester.enterText(fields.at(1), 'provider@example.com');
+    await tester.enterText(fields.at(2), 'clave-segura');
+    await tester.enterText(fields.at(3), 'clave-segura');
+    for (final checkbox in tester.widgetList<Checkbox>(find.byType(Checkbox))) {
+      checkbox.onChanged!(true);
+    }
+    await tester.pump();
+    await _tapVisible(
+        tester, find.widgetWithText(FilledButton, 'Crear acceso'));
+    await tester.pumpAndSettle();
+    expect(auth.lastEmailRedirectPath, '/account');
+    expect(auth.lastProviderRegistration, isTrue);
+    expect(find.text('Revisa tu correo para continuar'), findsOneWidget);
+  });
 
   testWidgets('welcome offers direct public access without a profile',
       (tester) async {
@@ -251,7 +327,7 @@ void main() {
     expect(find.text('Explorar UI'), findsOneWidget);
   });
 
-  testWidgets('provider choice preserves a pending provider route',
+  testWidgets('provider choice lands in account despite a pending wizard route',
       (tester) async {
     await _pumpFlow(tester,
         auth: _FakeAuthRepository(), nextRoute: '/provider/register');
@@ -263,7 +339,7 @@ void main() {
     await tester.enterText(find.byType(TextFormField).at(1), 'clave-segura');
     await _tapVisible(tester, find.widgetWithText(FilledButton, 'Ingresar'));
     await tester.pumpAndSettle();
-    expect(find.text('Registro proveedor UI'), findsOneWidget);
+    expect(find.text('Cuenta UI'), findsOneWidget);
   });
 
   testWidgets('visitor opens a pending request without a session',
@@ -465,20 +541,27 @@ Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
 
 Future<void> _acceptConsent(WidgetTester tester) async {
   for (var index = 0; index < 3; index++) {
-    await _tapVisible(tester, find.byType(CheckboxListTile).at(index));
+    // La fila incluye el enlace "Ver ..."; se marca la casilla en sí.
+    await _tapVisible(
+        tester,
+        find.descendant(
+            of: find.byType(CheckboxListTile).at(index),
+            matching: find.byType(Checkbox)));
     await tester.pumpAndSettle();
   }
 }
 
 Future<void> _pumpFlow(WidgetTester tester,
     {required _FakeAuthRepository auth,
+    String? startRoute,
     _FakeVisitorProfileRepository? visitor,
     String? nextRoute,
     bool startInProfile = false,
     Completer<void>? profileGate,
     Completer<void>? savedProfileGate}) async {
   final router = GoRouter(
-      initialLocation: startInProfile ? '/visitor/profile' : '/sign-in',
+      initialLocation:
+          startRoute ?? (startInProfile ? '/visitor/profile' : '/sign-in'),
       routes: [
         GoRoute(
             path: '/',
@@ -498,6 +581,12 @@ Future<void> _pumpFlow(WidgetTester tester,
             builder: (_, state) => SignInScreen(
                 providerAccess: true,
                 nextRoute: state.uri.queryParameters['next'])),
+        GoRoute(
+            path: '/reset-password',
+            builder: (_, __) => const ResetPasswordScreen()),
+        GoRoute(
+            path: '/forgot-password',
+            builder: (_, __) => const ForgotPasswordScreen()),
         GoRoute(
             path: '/visitor/profile',
             builder: (_, state) => VisitorProfileScreen(
@@ -529,8 +618,16 @@ Future<void> _pumpFlow(WidgetTester tester,
             path: '/account',
             builder: (_, __) => const Scaffold(body: Text('Cuenta UI'))),
         GoRoute(
+            path: '/provider/dashboard',
+            builder: (_, __) =>
+                const Scaffold(body: Text('Panel prestador UI'))),
+        GoRoute(
             path: '/provider/join',
-            builder: (_, __) => const Scaffold(body: Text('Proveedor UI'))),
+            builder: (_, __) => const ProviderJoinScreen()),
+        GoRoute(
+            path: '/sign-up',
+            builder: (_, state) =>
+                SignUpScreen(nextRoute: state.uri.queryParameters['next'])),
         GoRoute(
             path: '/provider/register',
             builder: (_, __) =>
@@ -572,6 +669,12 @@ Future<void> _pumpFlow(WidgetTester tester,
 
 class _FakeAuthRepository implements AuthRepository {
   int anonymousCalls = 0;
+  String? lastEmailRedirectPath;
+  bool? lastProviderRegistration;
+  String? recoveredPassword;
+
+  @override
+  Future<Result<void>> registerProviderIdentity() async => const Success(null);
   final _changes = StreamController<AuthUser?>.broadcast();
   AuthUser? _current;
 
@@ -610,15 +713,26 @@ class _FakeAuthRepository implements AuthRepository {
 
   @override
   Future<Result<AuthUser?>> signUp(
-          {required String fullName,
-          required String email,
-          required String password,
-          bool consentAccepted = false}) async =>
-      const Success(null);
+      {required String fullName,
+      required String email,
+      required String password,
+      bool consentAccepted = false,
+      bool providerRegistration = false,
+      String? emailRedirectPath}) async {
+    lastEmailRedirectPath = emailRedirectPath;
+    lastProviderRegistration = providerRegistration;
+    return const Success(null);
+  }
 
   @override
   Future<Result<void>> sendPasswordResetEmail(String email) async =>
       const Success(null);
+
+  @override
+  Future<Result<void>> updateRecoveredPassword(String password) async {
+    recoveredPassword = password;
+    return const Success(null);
+  }
 
   @override
   Future<Result<void>> signOut() async {

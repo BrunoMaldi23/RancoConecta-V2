@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../config/app_config.dart';
+import '../../../core/widgets/ranco_states.dart';
 import '../../../core/widgets/ranco_app_bar.dart';
 import '../../../core/widgets/ranco_error_state.dart';
 import '../../../shared/models/request_attachment.dart';
@@ -14,6 +15,7 @@ import '../data/provider_request_repository.dart';
 import '../data/quote_repository.dart';
 import '../data/request_attachment_repository.dart';
 import '../../messaging/data/messaging_repository.dart';
+import '../../provider_dashboard/presentation/provider_hub.dart';
 
 class ProviderRequestsScreen extends ConsumerWidget {
   const ProviderRequestsScreen({super.key});
@@ -27,6 +29,7 @@ class ProviderRequestsScreen extends ConsumerWidget {
       appBar: const RancoAppBar(
         title: 'Solicitudes',
         fallbackRoute: '/provider/dashboard',
+        bottom: ProviderHubTabBar(current: '/provider/requests'),
       ),
       body: requests.when(
         data: (items) {
@@ -45,7 +48,7 @@ class ProviderRequestsScreen extends ConsumerWidget {
             ],
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const RancoLoadingState(),
         error: (error, stackTrace) => RancoErrorState(
           message: requestFailureMessage(error),
           onRetry: () {

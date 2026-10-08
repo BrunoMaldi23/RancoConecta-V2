@@ -40,7 +40,8 @@ void main() {
     addTearDown(router.dispose);
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        currentAdminRoleProvider.overrideWith((ref) async => ProfileRole.admin),
+        currentAdminRoleProvider
+            .overrideWith((ref) async => ProfileRole.superAdmin),
         adminReviewStatsProvider.overrideWith((ref) async => {
               'pending_review': 0,
               'published': 0,
@@ -99,7 +100,8 @@ void main() {
     addTearDown(router.dispose);
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        currentAdminRoleProvider.overrideWith((ref) async => ProfileRole.admin),
+        currentAdminRoleProvider
+            .overrideWith((ref) async => ProfileRole.superAdmin),
         adminBusinessReviewPageProvider.overrideWith((ref, query) async {
           queriedStatus = query.status;
           return AdminBusinessReviewPage(items: [
@@ -170,7 +172,7 @@ void main() {
       await tester.pumpWidget(ProviderScope(
         overrides: [
           currentAdminRoleProvider
-              .overrideWith((ref) async => ProfileRole.admin),
+              .overrideWith((ref) async => ProfileRole.superAdmin),
           adminBusinessReviewPageProvider.overrideWith((ref, query) async =>
               AdminBusinessReviewPage(items: [
                 AdminBusinessReviewSummary(
@@ -237,7 +239,8 @@ void main() {
     addTearDown(router.dispose);
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        currentAdminRoleProvider.overrideWith((ref) async => ProfileRole.admin),
+        currentAdminRoleProvider
+            .overrideWith((ref) async => ProfileRole.superAdmin),
       ],
       child: MaterialApp.router(routerConfig: router),
     ));
@@ -261,7 +264,8 @@ void main() {
     addTearDown(router.dispose);
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        currentAdminRoleProvider.overrideWith((ref) async => ProfileRole.admin),
+        currentAdminRoleProvider
+            .overrideWith((ref) async => ProfileRole.superAdmin),
         adminAnalyticsSummaryProvider.overrideWith((ref) async {
           calls++;
           if (calls == 1) throw StateError('technical detail');
@@ -304,7 +308,7 @@ void main() {
               fullName: 'Admin Ranco',
               phone: null,
               avatarUrl: null,
-              role: ProfileRole.admin,
+              role: ProfileRole.superAdmin,
               accountStatus: 'active',
             )),
       ],
@@ -327,7 +331,8 @@ void main() {
     addTearDown(router.dispose);
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        currentAdminRoleProvider.overrideWith((ref) async => ProfileRole.admin),
+        currentAdminRoleProvider
+            .overrideWith((ref) async => ProfileRole.superAdmin),
         adminCategoriesProvider.overrideWith((ref) async => const [
               Category(
                   id: '1',

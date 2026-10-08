@@ -5,6 +5,8 @@ import '../../../theme/ranco_colors.dart';
 import '../application/provider_dashboard_providers.dart';
 import '../data/lodging_details_repository.dart';
 import '../../../core/widgets/ranco_app_bar.dart';
+import 'provider_hub.dart';
+import '../../../core/widgets/ranco_states.dart';
 
 class LodgingRatesScreen extends ConsumerStatefulWidget {
   const LodgingRatesScreen({
@@ -50,6 +52,7 @@ class _LodgingRatesScreenState extends ConsumerState<LodgingRatesScreen> {
       appBar: const RancoAppBar(
         title: 'Tarifas',
         fallbackRoute: '/provider/dashboard',
+        bottom: ProviderHubTabBar(current: '/provider/rates'),
       ),
       body: business.when(
         data: (business) {
@@ -184,9 +187,7 @@ class _LodgingRatesScreenState extends ConsumerState<LodgingRatesScreen> {
                 ),
               );
             },
-            loading: () => const Center(
-              child: CircularProgressIndicator(),
-            ),
+            loading: () => const RancoLoadingState(),
             error: (
               error,
               stackTrace,
@@ -198,9 +199,7 @@ class _LodgingRatesScreenState extends ConsumerState<LodgingRatesScreen> {
             ),
           );
         },
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
-        ),
+        loading: () => const RancoLoadingState(),
         error: (
           error,
           stackTrace,

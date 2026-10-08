@@ -795,13 +795,11 @@ String _businessStateLabel(ProviderBusinessSummary business) {
   };
 }
 
+/// FASE 3.21: todo estado abre el hub "Mi negocio" (`/provider/business`),
+/// que muestra el resumen adecuado; el asistente se abre desde ahí con
+/// "Continuar configuración", nunca automáticamente.
 String _businessRoute(ProviderBusinessSummary business) {
-  return switch (business.publicationStatus.toLowerCase()) {
-    'draft' || 'changes_requested' || 'rejected' => '/provider/register',
-    'pending_review' || 'pending' || 'suspended' => '/provider/status',
-    'published' => '/provider/dashboard',
-    _ => '/provider/status',
-  };
+  return '/provider/business';
 }
 
 void _go(BuildContext context, String route) {

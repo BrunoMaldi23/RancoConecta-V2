@@ -16,7 +16,7 @@ void main() {
   test('admin can request changes and publish pending reviews', () {
     expect(
       policy.canPerform(
-        role: ProfileRole.admin,
+        role: ProfileRole.superAdmin,
         status: BusinessPublicationStatus.pendingReview,
         action: AdminReviewAction.requestChanges,
       ),
@@ -24,7 +24,7 @@ void main() {
     );
     expect(
       policy.canPerform(
-        role: ProfileRole.admin,
+        role: ProfileRole.superAdmin,
         status: BusinessPublicationStatus.pendingReview,
         action: AdminReviewAction.publish,
       ),
@@ -35,7 +35,7 @@ void main() {
   test('review transitions match the admin workflow contract', () {
     expect(
       policy.canPerform(
-        role: ProfileRole.admin,
+        role: ProfileRole.superAdmin,
         status: BusinessPublicationStatus.pendingReview,
         action: AdminReviewAction.requestChanges,
       ),
@@ -43,7 +43,7 @@ void main() {
     );
     expect(
       policy.canPerform(
-        role: ProfileRole.admin,
+        role: ProfileRole.superAdmin,
         status: BusinessPublicationStatus.changesRequested,
         action: AdminReviewAction.requestChanges,
       ),
@@ -51,7 +51,7 @@ void main() {
     );
     expect(
       policy.canPerform(
-        role: ProfileRole.admin,
+        role: ProfileRole.superAdmin,
         status: BusinessPublicationStatus.changesRequested,
         action: AdminReviewAction.publish,
       ),
@@ -59,7 +59,7 @@ void main() {
     );
     expect(
       policy.canPerform(
-        role: ProfileRole.admin,
+        role: ProfileRole.superAdmin,
         status: BusinessPublicationStatus.pendingReview,
         action: AdminReviewAction.publish,
       ),
@@ -67,7 +67,7 @@ void main() {
     );
     expect(
       policy.canPerform(
-        role: ProfileRole.admin,
+        role: ProfileRole.superAdmin,
         status: BusinessPublicationStatus.published,
         action: AdminReviewAction.suspend,
       ),
@@ -75,7 +75,7 @@ void main() {
     );
     expect(
       policy.canPerform(
-        role: ProfileRole.admin,
+        role: ProfileRole.superAdmin,
         status: BusinessPublicationStatus.pendingReview,
         action: AdminReviewAction.suspend,
       ),
@@ -83,7 +83,7 @@ void main() {
     );
     expect(
       policy.canPerform(
-        role: ProfileRole.admin,
+        role: ProfileRole.superAdmin,
         status: BusinessPublicationStatus.suspended,
         action: AdminReviewAction.restore,
       ),
@@ -113,7 +113,7 @@ void main() {
   test('suspension and restoration transitions are explicit', () {
     expect(
       policy.canPerform(
-        role: ProfileRole.admin,
+        role: ProfileRole.superAdmin,
         status: BusinessPublicationStatus.published,
         action: AdminReviewAction.suspend,
       ),
@@ -121,7 +121,7 @@ void main() {
     );
     expect(
       policy.canPerform(
-        role: ProfileRole.admin,
+        role: ProfileRole.superAdmin,
         status: BusinessPublicationStatus.suspended,
         action: AdminReviewAction.restore,
       ),
@@ -129,7 +129,7 @@ void main() {
     );
     expect(
       policy.canPerform(
-        role: ProfileRole.admin,
+        role: ProfileRole.superAdmin,
         status: BusinessPublicationStatus.published,
         action: AdminReviewAction.restore,
       ),

@@ -3,13 +3,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/layout/ranco_responsive.dart';
+import '../../../core/widgets/ranco_app_bar.dart';
+import '../../../core/widgets/ranco_error_state.dart';
+import '../../../core/widgets/ranco_page_empty_state.dart';
+import '../../../core/widgets/ranco_states.dart';
 import '../../../shared/models/business.dart';
 import '../../../theme/ranco_colors.dart';
-import '../../provider_dashboard/application/provider_dashboard_providers.dart';
-import '../../provider_dashboard/data/provider_business_repository.dart';
 import '../../admin/application/admin_providers.dart';
 import '../../admin/data/admin_settings_repository.dart';
+import '../../provider_dashboard/application/provider_dashboard_providers.dart';
+import '../../provider_dashboard/data/provider_business_repository.dart';
+import '../../provider_dashboard/presentation/provider_hub.dart';
+import '../application/business_onboarding_providers.dart';
+import '../data/business_onboarding_repository.dart';
 
+/// Resumen del hub "Mi negocio" mientras el negocio no está publicado
+/// (borrador, en revisión, cambios solicitados, rechazado, suspendido).
+/// Mismas acciones y destinos que antes; cambia la presentación.
 class ProviderBusinessStatusScreen extends ConsumerWidget {
   const ProviderBusinessStatusScreen({super.key});
 
@@ -20,20 +31,23 @@ class ProviderBusinessStatusScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: RancoColors.canvas,
-      appBar: AppBar(
-        backgroundColor: RancoColors.canvas,
-        surfaceTintColor: Colors.transparent,
-        title: const Text('Estado del negocio'),
+      appBar: const RancoAppBar(
+        title: 'Mi negocio',
+        fallbackRoute: '/account',
       ),
       body: businesses.when(
         data: (items) {
           if (items.isEmpty) {
-            return _StatusPanel(
-              icon: Icons.add_business_outlined,
-              title: 'Aún no tienes un negocio',
-              message: 'Crea un borrador para enviarlo a revisión.',
-              actionLabel: 'Crear negocio',
-              onAction: () => context.go('/provider/register'),
+            return SingleChildScrollView(
+              child: RancoPageEmptyState(
+                icon: Icons.add_business_outlined,
+                title: 'Aún no tienes un negocio',
+                message: 'Crea un borrador, complétalo a tu ritmo y envíalo '
+                    'a revisión cuando esté listo.',
+                actionLabel: 'Crear negocio',
+                actionIcon: Icons.add_rounded,
+                onAction: () => context.go('/provider/register'),
+              ),
             );
           }
 
@@ -50,181 +64,72 @@ class ProviderBusinessStatusScreen extends ConsumerWidget {
                       .watch(reviewWhatsAppDetailsProvider(business.id))
                       .valueOrNull
                   : null;
+          final editable = status == BusinessPublicationStatus.draft ||
+              status == BusinessPublicationStatus.changesRequested;
+          final draft = editable
+              ? ref.watch(providerBusinessDraftProvider(business.id))
+              : null;
 
-          return _StatusPanel(
-            businesses: items,
-            selectedBusiness: business,
-            onBusinessChanged: (businessId) {
-              ref.read(activeProviderBusinessIdProvider.notifier).state =
-                  businessId;
-            },
-            icon: _iconFor(status),
-            title: _titleFor(
-              business,
-              status,
-            ),
-            message: _messageFor(
-              business,
-              status,
-            ),
-            detail: _detailFor(
-              business,
-              status,
-            ),
-            actionLabel: _actionLabelFor(status),
-            onAction: _actionFor(
-              context,
-              ref,
-              business,
-              status,
-            ),
-            secondaryActionLabel: _secondaryActionLabelFor(status),
-            onSecondaryAction: _secondaryActionFor(
-              context,
-              ref,
-              business,
-              status,
-            ),
-            statusLabel: status.label,
-            submittedAt: business.submittedAt,
-            reviewWhatsApp: reviewWhatsApp,
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(0, 20, 0, 40),
+            children: [
+              RancoContentContainer(
+                width: RancoContainerWidth.form,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ProviderHubHeader(
+                      business: business,
+                      businesses: items,
+                      onBusinessChanged: (businessId) {
+                        ref
+                            .read(activeProviderBusinessIdProvider.notifier)
+                            .state = businessId;
+                      },
+                      onViewPublic:
+                          status == BusinessPublicationStatus.published
+                              ? () => context.go('/business/${business.id}')
+                              : null,
+                    ),
+                    const SizedBox(height: 16),
+                    _StatusPanel(
+                      status: status,
+                      business: business,
+                      draft: draft,
+                      reviewWhatsApp: reviewWhatsApp,
+                      onContinue: editable
+                          ? () {
+                              ref
+                                  .read(
+                                      activeProviderBusinessIdProvider.notifier)
+                                  .state = business.id;
+                              context.go('/provider/register');
+                            }
+                          : null,
+                      onManage: status == BusinessPublicationStatus.published
+                          ? () {
+                              ref
+                                  .read(
+                                      activeProviderBusinessIdProvider.notifier)
+                                  .state = business.id;
+                              context.go(providerHubHomeRoute);
+                            }
+                          : null,
+                      onAccount: () => context.go('/account'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) => const Center(
-          child: Text('No pudimos cargar el estado del negocio.'),
+        loading: () => const RancoLoadingState(rows: 2, rowHeight: 120),
+        error: (error, stackTrace) => RancoErrorState(
+          message: 'No pudimos cargar el estado del negocio.',
+          onRetry: () => ref.invalidate(myProviderBusinessesProvider),
         ),
       ),
     );
-  }
-
-  IconData _iconFor(BusinessPublicationStatus status) {
-    return switch (status) {
-      BusinessPublicationStatus.draft => Icons.edit_note_outlined,
-      BusinessPublicationStatus.pendingReview => Icons.hourglass_top_outlined,
-      BusinessPublicationStatus.changesRequested => Icons.rate_review_outlined,
-      BusinessPublicationStatus.rejected => Icons.block_outlined,
-      BusinessPublicationStatus.suspended => Icons.gpp_bad_outlined,
-      BusinessPublicationStatus.archived => Icons.archive_outlined,
-      BusinessPublicationStatus.paused => Icons.pause_circle_outline,
-      BusinessPublicationStatus.published => Icons.check_circle_outline,
-    };
-  }
-
-  String _titleFor(
-    ProviderBusinessSummary business,
-    BusinessPublicationStatus status,
-  ) {
-    return switch (status) {
-      BusinessPublicationStatus.published => 'Tu negocio está publicado',
-      BusinessPublicationStatus.pendingReview => 'Estamos revisando tu negocio',
-      BusinessPublicationStatus.changesRequested => 'Hay cambios solicitados',
-      BusinessPublicationStatus.rejected => 'Solicitud rechazada',
-      BusinessPublicationStatus.suspended => 'Negocio suspendido',
-      _ => business.name,
-    };
-  }
-
-  String _messageFor(
-    ProviderBusinessSummary business,
-    BusinessPublicationStatus status,
-  ) {
-    return switch (status) {
-      BusinessPublicationStatus.draft =>
-        'Tu negocio está como borrador. Puedes continuar la publicación y enviarla a revisión.',
-      BusinessPublicationStatus.pendingReview =>
-        'Recibimos la publicación de ${business.name}. Te avisaremos cuando sea aprobada o si requiere cambios.',
-      BusinessPublicationStatus.changesRequested =>
-        'Revisa la observación del equipo y corrige la publicación. Tus datos anteriores se conservan.',
-      BusinessPublicationStatus.rejected =>
-        'La publicación no puede avanzar con la información enviada. Revisa el motivo indicado por administración.',
-      BusinessPublicationStatus.suspended =>
-        'El negocio no está visible públicamente mientras se resuelve la suspensión.',
-      BusinessPublicationStatus.archived =>
-        'El negocio está archivado y no aparece públicamente.',
-      BusinessPublicationStatus.paused =>
-        'El negocio está pausado y no aparece públicamente.',
-      BusinessPublicationStatus.published => 'Tu negocio está publicado.',
-    };
-  }
-
-  String? _detailFor(
-    ProviderBusinessSummary business,
-    BusinessPublicationStatus status,
-  ) {
-    final note = business.changesRequestedNote?.trim();
-
-    if (note == null || note.isEmpty) {
-      return null;
-    }
-
-    return switch (status) {
-      BusinessPublicationStatus.changesRequested ||
-      BusinessPublicationStatus.rejected ||
-      BusinessPublicationStatus.suspended =>
-        note,
-      _ => null,
-    };
-  }
-
-  String? _actionLabelFor(BusinessPublicationStatus status) {
-    return switch (status) {
-      BusinessPublicationStatus.draft => 'Continuar publicación',
-      BusinessPublicationStatus.changesRequested => 'Corregir publicación',
-      BusinessPublicationStatus.published => 'Administrar negocio',
-      _ => null,
-    };
-  }
-
-  String? _secondaryActionLabelFor(BusinessPublicationStatus status) {
-    return switch (status) {
-      BusinessPublicationStatus.published => 'Ver publicación pública',
-      BusinessPublicationStatus.pendingReview => 'Volver al inicio',
-      BusinessPublicationStatus.suspended => 'Volver al inicio',
-      _ => null,
-    };
-  }
-
-  VoidCallback? _actionFor(
-    BuildContext context,
-    WidgetRef ref,
-    ProviderBusinessSummary business,
-    BusinessPublicationStatus status,
-  ) {
-    return switch (status) {
-      BusinessPublicationStatus.draft ||
-      BusinessPublicationStatus.changesRequested =>
-        () {
-          ref.read(activeProviderBusinessIdProvider.notifier).state =
-              business.id;
-          context.go('/provider/register');
-        },
-      BusinessPublicationStatus.published => () {
-          ref.read(activeProviderBusinessIdProvider.notifier).state =
-              business.id;
-          context.go('/provider/dashboard');
-        },
-      _ => null,
-    };
-  }
-
-  VoidCallback? _secondaryActionFor(
-    BuildContext context,
-    WidgetRef ref,
-    ProviderBusinessSummary business,
-    BusinessPublicationStatus status,
-  ) {
-    return switch (status) {
-      BusinessPublicationStatus.published => () {
-          ref.read(activeProviderBusinessIdProvider.notifier).state =
-              business.id;
-          context.go('/business/${business.id}');
-        },
-      BusinessPublicationStatus.pendingReview ||
-      BusinessPublicationStatus.suspended =>
-        () => context.go('/'),
-      _ => null,
-    };
   }
 }
 
@@ -255,357 +160,505 @@ ProviderBusinessSummary selectProviderStatusBusiness(
   );
 }
 
-class _StatusPanel extends StatelessWidget {
-  const _StatusPanel({
-    required this.icon,
-    required this.title,
-    required this.message,
-    this.businesses = const [],
-    this.selectedBusiness,
-    this.onBusinessChanged,
-    this.statusLabel,
-    this.detail,
-    this.submittedAt,
-    this.actionLabel,
-    this.onAction,
-    this.secondaryActionLabel,
-    this.onSecondaryAction,
-    this.reviewWhatsApp,
-  });
+/// Paso de configuración del negocio y si ya está completo.
+typedef OnboardingProgressStep = ({String label, bool done});
 
-  final IconData icon;
-  final String title;
-  final String message;
-  final List<ProviderBusinessSummary> businesses;
-  final ProviderBusinessSummary? selectedBusiness;
-  final ValueChanged<String>? onBusinessChanged;
-  final String? statusLabel;
-  final String? detail;
-  final DateTime? submittedAt;
-  final String? actionLabel;
-  final VoidCallback? onAction;
-  final String? secondaryActionLabel;
-  final VoidCallback? onSecondaryAction;
-  final ReviewWhatsAppDetails? reviewWhatsApp;
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.topCenter,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 620),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (businesses.length > 1 &&
-                  selectedBusiness != null &&
-                  onBusinessChanged != null) ...[
-                _StatusBusinessSwitcher(
-                  businesses: businesses,
-                  selectedBusiness: selectedBusiness!,
-                  onBusinessChanged: onBusinessChanged!,
-                ),
-                const SizedBox(height: 14),
-              ],
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: const Color(0xFFD7E4DE),
-                  ),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 42,
-                          height: 42,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE4F3EC),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            icon,
-                            color: RancoColors.forest,
-                            size: 23,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                selectedBusiness?.name ?? title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: RancoColors.textPrimary,
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              if (selectedBusiness != null) ...[
-                                const SizedBox(height: 2),
-                                Text(
-                                  selectedBusiness!.businessType.label,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: RancoColors.textSecondary,
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    if (statusLabel != null)
-                      Chip(
-                        label: Text(statusLabel!),
-                        backgroundColor: const Color(0xFFDDEFE7),
-                      ),
-                    if (submittedAt != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        'Enviado el ${_formatDate(submittedAt!)}',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: const Color(0xFF6D7E76),
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                    ],
-                    const SizedBox(height: 10),
-                    Text(
-                      title,
-                      textAlign: TextAlign.left,
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                color: RancoColors.forest,
-                                fontWeight: FontWeight.w900,
-                              ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      message,
-                      textAlign: TextAlign.left,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: const Color(0xFF587069),
-                          ),
-                    ),
-                    if (detail != null && detail!.trim().isNotEmpty) ...[
-                      const SizedBox(height: 14),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF7FBF8),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color(0xFFD7E4DE),
-                          ),
-                        ),
-                        child: Text(
-                          detail!,
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: RancoColors.night,
-                                    height: 1.35,
-                                  ),
-                        ),
-                      ),
-                    ],
-                    if (actionLabel != null && onAction != null) ...[
-                      const SizedBox(height: 24),
-                      FilledButton(
-                        onPressed: onAction,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: RancoColors.forest,
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size.fromHeight(50),
-                        ),
-                        child: Text(actionLabel!),
-                      ),
-                    ],
-                    if (secondaryActionLabel != null &&
-                        onSecondaryAction != null) ...[
-                      const SizedBox(height: 8),
-                      TextButton(
-                        onPressed: onSecondaryAction,
-                        child: Text(secondaryActionLabel!),
-                      ),
-                    ],
-                    if (reviewWhatsApp != null) ...[
-                      const SizedBox(height: 14),
-                      OutlinedButton.icon(
-                        onPressed: () => launchUrl(
-                          reviewWhatsApp!.link,
-                          mode: LaunchMode.externalApplication,
-                        ),
-                        icon: const Icon(Icons.chat_outlined),
-                        label:
-                            const Text('Avisar al administrador por WhatsApp'),
-                      ),
-                      const Text(
-                        'Revisa el mensaje y confirma el envío en WhatsApp.',
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _formatDate(DateTime date) {
-    final day = date.day.toString().padLeft(2, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    final year = date.year.toString();
-
-    return '$day/$month/$year';
-  }
+/// Progreso del borrador con los mismos pasos del asistente. "Revisión"
+/// queda completo solo cuando el negocio ya fue enviado.
+List<OnboardingProgressStep> onboardingProgressSteps(BusinessDraft draft) {
+  final hasContact = [draft.phone, draft.whatsapp, draft.email]
+      .any((value) => (value ?? '').trim().isNotEmpty);
+  final info = draft.name.trim().length >= 3 &&
+      (draft.description ?? '').trim().length >= 20 &&
+      hasContact;
+  final category = draft.primaryCategoryId != null &&
+      (draft.businessType != BusinessType.service || draft.services.isNotEmpty);
+  return [
+    (label: 'Tipo de negocio', done: true),
+    (label: 'Información', done: info),
+    (label: 'Categoría', done: category),
+    (label: 'Cobertura', done: draft.coverage.isNotEmpty),
+    (
+      label: 'Revisión',
+      done: draft.submittedAt != null && !draft.canContinueOnboarding
+    ),
+  ];
 }
 
-class _StatusBusinessSwitcher extends StatelessWidget {
-  const _StatusBusinessSwitcher({
-    required this.businesses,
-    required this.selectedBusiness,
-    required this.onBusinessChanged,
+class _StatusPanel extends StatelessWidget {
+  const _StatusPanel({
+    required this.status,
+    required this.business,
+    required this.draft,
+    required this.reviewWhatsApp,
+    required this.onContinue,
+    required this.onManage,
+    required this.onAccount,
   });
 
-  final List<ProviderBusinessSummary> businesses;
-  final ProviderBusinessSummary selectedBusiness;
-  final ValueChanged<String> onBusinessChanged;
+  final BusinessPublicationStatus status;
+  final ProviderBusinessSummary business;
+  final AsyncValue<BusinessDraft>? draft;
+  final ReviewWhatsAppDetails? reviewWhatsApp;
+  final VoidCallback? onContinue;
+  final VoidCallback? onManage;
+  final VoidCallback onAccount;
 
   @override
   Widget build(BuildContext context) {
-    final selectedStatus = BusinessPublicationStatus.parseOrDefault(
-      selectedBusiness.publicationStatus,
-    );
+    final note = business.changesRequestedNote?.trim();
+    final showNote = note != null &&
+        note.isNotEmpty &&
+        (status == BusinessPublicationStatus.changesRequested ||
+            status == BusinessPublicationStatus.rejected ||
+            status == BusinessPublicationStatus.suspended);
 
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(15),
-      child: InkWell(
-        onTap: () => _showSwitcher(context),
-        borderRadius: BorderRadius.circular(15),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 58),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: const Color(0xFFD7E4DE)),
-          ),
-          child: Row(
+    final primaryLabel = switch (status) {
+      BusinessPublicationStatus.draft => 'Continuar configuración',
+      BusinessPublicationStatus.changesRequested => 'Corregir publicación',
+      BusinessPublicationStatus.published => 'Administrar negocio',
+      _ => null,
+    };
+    final primaryAction = onContinue ?? onManage;
+
+    return ProviderHubPanel(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
-                Icons.storefront_outlined,
-                color: RancoColors.forest,
-              ),
-              const SizedBox(width: 10),
+              Icon(_iconFor(status), color: RancoColors.forest, size: 24),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      selectedBusiness.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      _titleFor(status),
                       style: const TextStyle(
                         color: RancoColors.textPrimary,
-                        fontWeight: FontWeight.w900,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        height: 1.25,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 6),
                     Text(
-                      '${selectedBusiness.businessType.label} · ${selectedStatus.label}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      _messageFor(status),
                       style: const TextStyle(
                         color: RancoColors.textSecondary,
-                        fontSize: 12,
+                        fontSize: 14,
+                        height: 1.45,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: RancoColors.textSecondary,
+            ],
+          ),
+          if (status == BusinessPublicationStatus.pendingReview &&
+              business.submittedAt != null) ...[
+            const SizedBox(height: 14),
+            _MetaLine(
+              icon: Icons.event_outlined,
+              text: 'Enviado el ${_formatDate(business.submittedAt!)}',
+            ),
+          ],
+          if (showNote) ...[
+            const SizedBox(height: 16),
+            _AdminNote(note: note),
+          ],
+          if (draft != null) ...[
+            const SizedBox(height: 18),
+            const Divider(height: 1),
+            const SizedBox(height: 16),
+            draft!.when(
+              data: (value) => _ProgressChecklist(
+                steps: onboardingProgressSteps(value),
+              ),
+              loading: () => const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  RancoSkeletonBox(width: 160, height: 12),
+                  SizedBox(height: 12),
+                  RancoSkeletonBox(height: 6),
+                  SizedBox(height: 14),
+                  RancoSkeletonBox(height: 90),
+                ],
+              ),
+              // El progreso es informativo: si falla, el CTA sigue
+              // disponible.
+              error: (_, __) => const SizedBox.shrink(),
+            ),
+          ],
+          if (status == BusinessPublicationStatus.pendingReview) ...[
+            const SizedBox(height: 18),
+            const Divider(height: 1),
+            const SizedBox(height: 16),
+            const _NextSteps(),
+          ],
+          const SizedBox(height: 20),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              if (primaryLabel != null && primaryAction != null)
+                FilledButton.icon(
+                  onPressed: primaryAction,
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                  label: Text(primaryLabel),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, 46),
+                  ),
+                ),
+              if (reviewWhatsApp != null)
+                OutlinedButton.icon(
+                  onPressed: () => launchUrl(
+                    reviewWhatsApp!.link,
+                    mode: LaunchMode.externalApplication,
+                  ),
+                  icon: const Icon(Icons.chat_outlined, size: 18),
+                  label: const Text('Avisar al administrador por WhatsApp'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 46),
+                  ),
+                ),
+              TextButton.icon(
+                onPressed: onAccount,
+                icon: const Icon(Icons.person_outline_rounded, size: 18),
+                label: const Text('Volver a Cuenta'),
+                style: TextButton.styleFrom(minimumSize: const Size(0, 46)),
               ),
             ],
           ),
-        ),
+          if (reviewWhatsApp != null) ...[
+            const SizedBox(height: 6),
+            const Text(
+              'Revisa el mensaje y confirma el envío en WhatsApp.',
+              style: TextStyle(
+                color: RancoColors.textSecondary,
+                fontSize: 12.5,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
 
-  Future<void> _showSwitcher(BuildContext context) {
-    return showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) {
-        return SafeArea(
-          child: ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            children: [
-              const Text(
-                'Cambiar negocio',
+  static IconData _iconFor(BusinessPublicationStatus status) {
+    return switch (status) {
+      BusinessPublicationStatus.draft => Icons.edit_note_outlined,
+      BusinessPublicationStatus.pendingReview => Icons.hourglass_top_outlined,
+      BusinessPublicationStatus.changesRequested => Icons.rate_review_outlined,
+      BusinessPublicationStatus.rejected => Icons.block_outlined,
+      BusinessPublicationStatus.suspended => Icons.gpp_bad_outlined,
+      BusinessPublicationStatus.archived => Icons.archive_outlined,
+      BusinessPublicationStatus.paused => Icons.pause_circle_outline,
+      BusinessPublicationStatus.published => Icons.check_circle_outline,
+    };
+  }
+
+  static String _titleFor(BusinessPublicationStatus status) {
+    return switch (status) {
+      BusinessPublicationStatus.draft => 'Tu publicación aún no está visible.',
+      BusinessPublicationStatus.pendingReview =>
+        'Estamos revisando tu publicación.',
+      BusinessPublicationStatus.changesRequested => 'Hay cambios solicitados',
+      BusinessPublicationStatus.rejected => 'Solicitud rechazada',
+      BusinessPublicationStatus.suspended => 'Negocio suspendido',
+      BusinessPublicationStatus.archived => 'Negocio archivado',
+      BusinessPublicationStatus.paused => 'Negocio pausado',
+      BusinessPublicationStatus.published => 'Tu negocio está publicado',
+    };
+  }
+
+  static String _messageFor(BusinessPublicationStatus status) {
+    return switch (status) {
+      BusinessPublicationStatus.draft =>
+        'Completa la configuración y envíala a revisión. Puedes guardar y '
+            'continuar más tarde.',
+      BusinessPublicationStatus.pendingReview =>
+        'Te avisaremos cuando sea aprobada o si requiere cambios.',
+      BusinessPublicationStatus.changesRequested =>
+        'Revisa la observación del equipo y corrige la publicación. Tus '
+            'datos anteriores se conservan.',
+      BusinessPublicationStatus.rejected =>
+        'La publicación no puede avanzar con la información enviada. Revisa '
+            'el motivo indicado por administración.',
+      BusinessPublicationStatus.suspended =>
+        'El negocio no está visible públicamente mientras se resuelve la '
+            'suspensión.',
+      BusinessPublicationStatus.archived =>
+        'El negocio está archivado y no aparece públicamente.',
+      BusinessPublicationStatus.paused =>
+        'El negocio está pausado y no aparece públicamente.',
+      BusinessPublicationStatus.published =>
+        'Gestiona tus solicitudes, fotos y datos desde el resumen.',
+    };
+  }
+
+  static String _formatDate(DateTime date) {
+    final local = date.toLocal();
+    final day = local.day.toString().padLeft(2, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    return '$day/$month/${local.year}';
+  }
+}
+
+class _MetaLine extends StatelessWidget {
+  const _MetaLine({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 17, color: RancoColors.textSecondary),
+        const SizedBox(width: 8),
+        Text(
+          text,
+          style: const TextStyle(
+            color: RancoColors.textPrimary,
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AdminNote extends StatelessWidget {
+  const _AdminNote({required this.note});
+
+  final String note;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7E8),
+        borderRadius: BorderRadius.circular(12),
+        border: const Border(
+          left: BorderSide(color: Color(0xFFD9A441), width: 3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Observación del equipo',
+            style: TextStyle(
+              color: Color(0xFF7A4F0E),
+              fontSize: 12.5,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          SelectableText(
+            note,
+            style: const TextStyle(
+              color: RancoColors.textPrimary,
+              fontSize: 14,
+              height: 1.45,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProgressChecklist extends StatelessWidget {
+  const _ProgressChecklist({required this.steps});
+
+  final List<OnboardingProgressStep> steps;
+
+  @override
+  Widget build(BuildContext context) {
+    final done = steps.where((step) => step.done).length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Progreso de configuración',
                 style: TextStyle(
-                  color: RancoColors.forest,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 18,
+                  color: RancoColors.textPrimary,
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 8),
-              for (final business in businesses)
-                ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                  leading: const Icon(
-                    Icons.storefront_outlined,
-                    color: RancoColors.forest,
-                  ),
-                  title: Text(
-                    business.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: Text(
-                    '${business.businessType.label} · ${BusinessPublicationStatus.parseOrDefault(business.publicationStatus).label}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  trailing: business.id == selectedBusiness.id
-                      ? const Icon(Icons.check_rounded)
-                      : null,
-                  onTap: () {
-                    onBusinessChanged(business.id);
-                    Navigator.of(context).pop();
-                  },
-                ),
-            ],
+            ),
+            Text(
+              '$done de ${steps.length}',
+              style: const TextStyle(
+                color: RancoColors.textSecondary,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: done / steps.length,
+            minHeight: 6,
+            backgroundColor: const Color(0xFFE5EEEA),
+            color: RancoColors.forest,
+            semanticsLabel: 'Progreso de configuración',
+            semanticsValue: '${(done * 100 / steps.length).round()}%',
           ),
-        );
-      },
+        ),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final columns = constraints.maxWidth >= 520 ? 2 : 1;
+            final width = columns == 1
+                ? constraints.maxWidth
+                : (constraints.maxWidth - 16) / 2;
+            return Wrap(
+              spacing: 16,
+              runSpacing: 2,
+              children: [
+                for (final step in steps)
+                  SizedBox(
+                    width: width,
+                    child: _StepLine(step: step),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _StepLine extends StatelessWidget {
+  const _StepLine({required this.step});
+
+  final OnboardingProgressStep step;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: '${step.label}: ${step.done ? 'completo' : 'pendiente'}',
+      excludeSemantics: true,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Icon(
+              step.done
+                  ? Icons.check_circle_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              size: 19,
+              color: step.done ? RancoColors.forest : const Color(0xFFA9B8B1),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                step.label,
+                style: TextStyle(
+                  color: step.done
+                      ? RancoColors.textPrimary
+                      : RancoColors.textSecondary,
+                  fontSize: 14,
+                  fontWeight: step.done ? FontWeight.w600 : FontWeight.w500,
+                ),
+              ),
+            ),
+            if (!step.done)
+              const Text(
+                'Pendiente',
+                style: TextStyle(
+                  color: RancoColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NextSteps extends StatelessWidget {
+  const _NextSteps();
+
+  static const _items = [
+    'Revisamos que la información esté completa y sea clara.',
+    'Te avisaremos en Notificaciones si se publica o si requiere cambios.',
+    'Una vez publicado, gestionarás solicitudes, fotos y datos desde aquí.',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Qué sigue',
+          style: TextStyle(
+            color: RancoColors.textPrimary,
+            fontSize: 14.5,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 10),
+        for (var i = 0; i < _items.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 22,
+                  height: 22,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    color: RancoColors.primarySoft,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    '${i + 1}',
+                    style: const TextStyle(
+                      color: RancoColors.primaryDark,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      _items[i],
+                      style: const TextStyle(
+                        color: RancoColors.textSecondary,
+                        fontSize: 13.5,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

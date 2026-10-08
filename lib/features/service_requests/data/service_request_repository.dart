@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/errors/app_failure.dart';
 import '../../../core/errors/failure_mapper.dart';
 import '../../../core/result/result.dart';
+import '../../../core/utils/idempotency_key.dart';
 import '../../../features/auth/data/supabase_auth_repository.dart';
 import '../../../shared/models/service_request.dart';
 import 'service_request_dto.dart';
@@ -23,6 +24,9 @@ class CreateServiceRequestInput {
     required this.addressText,
     required this.urgency,
     required this.desiredDate,
+    required this.customerName,
+    required this.customerPhone,
+    required this.consentVersion,
   });
 
   final String businessId;
@@ -33,11 +37,13 @@ class CreateServiceRequestInput {
   final String addressText;
   final RequestUrgency urgency;
   final DateTime? desiredDate;
+  final String customerName;
+  final String customerPhone;
+  final String consentVersion;
 }
 
 abstract interface class ServiceRequestRepository {
-  Future<Result<ServiceRequest>> createDirectRequest(
-      CreateServiceRequestInput input);
+  Future<Result<String>> createDirectRequest(CreateServiceRequestInput input);
   Future<Result<List<ServiceRequest>>> listMyRequests();
   Future<Result<ServiceRequest>> getRequestById(String id);
 }
@@ -56,38 +62,35 @@ locations(name)
 ''';
 
   @override
-  Future<Result<ServiceRequest>> createDirectRequest(
+  Future<Result<String>> createDirectRequest(
       CreateServiceRequestInput input) async {
     final client = _client;
-    final userId = client?.auth.currentUser?.id;
-    if (client == null || userId == null) {
-      return const Failure(
-        AppFailure(
-            type: AppFailureType.auth,
-            message: 'Debes ingresar para solicitar un servicio.'),
-      );
+    if (client == null) {
+      return const Failure(AppFailure(
+          type: AppFailureType.unknown,
+          message: 'No pudimos conectar con el servicio.'));
     }
     try {
-      final created = await client.rpc<Map<String, dynamic>>(
-        'create_direct_service_request',
-        params: {
-          'p_business_id': input.businessId,
-          'p_category_id': input.categoryId,
-          'p_subcategory_id': input.subcategoryId,
-          'p_description': input.description.trim(),
-          'p_address_text': input.addressText.trim(),
-          'p_urgency': input.urgency.name,
-          'p_desired_date':
-              input.desiredDate?.toIso8601String().split('T').first,
-          'p_location_id': input.locationId,
+      await client.functions.invoke(
+        'submit-request',
+        headers: {'Idempotency-Key': newIdempotencyKey()},
+        body: {
+          'kind': 'service_request',
+          'business_id': input.businessId,
+          'category_id': input.categoryId,
+          'subcategory_id': input.subcategoryId,
+          'description': input.description.trim(),
+          'address_text': input.addressText.trim(),
+          'urgency': input.urgency.name,
+          'desired_date': input.desiredDate?.toIso8601String().split('T').first,
+          'location_id': input.locationId,
+          'customer_name': input.customerName.trim(),
+          'customer_phone': input.customerPhone.trim(),
+          'consent_version': input.consentVersion,
+          'consent_accepted': true,
         },
       );
-      final row = await client
-          .from('service_requests')
-          .select(_select)
-          .eq('id', created['id'] as String)
-          .single();
-      return Success(ServiceRequestDto.fromJson(row).toDomain());
+      return const Success('created');
     } catch (error) {
       return Failure(mapSupabaseFailure(error,
           fallbackMessage: 'No pudimos crear la solicitud.'));

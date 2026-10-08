@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/ranco_app_bar.dart';
+import '../../../core/utils/chilean_phone.dart';
+import '../../legal/application/legal_navigation.dart';
 import '../../../theme/ranco_colors.dart';
-import '../../auth/presentation/visitor_contact_sheet.dart';
 import '../../../core/telemetry/telemetry.dart';
 import '../../service_requests/application/service_request_providers.dart';
 import '../application/gastronomy_providers.dart';
@@ -34,6 +35,9 @@ class _TableReservationScreenState
   final _time = TextEditingController();
   final _guests = TextEditingController(text: '2');
   final _message = TextEditingController();
+  final _name = TextEditingController();
+  final _phone = TextEditingController();
+  bool _consent = false;
   bool _saving = false;
 
   @override
@@ -61,6 +65,8 @@ class _TableReservationScreenState
     _time.dispose();
     _guests.dispose();
     _message.dispose();
+    _name.dispose();
+    _phone.dispose();
     super.dispose();
   }
 
@@ -129,6 +135,34 @@ class _TableReservationScreenState
                     ),
                     const SizedBox(height: 12),
                     TextField(
+                      controller: _name,
+                      decoration: const InputDecoration(labelText: 'Tu nombre'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _phone,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(
+                          labelText: 'Teléfono de contacto'),
+                    ),
+                    Material(
+                      color: Colors.transparent,
+                      child: CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: _consent,
+                        onChanged: (value) =>
+                            setState(() => _consent = value ?? false),
+                        title: const Text(
+                            'Acepto compartir mis datos con el restaurante para gestionar la reserva.'),
+                        subtitle: TextButton(
+                          onPressed: () =>
+                              openLegalPage(context, '/politica-privacidad'),
+                          child: const Text('Leer política de privacidad'),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
                       controller: _message,
                       minLines: 3,
                       maxLines: 4,
@@ -183,14 +217,17 @@ class _TableReservationScreenState
     final guests = int.tryParse(_guests.text.trim());
     final time = _time.text.trim();
 
-    if (date == null || guests == null || guests < 1 || !_validTime(time)) {
+    if (date == null ||
+        guests == null ||
+        guests < 1 ||
+        !_validTime(time) ||
+        _name.text.trim().length < 2 ||
+        !isValidChileanPhone(_phone.text) ||
+        !_consent) {
       _snack('Revisa fecha, hora y comensales.');
       return;
     }
 
-    final consented = await ensureVisitorContactAndConsent(context, ref,
-        action: 'table_reservation');
-    if (!mounted || !consented) return;
     setState(() => _saving = true);
     try {
       await ref.read(gastronomyRepositoryProvider).createReservation(
@@ -199,6 +236,9 @@ class _TableReservationScreenState
             time: time,
             guests: guests,
             message: _message.text,
+            customerName: _name.text,
+            customerPhone: _phone.text,
+            consentVersion: 'privacy-2026-10-01',
           );
       Telemetry.capture('complete_booking');
       ref.invalidate(myCustomerActivityProvider);
@@ -229,7 +269,8 @@ class _TableReservationScreenState
       }
     } catch (error) {
       if (mounted) {
-        _snack('No pudimos enviar la solicitud: $error');
+        _snack(
+            'No pudimos enviar la solicitud. Revisa los datos e inténtalo nuevamente.');
       }
     } finally {
       if (mounted) {

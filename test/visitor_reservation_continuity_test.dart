@@ -3,14 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ranco_conecta_2/features/auth/application/auth_controller.dart';
-import 'package:ranco_conecta_2/features/auth/domain/auth_user.dart';
 import 'package:ranco_conecta_2/features/gastronomy/presentation/table_reservation_screen.dart';
-import 'package:ranco_conecta_2/features/profile/application/profile_providers.dart';
-import 'package:ranco_conecta_2/shared/models/profile.dart';
 
 void main() {
-  testWidgets(
-      'table reservation keeps the draft in the integrated contact form',
+  testWidgets('table booking collects contact directly without Auth/profile',
       (tester) async {
     tester.view.physicalSize = const Size(390, 850);
     tester.view.devicePixelRatio = 1;
@@ -27,34 +23,11 @@ void main() {
             businessId: state.pathParameters['id']!,
           ),
         ),
-        GoRoute(
-          path: '/visitor/profile',
-          builder: (context, state) => Scaffold(
-            body: TextButton(
-              onPressed: () => context.go(state.uri.queryParameters['next']!),
-              child: const Text('Volver a reserva'),
-            ),
-          ),
-        ),
       ],
     );
     addTearDown(router.dispose);
-
     final container = ProviderContainer(overrides: [
-      authStateProvider.overrideWith((ref) => Stream.value(const AuthUser(
-            id: 'visitor-1',
-            email: null,
-            emailConfirmed: false,
-            isAnonymous: true,
-          ))),
-      currentProfileProvider.overrideWith((ref) async => const Profile(
-            id: 'visitor-1',
-            fullName: 'Visitante Ranco',
-            phone: null,
-            avatarUrl: null,
-            role: ProfileRole.customer,
-            accountStatus: 'active',
-          )),
+      authStateProvider.overrideWith((ref) => Stream.value(null)),
     ]);
     addTearDown(container.dispose);
     await container.read(authStateProvider.future);
@@ -70,37 +43,25 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextField, 'Hora'), '20:30');
     await tester.enterText(find.widgetWithText(TextField, 'Comensales'), '4');
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Tu nombre'), 'Cliente QA');
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Teléfono de contacto'),
+        '+56 9 1234 5678');
     await tester.enterText(find.widgetWithText(TextField, 'Mensaje opcional'),
         'Mesa junto a la ventana.');
+    await tester.ensureVisible(find.byType(CheckboxListTile));
+    await tester.tap(find.byType(CheckboxListTile));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Enviar solicitud'));
     await tester.tap(find.text('Enviar solicitud'));
     await tester.pumpAndSettle();
 
-    expect(router.routeInformationProvider.value.uri.path,
-        '/business/food-1/table-reservation');
-    expect(find.text('Tus datos de contacto'), findsOneWidget);
-    await tester.tapAt(const Offset(10, 100));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Seleccionar fecha'), findsNothing);
+    expect(find.byType(TableReservationScreen), findsOneWidget);
+    expect(container.read(authStateProvider).valueOrNull, isNull);
     expect(
-        tester
-            .widget<TextField>(find.widgetWithText(TextField, 'Hora'))
-            .controller
-            ?.text,
-        '20:30');
-    expect(
-        tester
-            .widget<TextField>(find.widgetWithText(TextField, 'Comensales'))
-            .controller
-            ?.text,
-        '4');
-    expect(
-        tester
-            .widget<TextField>(
-                find.widgetWithText(TextField, 'Mensaje opcional'))
-            .controller
-            ?.text,
-        'Mesa junto a la ventana.');
+        find.textContaining('No pudimos enviar la solicitud'), findsOneWidget);
+    expect(find.text('Crear cuenta'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

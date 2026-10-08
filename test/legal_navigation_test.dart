@@ -49,14 +49,21 @@ void main() {
     await tester.enterText(find.byType(TextField), 'Borrador de reserva');
     await tester.tap(find.text('Términos'));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Privacidad').last, 250,
+    // FASE 3.24: enlaces legales compactos del cierre (no los del footer).
+    await tester.scrollUntilVisible(
+        find
+            .descendant(
+                of: find.byKey(const ValueKey('legal-links')),
+                matching: find.text('Privacidad'))
+            .hitTestable(),
+        250,
         scrollable: find.byType(Scrollable).first);
-    await tester.tap(find.text('Privacidad').last);
+    await tester.tap(find
+        .descendant(
+            of: find.byKey(const ValueKey('legal-links')),
+            matching: find.text('Privacidad'))
+        .hitTestable());
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Volver'));
-    await tester.pumpAndSettle();
-    expect(
-        tester.widget<LegalScreen>(find.byType(LegalScreen)).privacy, isFalse);
     await tester.tap(find.byTooltip('Volver'));
     await tester.pumpAndSettle();
     expect(find.text('Borrador de reserva'), findsOneWidget);
@@ -110,15 +117,35 @@ void main() {
       await tester.pumpWidget(MaterialApp.router(routerConfig: router));
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(find.text('Privacidad').last, 250,
+      await tester.scrollUntilVisible(
+          find
+              .descendant(
+                  of: find.byKey(const ValueKey('legal-links')),
+                  matching: find.text('Privacidad'))
+              .hitTestable(),
+          250,
           scrollable: find.byType(Scrollable).first);
-      await tester.tap(find.text('Privacidad').last);
+      await tester.tap(find
+          .descendant(
+              of: find.byKey(const ValueKey('legal-links')),
+              matching: find.text('Privacidad'))
+          .hitTestable());
       await tester.pumpAndSettle();
       expect(
           tester.widget<LegalScreen>(find.byType(LegalScreen)).privacy, isTrue);
-      await tester.scrollUntilVisible(find.text('Contacto').last, 250,
+      await tester.scrollUntilVisible(
+          find
+              .descendant(
+                  of: find.byKey(const ValueKey('legal-links')),
+                  matching: find.text('Contacto'))
+              .hitTestable(),
+          250,
           scrollable: find.byType(Scrollable).first);
-      await tester.tap(find.text('Contacto').last);
+      await tester.tap(find
+          .descendant(
+              of: find.byKey(const ValueKey('legal-links')),
+              matching: find.text('Contacto'))
+          .hitTestable());
       await tester.pumpAndSettle();
       expect(find.text('Hablemos'), findsOneWidget);
       expect(
@@ -128,16 +155,11 @@ void main() {
               .widget<FilledButton>(
                   find.widgetWithText(FilledButton, 'Enviar mensaje'))
               .onPressed,
-          isNull);
+          isNotNull);
 
       await tester.tap(find.byTooltip('Volver'));
       await tester.pumpAndSettle();
-      expect(
-          tester.widget<LegalScreen>(find.byType(LegalScreen)).privacy, isTrue);
-      await tester.tap(find.byTooltip('Volver'));
-      await tester.pumpAndSettle();
-      expect(tester.widget<LegalScreen>(find.byType(LegalScreen)).privacy,
-          isFalse);
+      expect(find.text('Home'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }

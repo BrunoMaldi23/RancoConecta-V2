@@ -405,7 +405,8 @@ class LodgingPublicProfile extends ConsumerWidget {
                                     children: [
                                       _FeatureChip(
                                         icon: Icons.people_outline,
-                                        label: '${lodging.maxGuests} huéspedes',
+                                        label: '${lodging.maxGuests} '
+                                            '${lodging.maxGuests == 1 ? 'huésped' : 'huéspedes'}',
                                       ),
                                       _FeatureChip(
                                         icon: Icons.bedroom_parent_outlined,
@@ -748,6 +749,7 @@ class LodgingPublicProfile extends ConsumerWidget {
 
     result.when(
       success: (_) {
+        ref.invalidate(favoriteIdsProvider);
         ref.invalidate(
           isFavoriteProvider(
             business.id,

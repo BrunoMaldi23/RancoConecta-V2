@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../theme/ranco_colors.dart';
 import '../../provider_dashboard/application/provider_dashboard_providers.dart';
 import '../application/lodging_booking_providers.dart';
 import '../data/lodging_booking_repository.dart';
 import '../../../core/widgets/ranco_app_bar.dart';
+import '../../provider_dashboard/presentation/provider_hub.dart';
+import '../../../core/widgets/ranco_states.dart';
 
 class ProviderBookingsScreen extends ConsumerWidget {
   const ProviderBookingsScreen({
@@ -28,6 +31,7 @@ class ProviderBookingsScreen extends ConsumerWidget {
       appBar: const RancoAppBar(
         title: 'Reservas',
         fallbackRoute: '/provider/dashboard',
+        bottom: ProviderHubTabBar(current: '/provider/bookings'),
       ),
       body: business.when(
         data: (business) {
@@ -130,9 +134,7 @@ class ProviderBookingsScreen extends ConsumerWidget {
                 ],
               );
             },
-            loading: () => const Center(
-              child: CircularProgressIndicator(),
-            ),
+            loading: () => const RancoLoadingState(),
             error: (
               error,
               stackTrace,
@@ -144,9 +146,7 @@ class ProviderBookingsScreen extends ConsumerWidget {
             ),
           );
         },
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
-        ),
+        loading: () => const RancoLoadingState(),
         error: (
           error,
           stackTrace,
@@ -472,11 +472,13 @@ class _BookingCard extends StatelessWidget {
             children: [
               _InfoChip(
                 icon: Icons.nights_stay_outlined,
-                text: '${booking.nights} noches',
+                text:
+                    '${booking.nights} ${booking.nights == 1 ? 'noche' : 'noches'}',
               ),
               _InfoChip(
                 icon: Icons.people_outline,
-                text: '${booking.guests} huéspedes',
+                text:
+                    '${booking.guests} ${booking.guests == 1 ? 'huésped' : 'huéspedes'}',
               ),
             ],
           ),
@@ -506,6 +508,14 @@ class _BookingCard extends StatelessWidget {
               ),
             ],
           ),
+          if (booking.guestPhone?.isNotEmpty == true)
+            TextButton.icon(
+              onPressed: () => launchUrl(
+                Uri(scheme: 'tel', path: booking.guestPhone),
+              ),
+              icon: const Icon(Icons.call_outlined),
+              label: Text(booking.guestPhone!),
+            ),
           if (booking.guestMessage?.trim().isNotEmpty == true) ...[
             const SizedBox(
               height: 12,

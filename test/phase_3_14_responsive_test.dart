@@ -34,7 +34,18 @@ import 'package:ranco_conecta_2/shared/models/profile.dart';
 /// Fase 3.14: barrido responsive de las vistas refinadas. Falla ante
 /// cualquier overflow/excepción de layout en los anchos de referencia.
 void main() {
-  const widths = [390.0, 600.0, 768.0, 1024.0, 1200.0, 1366.0, 1440.0, 1600.0];
+  const widths = [
+    390.0,
+    430.0,
+    600.0,
+    768.0,
+    1024.0,
+    1200.0,
+    1280.0,
+    1366.0,
+    1440.0,
+    1600.0,
+  ];
 
   // Nombre largo real observado en QA: no debe romper columnas.
   const longName = 'Nuevo negoaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaocio';
@@ -128,7 +139,8 @@ void main() {
     businessMediaRepositoryProvider
         .overrideWithValue(const BusinessMediaRepository(null)),
     isFavoriteProvider(business.id).overrideWith((ref) async => false),
-    currentAdminRoleProvider.overrideWith((ref) async => ProfileRole.admin),
+    currentAdminRoleProvider
+        .overrideWith((ref) async => ProfileRole.superAdmin),
     adminReviewStatsProvider.overrideWith((ref) async => {
           'pending_review': 1,
           'published': 6,
@@ -160,7 +172,7 @@ void main() {
           fullName: 'Administradora con nombre largo de Lago Ranco',
           phone: null,
           avatarUrl: null,
-          role: ProfileRole.admin,
+          role: ProfileRole.superAdmin,
           accountStatus: 'active',
         )),
     favoriteBusinessesProvider.overrideWith((ref) async => const [business]),

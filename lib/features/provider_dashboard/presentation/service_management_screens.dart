@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/app_failure.dart';
 import '../../../core/layout/ranco_responsive.dart';
+import '../../../core/widgets/ranco_states.dart';
 import '../../../core/widgets/ranco_app_bar.dart';
 import '../../../core/widgets/ranco_error_state.dart';
 import '../../../features/categories/application/category_providers.dart';
@@ -12,6 +13,7 @@ import '../../../shared/models/category.dart';
 import '../../../theme/ranco_colors.dart';
 import '../application/provider_dashboard_providers.dart';
 import '../data/service_business_management_repository.dart';
+import 'provider_hub.dart';
 
 class ProviderProfileScreen extends ConsumerStatefulWidget {
   const ProviderProfileScreen({super.key});
@@ -50,6 +52,7 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
 
     return _ManagementScaffold(
       title: 'Perfil',
+      route: '/provider/profile',
       body: state.when(
         data: (state) {
           if (state == null) return const _MissingBusiness();
@@ -151,6 +154,7 @@ class _ProviderServicesScreenState
 
     return _ManagementScaffold(
       title: 'Servicios',
+      route: '/provider/services',
       body: state.when(
         data: (state) {
           if (state == null) return const _MissingBusiness();
@@ -286,6 +290,7 @@ class _ProviderCoverageScreenState
 
     return _ManagementScaffold(
       title: 'Cobertura',
+      route: '/provider/coverage',
       body: state.when(
         data: (state) {
           if (state == null) return const _MissingBusiness();
@@ -412,6 +417,7 @@ class _ProviderLocationScreenState
 
     return _ManagementScaffold(
       title: 'Ubicación',
+      route: '/provider/location',
       body: state.when(
         data: (state) {
           if (state == null) return const _MissingBusiness();
@@ -541,6 +547,7 @@ class _ProviderHoursScreenState extends ConsumerState<ProviderHoursScreen> {
 
     return _ManagementScaffold(
       title: 'Horarios',
+      route: '/provider/hours',
       body: state.when(
         data: (state) {
           if (state == null) return const _MissingBusiness();
@@ -622,17 +629,25 @@ class _ProviderHoursScreenState extends ConsumerState<ProviderHoursScreen> {
 class _ManagementScaffold extends StatelessWidget {
   const _ManagementScaffold({
     required this.title,
+    required this.route,
     required this.body,
   });
 
   final String title;
+
+  /// Ruta de la pantalla, para marcar su pestaña en el hub.
+  final String route;
   final Widget body;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: RancoColors.canvas,
-      appBar: RancoAppBar(title: title, fallbackRoute: '/provider/dashboard'),
+      appBar: RancoAppBar(
+        title: title,
+        fallbackRoute: '/provider/dashboard',
+        bottom: ProviderHubTabBar(current: route),
+      ),
       body: body,
     );
   }
@@ -915,7 +930,7 @@ class _LocalLoader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: CircularProgressIndicator());
+    return const RancoLoadingState();
   }
 }
 

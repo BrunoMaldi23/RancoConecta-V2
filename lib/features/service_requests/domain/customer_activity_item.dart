@@ -26,6 +26,7 @@ class CustomerActivityItem {
     this.description,
     this.publicCode,
     this.isQuoted = false,
+    this.details = const {},
   });
 
   final String id;
@@ -40,6 +41,7 @@ class CustomerActivityItem {
   final String? description;
   final String? publicCode;
   final bool isQuoted;
+  final Map<String, String> details;
 
   factory CustomerActivityItem.fromService(ServiceRequest request) =>
       CustomerActivityItem(

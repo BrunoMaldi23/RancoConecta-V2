@@ -1,16 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/layout/ranco_responsive.dart';
 import '../../../core/widgets/ranco_app_bar.dart';
-import '../../../theme/ranco_colors.dart';
+import '../../../core/widgets/ranco_error_state.dart';
+import '../../../core/widgets/ranco_states.dart';
+import '../../../core/widgets/ranco_status_badge.dart';
 import '../../../shared/models/business.dart';
 import '../../../shared/models/business_capability.dart';
+import '../../../shared/models/quote.dart';
+import '../../../theme/ranco_colors.dart';
+import '../../service_requests/application/service_request_providers.dart';
 import '../application/provider_dashboard_providers.dart';
-import '../data/provider_business_repository.dart';
-import '../data/service_business_management_repository.dart';
+import 'provider_hub.dart';
 
+/// Resumen del hub "Mi negocio" para un negocio publicado. Los estados
+/// previos (borrador, revisión, cambios) los muestra
+/// `ProviderBusinessStatusScreen`; ambos cuelgan de `/provider/business`.
 class ProviderDashboardScreen extends ConsumerWidget {
   const ProviderDashboardScreen({
     super.key,
@@ -32,20 +40,19 @@ class ProviderDashboardScreen extends ConsumerWidget {
     );
 
     return Scaffold(
-      backgroundColor: const Color(
-        0xFFEAF4F0,
-      ),
+      backgroundColor: RancoColors.canvas,
       appBar: const RancoAppBar(
         title: 'Mi negocio',
         fallbackRoute: '/account',
+        bottom: ProviderHubTabBar(current: providerHubHomeRoute),
       ),
       body: activeBusiness.when(
         data: (business) {
           if (business == null) {
-            return const Center(
-              child: Text(
-                'No encontramos tu negocio.',
-              ),
+            return RancoErrorState(
+              message: 'No encontramos tu negocio.',
+              detail: 'Vuelve a Cuenta para revisar tu acceso.',
+              onRetry: () => ref.invalidate(myProviderBusinessesProvider),
             );
           }
 
@@ -60,28 +67,20 @@ class ProviderDashboardScreen extends ConsumerWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.hourglass_top_outlined,
-                      color: RancoColors.forest,
-                      size: 42,
+                    RancoStatusBadge(
+                      label: publicationStatus.label,
+                      tone: providerPublicationTone(publicationStatus),
+                      dot: true,
                     ),
-                    const SizedBox(height: 14),
-                    Text(
-                      publicationStatus.label,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: RancoColors.forest,
-                            fontWeight: FontWeight.w900,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     const Text(
                       'Este negocio aún no está publicado.',
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
                     FilledButton(
                       onPressed: () {
-                        context.go('/provider/status');
+                        context.go(providerHubHomeRoute);
                       },
                       child: const Text('Ver estado'),
                     ),
@@ -95,115 +94,175 @@ class ProviderDashboardScreen extends ConsumerWidget {
               const BusinessCapabilitySet(
                 {},
               );
-          final items = _dashboardItems(
+          final sections = providerHubSections(
             capabilitySet,
             business.businessType,
           );
-          final management = ref.watch(serviceBusinessManagementProvider);
+          final isService = business.businessType == BusinessType.service &&
+              capabilitySet.can(BusinessCapability.services);
+          final management = business.businessType == BusinessType.service
+              ? ref.watch(serviceBusinessManagementProvider).valueOrNull
+              : null;
+          final requests =
+              isService ? ref.watch(providerRequestQueueProvider) : null;
+
+          void go(String route) => context.go(route);
+
+          final quickActions = ProviderHubPanel(
+            padding: const EdgeInsets.all(8),
+            child: Column(
+              children: [
+                ProviderHubActionRow(
+                  icon: Icons.open_in_new_rounded,
+                  title: 'Ver perfil público',
+                  subtitle: 'Así te ven los visitantes',
+                  onTap: () => go('/business/${business.id}'),
+                ),
+                if (capabilitySet.can(BusinessCapability.profile) ||
+                    capabilitySet.can(BusinessCapability.contact))
+                  ProviderHubActionRow(
+                    icon: Icons.edit_outlined,
+                    title: 'Editar negocio',
+                    subtitle: 'Descripción, contacto y dirección',
+                    onTap: () => go('/provider/profile'),
+                  ),
+                if (capabilitySet.can(BusinessCapability.photos))
+                  ProviderHubActionRow(
+                    icon: Icons.photo_library_outlined,
+                    title: 'Gestionar fotos',
+                    subtitle: 'Perfil, portada y galería',
+                    onTap: () => go('/provider/photos'),
+                  ),
+              ],
+            ),
+          );
+
+          final upcoming = [
+            for (final section in sections)
+              if (section.route == null) section,
+          ];
+
+          final primary = <Widget>[
+            if (isService && requests != null)
+              _RecentRequests(
+                requests: requests,
+                onOpenAll: () => go('/provider/requests'),
+                onRetry: () => ref.invalidate(providerRequestQueueProvider),
+              )
+            else
+              _ManageSections(
+                sections: [
+                  for (final section in sections)
+                    if (section.route != null) section,
+                ],
+                onOpen: go,
+              ),
+          ];
 
           return ListView(
-            padding: const EdgeInsets.symmetric(vertical: 20),
+            padding: const EdgeInsets.fromLTRB(0, 20, 0, 40),
             children: [
               RancoContentContainer(
                 width: RancoContainerWidth.standard,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    businesses.maybeWhen(
-                      data: (items) {
-                        if (items.length < 2) {
-                          return const SizedBox.shrink();
-                        }
-
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: SizedBox(
-                              width: context.isRancoDesktop ? 360 : null,
-                              child: _BusinessSwitcherButton(
-                                business: business,
-                                businesses: items,
-                                onSelected: (value) {
-                                  ref
-                                      .read(
-                                        activeProviderBusinessIdProvider
-                                            .notifier,
-                                      )
-                                      .state = value;
-                                  ref.invalidate(
-                                      activeProviderBusinessProvider);
-                                  ref.invalidate(
-                                      activeProviderCapabilitiesProvider);
-                                  ref.invalidate(
-                                      serviceBusinessManagementProvider);
-                                },
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                      orElse: () => const SizedBox.shrink(),
-                    ),
-                    _ProviderHero(
+                    ProviderHubHeader(
                       business: business,
-                      onPreview: () {
-                        context.go(
-                          '/business/${business.id}',
-                        );
+                      businesses: businesses.valueOrNull ?? const [],
+                      onViewPublic: () => go('/business/${business.id}'),
+                      onBusinessChanged: (value) {
+                        ref
+                            .read(activeProviderBusinessIdProvider.notifier)
+                            .state = value;
+                        ref.invalidate(activeProviderBusinessProvider);
+                        ref.invalidate(activeProviderCapabilitiesProvider);
+                        ref.invalidate(serviceBusinessManagementProvider);
                       },
                     ),
-                    if (business.businessType == BusinessType.service) ...[
-                      const SizedBox(height: 10),
-                      management.maybeWhen(
-                        data: (state) => state == null
-                            ? const SizedBox.shrink()
-                            : _ServiceSummaryStrip(state: state),
-                        orElse: () => const SizedBox.shrink(),
+                    if (management != null) ...[
+                      const SizedBox(height: 14),
+                      RancoResponsiveGrid(
+                        minItemWidth: 180,
+                        maxColumns: 4,
+                        minColumns: 2,
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          for (final (value, label, icon)
+                              in serviceHubMetrics(management))
+                            ProviderHubMetric(
+                              value: value,
+                              label: label,
+                              icon: icon,
+                            ),
+                          if (requests?.valueOrNull case final items?)
+                            ProviderHubMetric(
+                              value: items
+                                  .where((item) => item.stateLabel == 'Nueva')
+                                  .length
+                                  .toString(),
+                              label: 'solicitudes nuevas',
+                              icon: Icons.mark_email_unread_outlined,
+                            ),
+                        ],
                       ),
                     ],
-                    const SizedBox(height: 18),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            _sectionTitleFor(business.businessType),
-                            style: const TextStyle(
-                              color: RancoColors.forest,
-                              fontSize: 19,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          '${items.where((item) => item.route != null).length} activos',
-                          style: const TextStyle(
-                            color: Color(0xFF61736A),
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    RancoResponsiveGrid(
-                      minItemWidth: 310,
-                      maxColumns: 3,
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: [
-                        for (final item in items)
-                          _DashboardTile(
-                            icon: item.icon,
-                            title: item.title,
-                            subtitle: item.subtitle,
-                            locked: item.locked,
-                            onTap: item.route == null
-                                ? null
-                                : () {
-                                    context.go(item.route!);
-                                  },
-                          ),
-                      ],
+                    const SizedBox(height: 22),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final side = Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const ProviderHubSectionTitle('Acciones rápidas'),
+                            quickActions,
+                            if (upcoming.isNotEmpty) ...[
+                              const SizedBox(height: 20),
+                              const ProviderHubSectionTitle(
+                                  'Próximamente en tu plan'),
+                              ProviderHubPanel(
+                                padding: const EdgeInsets.all(8),
+                                child: Column(
+                                  children: [
+                                    for (final section in upcoming)
+                                      ProviderHubActionRow(
+                                        icon: section.icon,
+                                        title: section.title,
+                                        subtitle: section.subtitle,
+                                        locked: section.locked,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        );
+                        if (constraints.maxWidth >= 860) {
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: primary,
+                                ),
+                              ),
+                              const SizedBox(width: 20),
+                              Expanded(flex: 2, child: side),
+                            ],
+                          );
+                        }
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            ...primary,
+                            const SizedBox(height: 22),
+                            side,
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -211,645 +270,245 @@ class ProviderDashboardScreen extends ConsumerWidget {
             ],
           );
         },
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
-        ),
+        loading: () => const _DashboardSkeleton(),
         error: (
           error,
           stackTrace,
         ) =>
-            const Center(
-          child: Text(
-            'No pudimos cargar tu negocio.',
-          ),
+            RancoErrorState(
+          message: 'No pudimos cargar tu negocio.',
+          onRetry: () => ref.invalidate(myProviderBusinessesProvider),
         ),
       ),
     );
   }
 }
 
-List<_ProviderDashboardItem> _dashboardItems(
-  BusinessCapabilitySet capabilities,
-  BusinessType type,
-) {
-  if (type == BusinessType.commerce) {
-    return [
-      if (capabilities.can(BusinessCapability.profile))
-        const _ProviderDashboardItem(
-          icon: Icons.storefront_outlined,
-          title: 'Perfil comercial',
-          subtitle: 'Nombre y descripción pública del comercio',
-          route: '/provider/profile',
-        ),
-      if (capabilities.can(BusinessCapability.photos))
-        const _ProviderDashboardItem(
-          icon: Icons.photo_library_outlined,
-          title: 'Fotos',
-          subtitle: 'Foto de perfil, portada y galería pública',
-          route: '/provider/photos',
-        ),
-      if (capabilities.can(BusinessCapability.catalog))
-        _ProviderDashboardItem(
-          icon: Icons.inventory_2_outlined,
-          title: 'Productos',
-          subtitle:
-              'Puedes publicar hasta ${capabilities.limit(BusinessLimit.maxProducts) ?? 15} productos referenciales',
-        ),
-      if (capabilities.can(BusinessCapability.hours))
-        const _ProviderDashboardItem(
-          icon: Icons.schedule_outlined,
-          title: 'Horarios',
-          subtitle: 'Días y horas de atención',
-          route: '/provider/hours',
-        ),
-      if (capabilities.can(BusinessCapability.location))
-        const _ProviderDashboardItem(
-          icon: Icons.location_on_outlined,
-          title: 'Ubicación',
-          subtitle: 'Dirección y localidad del comercio',
-          route: '/provider/location',
-        ),
-      if (capabilities.can(BusinessCapability.contact))
-        const _ProviderDashboardItem(
-          icon: Icons.contact_phone_outlined,
-          title: 'Contacto',
-          subtitle: 'Teléfono, WhatsApp, correo y sitio web',
-          route: '/provider/profile',
-        ),
-    ];
-  }
-
-  return switch (type) {
-    BusinessType.service => [
-        if (capabilities.can(BusinessCapability.profile))
-          const _ProviderDashboardItem(
-            icon: Icons.storefront_outlined,
-            title: 'Perfil',
-            subtitle: 'Nombre, descripción, contacto y dirección',
-            route: '/provider/profile',
-          ),
-        if (capabilities.can(BusinessCapability.services))
-          _ProviderDashboardItem(
-            icon: Icons.home_repair_service_outlined,
-            title: 'Servicios',
-            subtitle:
-                'Puedes publicar hasta ${capabilities.limit(BusinessLimit.maxServices) ?? 5} servicios',
-            route: '/provider/services',
-          ),
-        if (capabilities.can(BusinessCapability.services))
-          const _ProviderDashboardItem(
-            icon: Icons.assignment_outlined,
-            title: 'Solicitudes',
-            subtitle: 'Nuevas, pendientes, aceptadas y finalizadas',
-            route: '/provider/requests',
-          ),
-        if (capabilities.can(BusinessCapability.coverage))
-          _ProviderDashboardItem(
-            icon: Icons.map_outlined,
-            title: 'Cobertura',
-            subtitle:
-                'Puedes publicar hasta ${capabilities.limit(BusinessLimit.maxLocations) ?? 1} localidades',
-            route: '/provider/coverage',
-          ),
-        if (capabilities.can(BusinessCapability.photos))
-          _photosItem(capabilities),
-      ],
-    BusinessType.lodging => [
-        const _ProviderDashboardItem(
-          icon: Icons.insights_outlined,
-          title: 'Resumen',
-          subtitle: 'Estado general del alojamiento',
-          route: '/provider/dashboard',
-        ),
-        if (capabilities.can(BusinessCapability.bookings))
-          const _ProviderDashboardItem(
-            icon: Icons.event_available_outlined,
-            title: 'Reservas',
-            subtitle: 'Pendientes, confirmadas, rechazadas e historial',
-            route: '/provider/bookings',
-          ),
-        if (capabilities.can(BusinessCapability.calendar))
-          const _ProviderDashboardItem(
-            icon: Icons.calendar_month_outlined,
-            title: 'Calendario',
-            subtitle: 'Disponibilidad y bloqueos',
-            route: '/provider/calendar',
-          ),
-        if (capabilities.can(BusinessCapability.rates))
-          const _ProviderDashboardItem(
-            icon: Icons.tune_outlined,
-            title: 'Configuración',
-            subtitle: 'Tarifas, capacidad, horarios y políticas de estadía',
-            route: '/provider/lodging',
-          ),
-        if (capabilities.can(BusinessCapability.rates))
-          const _ProviderDashboardItem(
-            icon: Icons.payments_outlined,
-            title: 'Tarifas',
-            subtitle: 'Precio por noche y huéspedes adicionales',
-            route: '/provider/rates',
-          ),
-        if (capabilities.can(BusinessCapability.photos))
-          _photosItem(capabilities),
-      ],
-    BusinessType.gastronomy => [
-        if (capabilities.can(BusinessCapability.profile))
-          const _ProviderDashboardItem(
-            icon: Icons.restaurant_outlined,
-            title: 'Perfil',
-            subtitle: 'Descripción, ubicación, horarios y contacto',
-            route: '/provider/profile',
-          ),
-        _ProviderDashboardItem(
-          icon: Icons.event_seat_outlined,
-          title: 'Reservas',
-          subtitle: capabilities.can(BusinessCapability.tableReservations)
-              ? 'Solicitudes de mesa pendientes y confirmadas'
-              : 'Disponible en Plan Pro',
-          locked: !capabilities.can(BusinessCapability.tableReservations),
-          route: capabilities.can(BusinessCapability.tableReservations)
-              ? '/provider/table-reservations'
-              : null,
-        ),
-        if (capabilities.can(BusinessCapability.menu))
-          _ProviderDashboardItem(
-            icon: Icons.restaurant_menu_outlined,
-            title: 'Menú',
-            subtitle:
-                'Puedes publicar hasta ${capabilities.limit(BusinessLimit.maxMenuItems) ?? 15} elementos',
-            route: '/provider/menu',
-          ),
-        if (capabilities.can(BusinessCapability.photos))
-          _photosItem(capabilities),
-      ],
-    BusinessType.tourism => [
-        if (capabilities.can(BusinessCapability.profile))
-          const _ProviderDashboardItem(
-            icon: Icons.terrain_outlined,
-            title: 'Perfil',
-            subtitle: 'Descripción, contacto y ubicación',
-            route: '/provider/profile',
-          ),
-        if (capabilities.can(BusinessCapability.experiences))
-          _ProviderDashboardItem(
-            icon: Icons.hiking_outlined,
-            title: 'Experiencias',
-            subtitle:
-                'Puedes publicar hasta ${capabilities.limit(BusinessLimit.maxExperiences) ?? 3} experiencias',
-          ),
-        _ProviderDashboardItem(
-          icon: Icons.event_available_outlined,
-          title: 'Reservas',
-          subtitle: capabilities.can(BusinessCapability.bookings)
-              ? 'Solicitudes simples de experiencias'
-              : 'Disponible en Plan Pro',
-          locked: !capabilities.can(BusinessCapability.bookings),
-        ),
-        if (capabilities.can(BusinessCapability.photos))
-          _photosItem(capabilities),
-      ],
-    BusinessType.emergency => [
-        if (capabilities.can(BusinessCapability.profile))
-          const _ProviderDashboardItem(
-            icon: Icons.local_hospital_outlined,
-            title: 'Perfil',
-            subtitle: 'Información pública del prestador de salud',
-            route: '/provider/profile',
-          ),
-        if (capabilities.can(BusinessCapability.emergencyAvailability))
-          const _ProviderDashboardItem(
-            icon: Icons.emergency_outlined,
-            title: 'Disponibilidad',
-            subtitle: 'Base operacional para atención prioritaria de salud',
-          ),
-        if (capabilities.can(BusinessCapability.coverage))
-          _ProviderDashboardItem(
-            icon: Icons.map_outlined,
-            title: 'Cobertura',
-            subtitle:
-                'Puedes publicar hasta ${capabilities.limit(BusinessLimit.maxLocations) ?? 1} zonas',
-            route: '/provider/coverage',
-          ),
-        if (capabilities.can(BusinessCapability.photos))
-          _photosItem(capabilities),
-      ],
-    BusinessType.commerce => [],
-  };
-}
-
-_ProviderDashboardItem _photosItem(BusinessCapabilitySet capabilities) {
-  return _ProviderDashboardItem(
-    icon: Icons.photo_library_outlined,
-    title: 'Fotos',
-    subtitle:
-        'Puedes publicar hasta ${capabilities.limit(BusinessLimit.maxPhotos) ?? 5} fotos de galería',
-    route: '/provider/photos',
-  );
-}
-
-String _sectionTitleFor(BusinessType type) {
-  return switch (type) {
-    BusinessType.lodging => 'Gestión de alojamiento',
-    BusinessType.service => 'Gestión de servicios',
-    BusinessType.commerce => 'Gestión comercial',
-    BusinessType.gastronomy => 'Gestión gastronómica',
-    BusinessType.tourism => 'Gestión turística',
-    BusinessType.emergency => 'Gestión de emergencia',
-  };
-}
-
-IconData _typeIcon(BusinessType type) {
-  return switch (type) {
-    BusinessType.commerce => Icons.storefront_outlined,
-    BusinessType.gastronomy => Icons.restaurant_outlined,
-    BusinessType.lodging => Icons.holiday_village_outlined,
-    BusinessType.tourism => Icons.terrain_outlined,
-    BusinessType.emergency => Icons.emergency_outlined,
-    BusinessType.service => Icons.handyman_outlined,
-  };
-}
-
-class _ProviderDashboardItem {
-  const _ProviderDashboardItem({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    this.locked = false,
-    this.route,
+class _ManageSections extends StatelessWidget {
+  const _ManageSections({
+    required this.sections,
+    required this.onOpen,
   });
 
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool locked;
-  final String? route;
-}
-
-class _BusinessSwitcherButton extends StatelessWidget {
-  const _BusinessSwitcherButton({
-    required this.business,
-    required this.businesses,
-    required this.onSelected,
-  });
-
-  final ProviderBusinessSummary business;
-  final List<ProviderBusinessSummary> businesses;
-  final ValueChanged<String> onSelected;
+  final List<ProviderHubSection> sections;
+  final ValueChanged<String> onOpen;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(15),
-      child: InkWell(
-        onTap: () => _showSwitcher(context),
-        borderRadius: BorderRadius.circular(15),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 58),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: const Color(0xFFD4E0DA)),
-          ),
-          child: Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const ProviderHubSectionTitle('Gestión'),
+        ProviderHubPanel(
+          padding: const EdgeInsets.all(8),
+          child: Column(
             children: [
-              Icon(
-                _typeIcon(business.businessType),
-                color: RancoColors.forest,
-                size: 22,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      business.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: RancoColors.textPrimary,
-                        fontWeight: FontWeight.w900,
-                      ),
+              for (final section in sections)
+                ProviderHubActionRow(
+                  icon: section.icon,
+                  title: section.title,
+                  subtitle: section.subtitle,
+                  onTap: () => onOpen(section.route!),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RecentRequests extends StatelessWidget {
+  const _RecentRequests({
+    required this.requests,
+    required this.onOpenAll,
+    required this.onRetry,
+  });
+
+  final AsyncValue<List<ProviderRequestItem>> requests;
+  final VoidCallback onOpenAll;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ProviderHubSectionTitle(
+          'Solicitudes recientes',
+          trailing: TextButton(
+            onPressed: onOpenAll,
+            style: TextButton.styleFrom(minimumSize: const Size(0, 40)),
+            child: const Text('Ver todas'),
+          ),
+        ),
+        ProviderHubPanel(
+          padding: const EdgeInsets.all(8),
+          child: requests.when(
+            data: (items) {
+              if (items.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.fromLTRB(10, 14, 10, 14),
+                  child: Text(
+                    'Aún no recibes solicitudes. Cuando un visitante te '
+                    'escriba, aparecerá aquí.',
+                    style: TextStyle(
+                      color: RancoColors.textSecondary,
+                      fontSize: 13.5,
+                      height: 1.4,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${business.businessType.label} · ${_statusText(business.publicationStatus)}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: RancoColors.textSecondary,
-                        fontSize: 12,
-                      ),
+                  ),
+                );
+              }
+              final recent = items.take(4).toList();
+              return Column(
+                children: [
+                  for (var i = 0; i < recent.length; i++) ...[
+                    if (i > 0)
+                      const Divider(height: 1, indent: 54, endIndent: 6),
+                    _RequestRow(item: recent[i], onTap: onOpenAll),
+                  ],
+                ],
+              );
+            },
+            loading: () => const Padding(
+              padding: EdgeInsets.all(8),
+              child: Column(
+                children: [
+                  RancoSkeletonBox(height: 40),
+                  SizedBox(height: 10),
+                  RancoSkeletonBox(height: 40),
+                ],
+              ),
+            ),
+            error: (_, __) => RancoErrorState(
+              message: 'No pudimos cargar tus solicitudes.',
+              onRetry: onRetry,
+              compact: true,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RequestRow extends StatelessWidget {
+  const _RequestRow({required this.item, required this.onTap});
+
+  final ProviderRequestItem item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final date = DateFormat.MMMd('es').format(item.createdAt.toLocal());
+    final where = item.locationName;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: RancoColors.primarySoft,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.assignment_outlined,
+                  size: 18, color: RancoColors.forest),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.subcategoryName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: RancoColors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    [
+                      if (where != null && where.isNotEmpty) where,
+                      date,
+                    ].join(' · '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: RancoColors.textSecondary,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            RancoStatusBadge(
+              label: item.stateLabel,
+              tone: item.stateLabel == 'Nueva'
+                  ? RancoStatusTone.info
+                  : rancoToneForStatusLabel(item.stateLabel),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DashboardSkeleton extends StatelessWidget {
+  const _DashboardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Cargando',
+      child: ListView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(0, 20, 0, 20),
+        children: const [
+          RancoContentContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                RancoSkeletonCard(
+                  children: [
+                    Row(
+                      children: [
+                        RancoSkeletonBox(width: 48, height: 48, radius: 14),
+                        SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              RancoSkeletonBox(width: 220, height: 16),
+                              SizedBox(height: 10),
+                              RancoSkeletonBox(width: 140, height: 12),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: RancoColors.textSecondary,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showSwitcher(BuildContext context) {
-    return showRancoAdaptiveModal<void>(
-      context: context,
-      maxWidth: 520,
-      builder: (context) {
-        return SafeArea(
-          child: ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            children: [
-              const Text(
-                'Cambiar negocio',
-                style: TextStyle(
-                  color: RancoColors.forest,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 18,
-                ),
-              ),
-              const SizedBox(height: 8),
-              for (final item in businesses)
-                ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                  leading: Icon(
-                    _typeIcon(item.businessType),
-                    color: RancoColors.forest,
-                  ),
-                  title: Text(
-                    item.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: Text(
-                    '${item.businessType.label} · ${_statusText(item.publicationStatus)}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  trailing: item.id == business.id
-                      ? const Icon(Icons.check_rounded)
-                      : null,
-                  onTap: () {
-                    onSelected(item.id);
-                    Navigator.of(context).pop();
-                  },
-                ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-String _statusText(String rawStatus) {
-  return BusinessPublicationStatus.parseOrDefault(rawStatus).label;
-}
-
-class _ServiceSummaryStrip extends StatelessWidget {
-  const _ServiceSummaryStrip({
-    required this.state,
-  });
-
-  final ServiceBusinessManagementState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final hours = state.draft.hours.where((hour) => !hour.isClosed).length;
-    return Row(
-      children: [
-        Expanded(
-          child: _SummaryChip(
-            value: state.draft.services.length.toString(),
-            label: 'servicios',
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _SummaryChip(
-            value: state.draft.coverage.length.toString(),
-            label: 'localidades',
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _SummaryChip(
-            value: hours.toString(),
-            label: 'días abiertos',
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SummaryChip extends StatelessWidget {
-  const _SummaryChip({
-    required this.value,
-    required this.label,
-  });
-
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFD4E0DA)),
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: const TextStyle(
-              color: RancoColors.forest,
-              fontWeight: FontWeight.w900,
-              fontSize: 16,
-            ),
-          ),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: RancoColors.textSecondary,
-              fontSize: 11,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProviderHero extends StatelessWidget {
-  const _ProviderHero({
-    required this.business,
-    required this.onPreview,
-  });
-
-  final ProviderBusinessSummary business;
-  final VoidCallback onPreview;
-
-  @override
-  Widget build(BuildContext context) {
-    final status = BusinessPublicationStatus.parseOrDefault(
-      business.publicationStatus,
-    );
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFD4E0DA)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE4F3EC),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              _typeIcon(business.businessType),
-              color: RancoColors.forest,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  business.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: RancoColors.textPrimary,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${business.businessType.label} · ${status.label}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: RancoColors.textSecondary,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                SizedBox(height: 14),
+                RancoSkeletonBox(height: 64, radius: 16),
+                SizedBox(height: 22),
+                RancoSkeletonBox(height: 180, radius: 16),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          IconButton.outlined(
-            onPressed: onPreview,
-            tooltip: 'Ver publicación',
-            icon: const Icon(
-              Icons.visibility_outlined,
-              size: 19,
-            ),
-          ),
         ],
-      ),
-    );
-  }
-}
-
-class _DashboardTile extends StatelessWidget {
-  const _DashboardTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.locked,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool locked;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(
-    BuildContext context,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(
-          15,
-        ),
-        border: Border.all(
-          color: const Color(
-            0xFFD4E0DA,
-          ),
-        ),
-      ),
-      child: ListTile(
-        onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 2,
-        ),
-        leading: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: const Color(
-              0xFFE4F3EC,
-            ),
-            borderRadius: BorderRadius.circular(
-              12,
-            ),
-          ),
-          child: Icon(
-            icon,
-            color: locked ? const Color(0xFF7D8D85) : RancoColors.forest,
-          ),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: Icon(
-          locked
-              ? Icons.lock_outline_rounded
-              : onTap == null
-                  ? Icons.info_outline_rounded
-                  : Icons.chevron_right_rounded,
-          color: locked || onTap == null
-              ? const Color(0xFF9AA8A2)
-              : RancoColors.forest,
-        ),
       ),
     );
   }

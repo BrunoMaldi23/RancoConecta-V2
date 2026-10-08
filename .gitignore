@@ -4,6 +4,7 @@
 .flutter-plugins-dependencies
 .packages
 build/
+vercel_output/
 coverage/
 
 # IDE/editor
@@ -39,6 +40,19 @@ node_modules/
 .env*
 .vercel/
 .env.production.local
+.playwright-cli/
+*.dump
+*.backup
+*.sql.gz
 VERCEL_FINAL_CHECK.txt
 VERCEL_PROD_AUDIT.txt
 PROD_POLISH_REPORT.txt
+backups/
+backup/
+temp/
+tmp/
+restore/
+restores/
+*.dump
+*.backup
+*.sql.gz

@@ -5,10 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../shared/models/business.dart';
+import '../../../core/utils/chilean_phone.dart';
 import '../../../theme/ranco_colors.dart';
-import '../../auth/presentation/visitor_contact_sheet.dart';
 import '../../../core/telemetry/telemetry.dart';
 import '../../lodging_bookings/data/lodging_booking_repository.dart';
+import '../../legal/application/legal_navigation.dart';
 import '../../lodging_bookings/application/lodging_booking_providers.dart';
 import '../../service_requests/application/service_request_providers.dart';
 import '../../provider_dashboard/application/provider_dashboard_providers.dart';
@@ -39,6 +40,8 @@ class _LodgingAvailabilityScreenState
   DateTimeRange? _range;
   DateTimeRange? _summaryRange;
   Future<List<LodgingCalendarDay>>? _summaryCalendar;
+  DateTime? _selectorFrom;
+  Future<List<LodgingCalendarDay>>? _selectorCalendar;
   List<DateTime> _selectedDates = [];
   bool _manualDates = false;
 
@@ -47,6 +50,9 @@ class _LodgingAvailabilityScreenState
   int _guests = 1;
 
   final _messageController = TextEditingController();
+  final _guestNameController = TextEditingController();
+  final _guestPhoneController = TextEditingController();
+  bool _guestConsent = false;
 
   bool _creating = false;
 
@@ -71,6 +77,8 @@ class _LodgingAvailabilityScreenState
     if (oldWidget.business.id != widget.business.id) {
       _summaryRange = null;
       _summaryCalendar = null;
+      _selectorFrom = null;
+      _selectorCalendar = null;
     }
   }
 
@@ -97,6 +105,8 @@ class _LodgingAvailabilityScreenState
   @override
   void dispose() {
     _messageController.dispose();
+    _guestNameController.dispose();
+    _guestPhoneController.dispose();
     super.dispose();
   }
 
@@ -587,6 +597,38 @@ class _LodgingAvailabilityScreenState
               ),
               _BookingSection(
                 number: '3',
+                title: 'Tus datos de contacto',
+                subtitle: 'El anfitrión los usará para gestionar la reserva',
+                child: Column(children: [
+                  TextField(
+                      controller: _guestNameController,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(labelText: 'Nombre')),
+                  const SizedBox(height: 10),
+                  TextField(
+                      controller: _guestPhoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(labelText: 'Teléfono')),
+                  Material(
+                    color: Colors.transparent,
+                    child: CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: _guestConsent,
+                      onChanged: (value) =>
+                          setState(() => _guestConsent = value ?? false),
+                      title: const Text(
+                          'Acepto compartir mis datos con el anfitrión para gestionar la reserva.'),
+                      subtitle: TextButton(
+                        onPressed: () =>
+                            openLegalPage(context, '/politica-privacidad'),
+                        child: const Text('Leer política de privacidad'),
+                      ),
+                    ),
+                  ),
+                ]),
+              ),
+              _BookingSection(
+                number: '4',
                 title: 'Mensaje al anfitri\u00f3n',
                 subtitle: 'Opcional',
                 child: TextField(
@@ -767,24 +809,32 @@ class _LodgingAvailabilityScreenState
 
   Future<void> _openDateSelector() async {
     final now = DateTime.now();
-
-    final blockedDays = await ref
-        .read(
-          lodgingCalendarRepositoryProvider,
-        )
-        .listRange(
-          businessId: widget.business.id,
-          from: DateTime(
-            now.year,
-            now.month,
-            now.day,
-          ),
-          to: DateTime(
-            now.year + 1,
-            now.month,
-            now.day,
-          ),
-        );
+    final from = DateTime(now.year, now.month, now.day);
+    if (_selectorCalendar == null || _selectorFrom != from) {
+      _selectorFrom = from;
+      _selectorCalendar = ref.read(lodgingCalendarRepositoryProvider).listRange(
+            businessId: widget.business.id,
+            from: from,
+            to: DateTime(
+              now.year + 1,
+              now.month,
+              now.day,
+            ),
+          );
+    }
+    late final List<LodgingCalendarDay> blockedDays;
+    try {
+      blockedDays = await _selectorCalendar!;
+    } catch (_) {
+      _selectorCalendar = null;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content:
+              Text('No pudimos cargar la disponibilidad. Intenta nuevamente.'),
+        ));
+      }
+      return;
+    }
 
     if (!mounted) {
       return;
@@ -875,9 +925,17 @@ class _LodgingAvailabilityScreenState
       return;
     }
 
-    final consented = await ensureVisitorContactAndConsent(context, ref,
-        action: 'lodging_booking');
-    if (!mounted || !consented) return;
+    if (_guestNameController.text.trim().length < 2 ||
+        !isValidChileanPhone(_guestPhoneController.text) ||
+        !_guestConsent) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Completa nombre, teléfono y consentimiento.')),
+        );
+      }
+      return;
+    }
 
     await _createBooking();
   }
@@ -902,8 +960,13 @@ class _LodgingAvailabilityScreenState
               checkOut: segment.end,
               guests: _guests,
               message: _messageController.text,
+              customerName: _guestNameController.text,
+              customerPhone: _guestPhoneController.text,
+              consentVersion: 'privacy-2026-10-01',
             );
         sent++;
+        _selectorCalendar = null;
+        _summaryCalendar = null;
         ref.invalidate(myCustomerActivityProvider);
         ref.invalidate(lodgingBookingsForBusinessProvider(widget.business.id));
       }
@@ -2367,7 +2430,10 @@ class _CustomDateRangeSheetState extends State<_CustomDateRangeSheet> {
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
                   child: Align(
                     alignment: Alignment.centerLeft,
-                    child: Text('${_end!.difference(_start!).inDays} noches',
+                    child: Text(
+                        _end!.difference(_start!).inDays == 1
+                            ? '1 noche'
+                            : '${_end!.difference(_start!).inDays} noches',
                         style: const TextStyle(
                             color: RancoColors.forest,
                             fontWeight: FontWeight.w800)),

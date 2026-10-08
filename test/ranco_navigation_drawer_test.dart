@@ -127,7 +127,7 @@ void main() {
   });
 
   testWidgets('admin role sees administration section', (tester) async {
-    await _pumpDrawer(tester, role: ProfileRole.admin);
+    await _pumpDrawer(tester, role: ProfileRole.superAdmin);
 
     await tester.drag(find.byType(ListView), const Offset(0, -260));
     await tester.pumpAndSettle();
@@ -143,7 +143,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await _pumpDrawer(
       tester,
-      role: ProfileRole.admin,
+      role: ProfileRole.superAdmin,
       businesses: [_business('published')],
     );
 
@@ -284,6 +284,7 @@ Future<void> _pumpDrawer(
         '/provider/register',
         '/provider/status',
         '/provider/dashboard',
+        '/provider/business',
         '/admin',
         '/account',
         '/sign-in',
@@ -368,6 +369,8 @@ ProviderBusinessSummary _business(String status) {
 }
 
 class _FakeAuthRepository implements AuthRepository {
+  @override
+  Future<Result<void>> registerProviderIdentity() async => const Success(null);
   const _FakeAuthRepository(this.user);
 
   final AuthUser? user;
@@ -380,6 +383,11 @@ class _FakeAuthRepository implements AuthRepository {
 
   @override
   Future<Result<void>> sendPasswordResetEmail(String email) async {
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> updateRecoveredPassword(String password) async {
     return const Success(null);
   }
 
@@ -405,6 +413,8 @@ class _FakeAuthRepository implements AuthRepository {
     required String email,
     required String password,
     bool consentAccepted = false,
+    bool providerRegistration = false,
+    String? emailRedirectPath,
   }) async {
     return Success(user);
   }

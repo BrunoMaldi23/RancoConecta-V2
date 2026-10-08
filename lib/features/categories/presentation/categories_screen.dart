@@ -688,6 +688,9 @@ class _CategoryTileState extends State<_CategoryTile> {
   }
 }
 
+/// Ícono de una categoría según su clave/slug/nombre (compartido con admin).
+IconData categoryIconFor(Category category) => _categoryIcon(category);
+
 IconData _categoryIcon(Category category) {
   final key =
       '${category.iconKey} ${category.slug} ${category.name}'.toLowerCase();

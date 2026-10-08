@@ -61,7 +61,7 @@ void main() {
               fullName: 'Admin Ranco',
               phone: null,
               avatarUrl: null,
-              role: ProfileRole.admin,
+              role: ProfileRole.superAdmin,
               accountStatus: 'active',
             )),
       ],
@@ -93,7 +93,8 @@ void main() {
     addTearDown(router.dispose);
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        currentAdminRoleProvider.overrideWith((ref) async => ProfileRole.admin),
+        currentAdminRoleProvider
+            .overrideWith((ref) async => ProfileRole.superAdmin),
         adminWhatsAppSettingsProvider.overrideWith((ref) async =>
             const AdminWhatsAppSettings(
                 number: '',
@@ -106,9 +107,9 @@ void main() {
     ));
     await tester.pumpAndSettle();
     expect(find.text('Admin / Configuración'), findsOneWidget);
+    // FASE 3.22A: eventos como opciones con casilla + descripción.
     await tester.scrollUntilVisible(
-      find.widgetWithText(
-          CheckboxListTile, 'Nuevo negocio pendiente de revisión'),
+      find.text('Nuevo negocio pendiente de revisión'),
       220,
       scrollable: find
           .descendant(
@@ -117,13 +118,8 @@ void main() {
           )
           .first,
     );
-    expect(
-      find.widgetWithText(
-        CheckboxListTile,
-        'Nuevo negocio pendiente de revisión',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('Nuevo negocio pendiente de revisión'), findsOneWidget);
+    expect(find.byType(Checkbox), findsNWidgets(3));
     expect(tester.takeException(), isNull);
   });
 
@@ -140,7 +136,8 @@ void main() {
     addTearDown(router.dispose);
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        currentAdminRoleProvider.overrideWith((ref) async => ProfileRole.admin),
+        currentAdminRoleProvider
+            .overrideWith((ref) async => ProfileRole.superAdmin),
         adminUsersProvider.overrideWith((ref, query) async {
           final rows = <Map<String, dynamic>>[
             <String, dynamic>{
@@ -181,13 +178,23 @@ void main() {
     ));
     await tester.pumpAndSettle();
     expect(find.text('Vecina Ranco'), findsOneWidget);
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Administradores'));
+    await tester.tap(find.text('Vecina Ranco'));
+    await tester.pumpAndSettle();
+    expect(find.text('Detalle de usuario'), findsOneWidget);
+    expect(find.text('vecina@example.com'), findsWidgets);
+    await tester.tap(find.text('Cerrar'));
+    await tester.pumpAndSettle();
+    // El filtro segmentado se desplaza en horizontal si no cabe.
+    await tester.ensureVisible(find.text('Administradores'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Administradores'));
     await tester.pumpAndSettle();
     expect(find.text('Vecina Ranco'), findsNothing);
     expect(find.text('Admin Ranco'), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'nadie');
+    await tester.pump(const Duration(milliseconds: 350));
     await tester.pumpAndSettle();
-    expect(find.text('No hay usuarios en esta página.'), findsOneWidget);
+    expect(find.text('Ninguna cuenta coincide con “nadie”.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

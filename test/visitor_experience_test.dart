@@ -167,24 +167,21 @@ void main() {
     expect(find.text('Detalle 1'), findsOneWidget);
   });
 
-  testWidgets('visitor contact gate keeps the selected service and message',
+  testWidgets('visitor can complete request details without Auth/profile',
       (tester) async {
-    final profileState = StateProvider<Profile>((ref) => const Profile(
-          id: 'visitor-1',
-          fullName: 'Juan Pérez',
-          phone: '+56 9 1234 5678',
-          avatarUrl: null,
-          role: ProfileRole.customer,
-          accountStatus: 'active',
-        ));
+    tester.view.physicalSize = const Size(390, 850);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
     final container = ProviderContainer(overrides: [
-      authStateProvider.overrideWith((ref) => Stream.value(_visitor)),
-      currentProfileProvider
-          .overrideWith((ref) async => ref.watch(profileState)),
+      authStateProvider.overrideWith((ref) => Stream.value(null)),
       businessDetailProvider.overrideWith((ref, id) async => _business),
       locationsProvider.overrideWith((ref) async => [_location]),
     ]);
     addTearDown(container.dispose);
+    await container.read(authStateProvider.future);
     final router =
         GoRouter(initialLocation: '/business/business-1/request', routes: [
       GoRoute(
@@ -192,9 +189,8 @@ void main() {
           builder: (_, state) =>
               CreateRequestScreen(businessId: state.pathParameters['id']!)),
       GoRoute(
-          path: '/visitor/profile',
-          builder: (_, __) =>
-              const Scaffold(body: Text('Perfil visitante UI'))),
+          path: '/business/:id',
+          builder: (_, __) => const Scaffold(body: Text('Negocio'))),
     ]);
     addTearDown(router.dispose);
     await tester.pumpWidget(UncontrolledProviderScope(
@@ -202,7 +198,6 @@ void main() {
       child: MaterialApp.router(routerConfig: router),
     ));
     await tester.pumpAndSettle();
-
     await tester.tap(find.byType(DropdownButtonFormField<String>).first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Electricidad').last);
@@ -210,35 +205,22 @@ void main() {
     await tester.enterText(
         find.widgetWithText(TextFormField, 'Describe lo que necesitas'),
         'Necesito revisar el tablero eléctrico.');
-
-    container.read(profileState.notifier).state = const Profile(
-      id: 'visitor-1',
-      fullName: 'Juan Pérez',
-      phone: null,
-      avatarUrl: null,
-      role: ProfileRole.customer,
-      accountStatus: 'active',
-    );
+    await tester.tap(find.byType(DropdownButtonFormField<String>).last);
     await tester.pumpAndSettle();
-    expect(find.byType(CreateRequestScreen), findsOneWidget);
-    expect(find.text('Servicios Ranco'), findsOneWidget);
-
-    container.read(profileState.notifier).state = const Profile(
-      id: 'visitor-1',
-      fullName: 'Juan Pérez',
-      phone: '+56 9 1234 5678',
-      avatarUrl: null,
-      role: ProfileRole.customer,
-      accountStatus: 'active',
-    );
+    await tester.tap(find.text('Lago Ranco').last);
     await tester.pumpAndSettle();
+    await tester.enterText(
+        find.widgetWithText(TextFormField, 'Tu nombre'), 'Cliente QA');
+    await tester.enterText(
+        find.widgetWithText(TextFormField, 'Teléfono de contacto'),
+        '+56 9 1234 5678');
+    await tester.ensureVisible(find.byType(CheckboxListTile));
+    await tester.tap(find.byType(CheckboxListTile));
+    await tester.pumpAndSettle();
+    expect(find.text('Inicia sesión para solicitar'), findsNothing);
+    expect(find.text('Crear cuenta'), findsNothing);
+    expect(container.read(authStateProvider).valueOrNull, isNull);
     expect(find.text('Necesito revisar el tablero eléctrico.'), findsOneWidget);
-    expect(
-        tester
-            .widget<DropdownButtonFormField<String>>(
-                find.byType(DropdownButtonFormField<String>).first)
-            .initialValue,
-        'service-1');
     expect(tester.takeException(), isNull);
   });
 

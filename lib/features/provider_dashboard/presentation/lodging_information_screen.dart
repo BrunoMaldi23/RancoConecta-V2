@@ -5,6 +5,8 @@ import '../../../theme/ranco_colors.dart';
 import '../application/provider_dashboard_providers.dart';
 import '../data/lodging_details_repository.dart';
 import '../../../core/widgets/ranco_app_bar.dart';
+import 'provider_hub.dart';
+import '../../../core/widgets/ranco_states.dart';
 
 class LodgingInformationScreen extends ConsumerStatefulWidget {
   const LodgingInformationScreen({
@@ -76,6 +78,7 @@ class _LodgingInformationScreenState
       appBar: const RancoAppBar(
         title: 'Información del alojamiento',
         fallbackRoute: '/provider/dashboard',
+        bottom: ProviderHubTabBar(current: '/provider/lodging'),
       ),
       body: business.when(
         data: (business) {
@@ -208,9 +211,7 @@ class _LodgingInformationScreenState
                 ),
               );
             },
-            loading: () => const Center(
-              child: CircularProgressIndicator(),
-            ),
+            loading: () => const RancoLoadingState(),
             error: (
               error,
               stackTrace,
@@ -222,9 +223,7 @@ class _LodgingInformationScreenState
             ),
           );
         },
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
-        ),
+        loading: () => const RancoLoadingState(),
         error: (
           error,
           stackTrace,

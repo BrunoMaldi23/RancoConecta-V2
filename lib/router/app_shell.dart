@@ -157,7 +157,7 @@ class AppShell extends ConsumerWidget {
                               navigationShell.currentIndex == 2 ? 1 : 2,
                           onDestinationSelected: (index) {
                             if (index == 0) {
-                              context.go('/provider/dashboard');
+                              context.go('/provider/business');
                             } else if (index == 1) {
                               context.go('/provider/requests');
                             } else {
@@ -687,7 +687,7 @@ class _DesktopSidebar extends StatelessWidget {
                         selectedIcon: Icons.storefront_rounded,
                         label: 'Mi negocio',
                         selected: currentPath.startsWith('/provider'),
-                        onTap: () => context.go('/provider/dashboard'),
+                        onTap: () => context.go('/provider/business'),
                       ),
                     ],
                     if (showAdmin) ...[
@@ -744,7 +744,11 @@ class _SidebarBrand extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: const Padding(
           padding: EdgeInsets.symmetric(horizontal: 6, vertical: 10),
-          child: RancoBrandLockup(subtitle: 'Lago Ranco'),
+          child: RancoBrandLockup(
+            subtitle: 'Lago Ranco',
+            markSize: 42,
+            fontSize: 18,
+          ),
         ),
       ),
     );

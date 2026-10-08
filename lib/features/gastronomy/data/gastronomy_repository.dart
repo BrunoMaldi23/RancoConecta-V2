@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/utils/idempotency_key.dart';
 
 import '../../auth/data/supabase_auth_repository.dart';
 
@@ -73,6 +74,8 @@ class TableReservation {
     required this.id,
     required this.businessId,
     required this.userId,
+    required this.customerName,
+    required this.customerPhone,
     required this.reservationDate,
     required this.reservationTime,
     required this.guests,
@@ -85,7 +88,9 @@ class TableReservation {
     return TableReservation(
       id: json['id'] as String,
       businessId: json['business_id'] as String,
-      userId: json['user_id'] as String,
+      userId: json['user_id'] as String?,
+      customerName: json['customer_name'] as String?,
+      customerPhone: json['customer_phone'] as String?,
       reservationDate: DateTime.parse(json['reservation_date'] as String),
       reservationTime: _shortTime(json['reservation_time'] as String?),
       guests: (json['guests'] as num?)?.toInt() ?? 1,
@@ -97,7 +102,9 @@ class TableReservation {
 
   final String id;
   final String businessId;
-  final String userId;
+  final String? userId;
+  final String? customerName;
+  final String? customerPhone;
   final DateTime reservationDate;
   final String reservationTime;
   final int guests;
@@ -271,20 +278,28 @@ class GastronomyRepository {
     required DateTime date,
     required String time,
     required int guests,
+    required String customerName,
+    required String customerPhone,
+    required String consentVersion,
     String? message,
   }) async {
-    final result = await _requireClient.rpc(
-      'create_gastronomy_table_reservation',
-      params: {
-        'p_business_id': businessId,
-        'p_reservation_date': _date(date),
-        'p_reservation_time': time,
-        'p_guests': guests,
-        'p_message': message,
+    await _requireClient.functions.invoke(
+      'submit-request',
+      headers: {'Idempotency-Key': newIdempotencyKey()},
+      body: {
+        'kind': 'table_reservation',
+        'business_id': businessId,
+        'reservation_date': _date(date),
+        'reservation_time': time,
+        'guests': guests,
+        'message': message,
+        'customer_name': customerName,
+        'customer_phone': customerPhone,
+        'consent_version': consentVersion,
+        'consent_accepted': true,
       },
     );
-
-    return result.toString();
+    return 'created';
   }
 
   Future<void> confirmReservation(String reservationId) async {

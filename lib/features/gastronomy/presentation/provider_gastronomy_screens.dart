@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/widgets/ranco_states.dart';
 import '../../../core/widgets/ranco_app_bar.dart';
 import '../../../theme/ranco_colors.dart';
 import '../../provider_dashboard/application/provider_dashboard_providers.dart';
 import '../application/gastronomy_providers.dart';
 import '../data/gastronomy_repository.dart';
+import '../../provider_dashboard/presentation/provider_hub.dart';
 
 class ProviderMenuScreen extends ConsumerStatefulWidget {
   const ProviderMenuScreen({super.key});
@@ -40,6 +43,7 @@ class _ProviderMenuScreenState extends ConsumerState<ProviderMenuScreen> {
       appBar: const RancoAppBar(
         title: 'Menú',
         fallbackRoute: '/provider/dashboard',
+        bottom: ProviderHubTabBar(current: '/provider/menu'),
       ),
       body: business.when(
         data: (business) {
@@ -134,13 +138,13 @@ class _ProviderMenuScreenState extends ConsumerState<ProviderMenuScreen> {
                 ],
               );
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const RancoLoadingState(),
             error: (error, stackTrace) => _CenteredMessage(
               'No pudimos cargar el menú: $error',
             ),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const RancoLoadingState(),
         error: (error, stackTrace) =>
             const _CenteredMessage('No pudimos cargar el negocio.'),
       ),
@@ -265,6 +269,7 @@ class ProviderTableReservationsScreen extends ConsumerWidget {
       appBar: const RancoAppBar(
         title: 'Reservas de mesa',
         fallbackRoute: '/provider/dashboard',
+        bottom: ProviderHubTabBar(current: '/provider/table-reservations'),
       ),
       body: business.when(
         data: (business) {
@@ -314,13 +319,13 @@ class ProviderTableReservationsScreen extends ConsumerWidget {
                 ],
               );
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const RancoLoadingState(),
             error: (error, stackTrace) => _CenteredMessage(
               'No pudimos cargar las reservas: $error',
             ),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const RancoLoadingState(),
         error: (error, stackTrace) =>
             const _CenteredMessage('No pudimos cargar el negocio.'),
       ),
@@ -612,6 +617,16 @@ class _ReservationCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text('${reservation.guests} comensales · ${reservation.status}'),
+          if (reservation.customerName?.isNotEmpty == true)
+            Text('Cliente: ${reservation.customerName}'),
+          if (reservation.customerPhone?.isNotEmpty == true)
+            TextButton.icon(
+              onPressed: () => launchUrl(
+                Uri(scheme: 'tel', path: reservation.customerPhone),
+              ),
+              icon: const Icon(Icons.call_outlined),
+              label: Text(reservation.customerPhone!),
+            ),
           if (reservation.message?.trim().isNotEmpty == true) ...[
             const SizedBox(height: 8),
             Text(reservation.message!),

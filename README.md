@@ -91,27 +91,28 @@ flutter test
 
 ## Production Deploy
 
-Production uses the committed Flutter web bundle in `vercel_output`.
+### Production Deploy
 
-Create `.env.production.local` locally with only public Flutter values required by the app:
+Production deploys automatically from the connected GitHub repository. Push a
+commit to the production branch and Vercel installs the pinned Flutter SDK,
+runs `flutter pub get`, builds Flutter web, and publishes `build/web`:
 
-```powershell
-APP_ENVIRONMENT=production
-SUPABASE_URL=https://exdaagbftotnnoyetcpg.supabase.co
-SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+```sh
+git add .
+git commit -m "your message"
+git push
 ```
 
-Build, verify, commit, push, and deploy to Vercel production:
+Vercel project environment variables must include `APP_ENVIRONMENT=production`,
+`SUPABASE_URL`, and `SUPABASE_PUBLISHABLE_KEY` (the public Supabase anon key is
+also supported). Never configure a service role key in the frontend. Flutter
+version `3.44.0` is pinned in `scripts/vercel-build.sh` and is used by the
+automatic Vercel build.
 
-```powershell
-npm run deploy:production
-```
-
-For a local production build without Git/Vercel deploy:
-
-```powershell
-npm run build:production
-```
+`vercel_output` and `scripts/verify-vercel-output.mjs` are legacy artifacts;
+production deploys no longer use them. To reproduce the Vercel build locally,
+run `bash scripts/vercel-build.sh` with Flutter 3.44.0 and the same public
+environment variables configured.
 
 ## Structure
 

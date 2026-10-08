@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/widgets/ranco_states.dart';
+import '../../../core/widgets/ranco_segmented_control.dart';
 import '../../../core/widgets/ranco_app_bar.dart';
 import '../../../core/widgets/ranco_error_state.dart';
 import '../../../core/widgets/ranco_page_empty_state.dart';
@@ -149,9 +151,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
           );
         },
         loading: () {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
+          return const RancoLoadingState();
         },
         error: (error, stackTrace) {
           return RancoErrorState(
@@ -642,21 +642,16 @@ class _RequestToolbar extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SegmentedButton<_RequestListFilter>(
+        const SizedBox(height: 10),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: RancoSegmentedControl<_RequestListFilter>(
             segments: [
               for (final value in _RequestListFilter.values)
-                ButtonSegment(
-                  value: value,
-                  label: Text(value.label),
-                ),
+                RancoSegment(value: value, label: value.label),
             ],
-            selected: {filter},
-            onSelectionChanged: (values) {
-              onFilterChanged(values.single);
-            },
+            selected: filter,
+            onChanged: onFilterChanged,
           ),
         ),
       ],
@@ -702,7 +697,7 @@ class _ActivityRow extends StatelessWidget {
           ),
         CustomerActivityType.tourism => (
             Icons.terrain_outlined,
-            'Solicitud de turismo'
+            'Experiencia turística'
           ),
         CustomerActivityType.service => (
             Icons.home_repair_service_outlined,
@@ -1028,9 +1023,7 @@ class RequestDetailScreen extends ConsumerWidget {
           );
         },
         loading: () {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
+          return const RancoLoadingState();
         },
         error: (error, stackTrace) {
           return RancoErrorState(

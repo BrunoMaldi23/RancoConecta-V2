@@ -10,6 +10,7 @@ import '../../../theme/ranco_colors.dart';
 import '../../profile/application/profile_providers.dart';
 import '../../legal/data/consent_repository.dart';
 import '../../legal/presentation/consent_fields.dart';
+import '../../legal/application/legal_navigation.dart';
 import '../application/auth_controller.dart';
 import '../data/supabase_auth_repository.dart';
 import '../data/visitor_profile_repository.dart';
@@ -658,13 +659,13 @@ class _WelcomeContent extends StatelessWidget {
           const SizedBox(height: 14),
           Wrap(alignment: WrapAlignment.center, spacing: 4, children: [
             TextButton(
-                onPressed: () => context.push('/terminos'),
+                onPressed: () => openLegalPage(context, '/terminos'),
                 child: const Text('Términos')),
             TextButton(
-                onPressed: () => context.push('/politica-privacidad'),
+                onPressed: () => openLegalPage(context, '/politica-privacidad'),
                 child: const Text('Privacidad')),
             TextButton(
-                onPressed: () => context.push('/contacto'),
+                onPressed: () => openLegalPage(context, '/contacto'),
                 child: const Text('Contacto')),
           ]),
         ],

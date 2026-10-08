@@ -35,5 +35,24 @@ abstract final class RancoBreakpoints {
 
 abstract final class RancoDurations {
   static const fast = Duration(milliseconds: 150);
+
+  /// Microinteracciones (tabs, chips, favorito, loading → contenido).
+  static const quick = Duration(milliseconds: 180);
   static const normal = Duration(milliseconds: 250);
+}
+
+/// Anchos de contenido por tipo de vista (FASE 3.20). Evitan formularios
+/// diminutos en monitores grandes y líneas de lectura demasiado largas.
+abstract final class RancoWidths {
+  /// Formularios de acceso (crear cuenta, ingresar).
+  static const auth = 500.0;
+
+  /// Flujos de una columna (publicar negocio, formularios largos).
+  static const flow = 760.0;
+
+  /// Columna de lectura legal.
+  static const reading = 720.0;
+
+  /// Índice lateral de documentos.
+  static const sideIndex = 212.0;
 }

@@ -10,13 +10,16 @@ import '../../../features/categories/application/category_providers.dart';
 import '../../../features/provider_dashboard/data/business_media_repository.dart';
 import '../../../shared/models/business.dart';
 import '../../../shared/models/profile.dart';
+import '../../../core/widgets/ranco_segmented_control.dart';
+import '../../../theme/ranco_tokens.dart';
 import '../../../theme/ranco_colors.dart';
 import '../application/admin_review_policy.dart';
 import '../application/admin_providers.dart';
 import '../data/admin_business_review_repository.dart';
-import '../data/admin_settings_repository.dart';
 import 'admin_error_state.dart';
 import 'admin_ui.dart';
+import 'admin_audit_view.dart';
+import '../../../core/widgets/ranco_states.dart';
 
 class AdminWorkspaceShell extends StatelessWidget {
   const AdminWorkspaceShell({
@@ -112,8 +115,10 @@ class AdminGate extends ConsumerWidget {
 
         return child;
       },
+      // Esqueleto en vez de spinner: misma superficie que el panel.
       loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        backgroundColor: RancoColors.canvas,
+        body: RancoLoadingState(rows: 4, rowHeight: 72, maxWidth: 1100),
       ),
       error: (_, __) => Scaffold(
         body: AdminErrorState(
@@ -130,8 +135,8 @@ class AdminDashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final stats = ref.watch(adminReviewStatsProvider);
-    final users = ref.watch(
-        adminUsersProvider((page: 1, pageSize: 10, search: null, role: null)));
+    final users = ref.watch(adminUsersProvider(
+        (page: 1, pageSize: 10, search: null, role: null, status: null)));
     final categories = ref.watch(categoriesProvider);
     final whatsapp = ref.watch(adminWhatsAppSettingsProvider);
     final activity = ref.watch(adminAnalyticsSummaryProvider);
@@ -167,25 +172,33 @@ class AdminDashboardScreen extends ConsumerWidget {
             return ListView(
               padding: const EdgeInsets.only(bottom: 28),
               children: [
+                // Móvil: lo que requiere atención va primero.
                 if (mobile) ...[
                   _PendingReviewsPanel(
                     page: pendingPage,
                     onRetry: () =>
                         ref.invalidate(adminBusinessReviewPageProvider),
                   ),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 18),
                 ],
-                // El header ya dice "Panel administrativo": KPI directo.
+                // Aviso solo si los avisos WhatsApp no están operativos:
+                // requiere una decisión; si están bien, no ocupa espacio.
+                if (whatsappSettings != null &&
+                    (!whatsappConfigured || !whatsappSettings.enabled)) ...[
+                  _DashboardAlert(
+                    message: whatsappConfigured
+                        ? 'Los avisos por WhatsApp están desactivados.'
+                        : 'Falta configurar el número para avisos por '
+                            'WhatsApp.',
+                    actionLabel: 'Configurar',
+                    onAction: () => context.push('/admin/settings'),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 LayoutBuilder(
                   builder: (context, constraints) {
-                    // KPI compactos: 5 en fila en desktop, 3 en tablet, 2 en
-                    // móvil.
-                    final columns = constraints.maxWidth >= 1000
-                        ? 5
-                        : constraints.maxWidth >= 640
-                            ? 3
-                            : 2;
-
+                    // Fila KPI: 4 en desktop, 2 en tablet/móvil.
+                    final columns = constraints.maxWidth >= 860 ? 4 : 2;
                     final tileWidth =
                         (constraints.maxWidth - (columns - 1) * 12) / columns;
                     const tileHeight = 72.0;
@@ -239,7 +252,9 @@ class AdminDashboardScreen extends ConsumerWidget {
                             height: tileHeight,
                             child: _StatCard(
                               label: 'Usuarios',
-                              unavailableHint: kpiHint,
+                              unavailableHint: users.isLoading
+                                  ? 'Cargando…'
+                                  : 'No disponible temporalmente',
                               count: totalUsers,
                               detail: 'Cuentas registradas',
                               icon: Icons.people_outline,
@@ -250,7 +265,7 @@ class AdminDashboardScreen extends ConsumerWidget {
                     );
                   },
                 ),
-                const SizedBox(height: 22),
+                const SizedBox(height: 20),
                 LayoutBuilder(
                   builder: (context, constraints) {
                     final pendingPanel = _PendingReviewsPanel(
@@ -280,46 +295,8 @@ class AdminDashboardScreen extends ConsumerWidget {
                         ]);
                   },
                 ),
-                const SizedBox(height: 22),
-                const _DashboardSectionHeading(
-                  title: 'Módulos',
-                  subtitle: 'Accesos a las tareas de administración',
-                ),
-                const SizedBox(height: 12),
-                const _AdminModuleGrid(),
-                const SizedBox(height: 22),
-                LayoutBuilder(builder: (context, constraints) {
-                  final whatsappPanel = _AdminWhatsAppPanel(
-                    settings: whatsapp,
-                    onRetry: () =>
-                        ref.invalidate(adminWhatsAppSettingsProvider),
-                  );
-                  final statusPanel = _PlatformStatusPanel(
-                    pending: pending,
-                    activeBusinesses: published,
-                    users: totalUsers,
-                    categories: categoryCount,
-                    whatsappConfigured:
-                        whatsapp.hasValue ? whatsappConfigured : null,
-                  );
-                  if (constraints.maxWidth < 900) {
-                    return Column(children: [
-                      whatsappPanel,
-                      const SizedBox(height: 12),
-                      statusPanel,
-                    ]);
-                  }
-                  // Misma altura para ambos bloques.
-                  return IntrinsicHeight(
-                    child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(child: whatsappPanel),
-                          const SizedBox(width: 12),
-                          Expanded(child: statusPanel),
-                        ]),
-                  );
-                }),
+                const SizedBox(height: 24),
+                _QuickAccessRow(categoryCount: categoryCount),
               ],
             );
           },
@@ -329,26 +306,96 @@ class AdminDashboardScreen extends ConsumerWidget {
   }
 }
 
-class _DashboardSectionHeading extends StatelessWidget {
-  const _DashboardSectionHeading({required this.title, required this.subtitle});
+/// Aviso operativo compacto (ámbar suave) con una sola acción.
+class _DashboardAlert extends StatelessWidget {
+  const _DashboardAlert({
+    required this.message,
+    required this.actionLabel,
+    required this.onAction,
+  });
 
-  final String title;
-  final String subtitle;
+  final String message;
+  final String actionLabel;
+  final VoidCallback onAction;
 
   @override
-  Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: RancoColors.textPrimary,
-                    fontWeight: FontWeight.w800,
-                  )),
-          const SizedBox(height: 2),
-          Text(subtitle,
-              style: const TextStyle(color: RancoColors.textSecondary)),
-        ],
-      );
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF6E5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFF1DDB5)),
+      ),
+      child: Row(children: [
+        const Icon(Icons.info_outline_rounded,
+            size: 19, color: Color(0xFF7A4F0E)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(message,
+              style: const TextStyle(
+                  color: Color(0xFF5E3F0B),
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600)),
+        ),
+        TextButton(onPressed: onAction, child: Text(actionLabel)),
+      ]),
+    );
+  }
+}
+
+/// Accesos rápidos: enlaces compactos a los módulos (el sidebar ya los
+/// lista; aquí solo se ofrece un atajo liviano, sin tarjetas grandes).
+class _QuickAccessRow extends StatelessWidget {
+  const _QuickAccessRow({required this.categoryCount});
+
+  final int? categoryCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = <(IconData, String, String)>[
+      (Icons.storefront_outlined, 'Negocios', '/admin/businesses'),
+      (Icons.people_outline, 'Usuarios', '/admin/users'),
+      (
+        Icons.category_outlined,
+        categoryCount == null ? 'Categorías' : 'Categorías · $categoryCount',
+        '/admin/categories'
+      ),
+      (Icons.insights_outlined, 'Estadísticas', '/admin/analytics'),
+      (Icons.history_rounded, 'Auditoría', '/admin/audit'),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Accesos rápidos',
+          style: TextStyle(
+            color: RancoColors.textSecondary,
+            fontSize: 12.5,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final (icon, label, route) in items)
+              OutlinedButton.icon(
+                onPressed: () => context.go(route),
+                icon: Icon(icon, size: 18),
+                label: Text(label),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: RancoColors.textPrimary,
+                  backgroundColor: Colors.white,
+                  minimumSize: const Size(0, 40),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
 }
 
 class _DashboardPanel extends StatelessWidget {
@@ -627,288 +674,6 @@ class _DashboardEmpty extends StatelessWidget {
       );
 }
 
-class _AdminModuleGrid extends StatelessWidget {
-  const _AdminModuleGrid();
-
-  static const modules = <({
-    IconData icon,
-    String title,
-    String description,
-    String action,
-    String path
-  })>[
-    (
-      icon: Icons.storefront_outlined,
-      title: 'Negocios',
-      description: 'Revisa publicaciones y estados.',
-      action: 'Gestionar negocios',
-      path: '/admin/businesses'
-    ),
-    (
-      icon: Icons.people_outline,
-      title: 'Usuarios',
-      description: 'Consulta las cuentas registradas.',
-      action: 'Ver usuarios',
-      path: '/admin/users'
-    ),
-    (
-      icon: Icons.category_outlined,
-      title: 'Categorías',
-      description: 'Consulta el catálogo activo.',
-      action: 'Ver categorías',
-      path: '/admin/categories'
-    ),
-    (
-      icon: Icons.settings_outlined,
-      title: 'Configuración',
-      description: 'Administra avisos de WhatsApp.',
-      action: 'Abrir configuración',
-      path: '/admin/settings'
-    ),
-    (
-      icon: Icons.bar_chart_outlined,
-      title: 'Estadísticas',
-      description: 'Explora la actividad registrada.',
-      action: 'Ver estadísticas',
-      path: '/admin/analytics'
-    ),
-    (
-      icon: Icons.fact_check_outlined,
-      title: 'Auditoría',
-      description: 'Consulta el estado del módulo.',
-      action: 'Ver auditoría',
-      path: '/admin/audit'
-    ),
-  ];
-
-  @override
-  Widget build(BuildContext context) =>
-      LayoutBuilder(builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 860
-            ? 3
-            : constraints.maxWidth >= 520
-                ? 2
-                : 1;
-        final width = (constraints.maxWidth - (columns - 1) * 12) / columns;
-        return Wrap(spacing: 12, runSpacing: 12, children: [
-          for (final module in modules)
-            SizedBox(
-              width: width,
-              child: _AdminModuleCard(
-                icon: module.icon,
-                title: module.title,
-                description: module.description,
-                action: module.action,
-                onTap: () => context.push(module.path),
-              ),
-            ),
-        ]);
-      });
-}
-
-class _AdminModuleCard extends StatefulWidget {
-  const _AdminModuleCard({
-    required this.icon,
-    required this.title,
-    required this.description,
-    required this.action,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String description;
-  final String action;
-  final VoidCallback onTap;
-
-  @override
-  State<_AdminModuleCard> createState() => _AdminModuleCardState();
-}
-
-class _AdminModuleCardState extends State<_AdminModuleCard> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) => MouseRegion(
-        onEnter: (_) => setState(() => _hovered = true),
-        onExit: (_) => setState(() => _hovered = false),
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-          child: InkWell(
-            onTap: widget.onTap,
-            borderRadius: BorderRadius.circular(14),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: _hovered ? const Color(0xFFF4FAF6) : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                    color: _hovered
-                        ? RancoColors.forest.withValues(alpha: .45)
-                        : const Color(0xFFDCE8E0)),
-                boxShadow: _hovered
-                    ? const [
-                        BoxShadow(
-                            color: Color(0x1A173E2E),
-                            blurRadius: 16,
-                            offset: Offset(0, 5))
-                      ]
-                    : const [
-                        BoxShadow(
-                            color: Color(0x09173E2E),
-                            blurRadius: 8,
-                            offset: Offset(0, 2))
-                      ],
-              ),
-              // Tarjeta baja: una sola affordance (toda la fila + chevron).
-              child: Semantics(
-                button: true,
-                label: widget.action,
-                child: Row(children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE9F3EE),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child:
-                        Icon(widget.icon, color: RancoColors.forest, size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(widget.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                color: RancoColors.textPrimary,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 15)),
-                        const SizedBox(height: 2),
-                        Text(widget.description,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                color: RancoColors.textSecondary,
-                                fontSize: 12.5)),
-                      ],
-                    ),
-                  ),
-                  Icon(Icons.chevron_right_rounded,
-                      size: 20,
-                      color: _hovered
-                          ? RancoColors.forest
-                          : RancoColors.textSecondary),
-                ]),
-              ),
-            ),
-          ),
-        ),
-      );
-}
-
-class _AdminWhatsAppPanel extends StatelessWidget {
-  const _AdminWhatsAppPanel({required this.settings, required this.onRetry});
-
-  final AsyncValue<AdminWhatsAppSettings> settings;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) => _DashboardPanel(
-        title: 'WhatsApp de revisión',
-        subtitle: 'Canal de avisos administrativos',
-        action: TextButton(
-          onPressed: () => context.push('/admin/settings'),
-          child: const Text('Abrir configuración'),
-        ),
-        child: settings.when(
-          loading: () => const LinearProgressIndicator(),
-          error: (_, __) => AdminErrorState(
-              onRetry: onRetry,
-              compact: true,
-              title: 'No pudimos cargar la configuración.'),
-          data: (value) {
-            final configured = value.number.isNotEmpty;
-            final events = <String>[
-              if (value.newBusiness) 'Nuevo negocio pendiente',
-              if (value.businessChanges) 'Solicitud de cambios',
-              if (value.userReports) 'Reportes de usuarios',
-            ];
-            return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                      'Número: ${configured ? value.number : 'No configurado'}'),
-                  const SizedBox(height: 5),
-                  Text(
-                      'Estado: ${!configured ? 'Pendiente' : value.enabled ? 'Activo' : 'Inactivo'}'),
-                  const SizedBox(height: 7),
-                  Text(
-                      'Eventos seleccionados: ${events.isEmpty ? 'Ninguno' : events.join(', ')}',
-                      style: const TextStyle(color: RancoColors.textSecondary)),
-                ]);
-          },
-        ),
-      );
-}
-
-class _PlatformStatusPanel extends StatelessWidget {
-  const _PlatformStatusPanel({
-    required this.pending,
-    required this.activeBusinesses,
-    required this.users,
-    required this.categories,
-    required this.whatsappConfigured,
-  });
-
-  final int? pending;
-  final int? activeBusinesses;
-  final int? users;
-  final int? categories;
-  final bool? whatsappConfigured;
-
-  @override
-  Widget build(BuildContext context) => _DashboardPanel(
-        title: 'Estado de la plataforma',
-        subtitle: 'Información operativa actual',
-        child: Column(children: [
-          // Negocios y usuarios ya están en los KPI: aquí solo lo operativo.
-          _statusRow('Categorías activas', categories?.toString() ?? '—'),
-          _statusRow(
-              'WhatsApp configurado',
-              whatsappConfigured == null
-                  ? '—'
-                  : whatsappConfigured!
-                      ? 'Sí'
-                      : 'No'),
-          const Divider(height: 18),
-          _statusRow(
-              'Administración',
-              pending == null
-                  ? '—'
-                  : pending == 0
-                      ? 'Sin revisiones pendientes'
-                      : '$pending por revisar'),
-        ]),
-      );
-
-  Widget _statusRow(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 5),
-        child: Row(children: [
-          Expanded(
-              child: Text(label,
-                  style: const TextStyle(color: RancoColors.textSecondary))),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
-        ]),
-      );
-}
-
 class AdminBusinessesScreen extends ConsumerStatefulWidget {
   const AdminBusinessesScreen({
     this.initialStatus,
@@ -966,103 +731,112 @@ class _AdminBusinessesScreenState extends ConsumerState<AdminBusinessesScreen> {
     return AdminGate(
       child: AdminScaffold(
         title: 'Negocios',
-        child: ListView(
-          padding: const EdgeInsets.only(bottom: 24),
-          children: [
-            AdminSegmentFilter<BusinessPublicationStatus?>(
-              options: [
-                for (final status in const <BusinessPublicationStatus?>[
-                  null,
-                  BusinessPublicationStatus.pendingReview,
-                  BusinessPublicationStatus.published,
-                  BusinessPublicationStatus.rejected,
-                  BusinessPublicationStatus.suspended,
-                  BusinessPublicationStatus.changesRequested,
-                ])
-                  (status, status?.label ?? 'Todos', null),
-              ],
-              selected: _status,
-              onSelected: (status) => setState(() {
-                _status = status;
-                _offset = 0;
-              }),
-            ),
-            const SizedBox(height: 12),
-            LayoutBuilder(builder: (context, constraints) {
-              final search = AdminSearchField(
-                controller: _searchController,
-                hint: 'Buscar negocio, dueño o contacto',
-                onSubmitted: (_) => setState(() => _offset = 0),
-              );
-              final type = DropdownButtonFormField<BusinessType?>(
-                isExpanded: true,
-                initialValue: _businessType,
-                decoration: InputDecoration(
-                  labelText: 'Tipo',
-                  isDense: true,
-                  filled: true,
-                  fillColor: Colors.white,
-                  prefixIcon: const Icon(Icons.storefront_outlined, size: 20),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFD6E3DD)),
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AdminSegmentFilter<BusinessPublicationStatus?>(
+                    options: [
+                      for (final status in const <BusinessPublicationStatus?>[
+                        null,
+                        BusinessPublicationStatus.pendingReview,
+                        BusinessPublicationStatus.published,
+                        BusinessPublicationStatus.rejected,
+                        BusinessPublicationStatus.suspended,
+                        BusinessPublicationStatus.changesRequested,
+                      ])
+                        (status, status?.label ?? 'Todos', null),
+                    ],
+                    selected: _status,
+                    onSelected: (status) => setState(() {
+                      _status = status;
+                      _offset = 0;
+                    }),
                   ),
-                ),
-                items: [
-                  const DropdownMenuItem<BusinessType?>(
-                    value: null,
-                    child: Text('Todos los tipos'),
-                  ),
-                  ...BusinessType.values.map(
-                    (type) => DropdownMenuItem<BusinessType?>(
-                      value: type,
-                      child: Text(type.label),
-                    ),
-                  ),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    _businessType = value;
-                    _offset = 0;
-                  });
-                },
-              );
-              final apply = FilledButton.icon(
-                onPressed: () => setState(() => _offset = 0),
-                icon: const Icon(Icons.search_rounded, size: 18),
-                label: const Text('Buscar'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: RancoColors.forest,
-                  minimumSize: const Size(0, 46),
-                ),
-              );
-              if (constraints.maxWidth < 640) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    search,
-                    const SizedBox(height: 10),
-                    Row(children: [
-                      Expanded(child: type),
+                  const SizedBox(height: 12),
+                  LayoutBuilder(builder: (context, constraints) {
+                    final search = AdminSearchField(
+                      controller: _searchController,
+                      hint: 'Buscar negocio, dueño o contacto',
+                      onSubmitted: (_) => setState(() => _offset = 0),
+                    );
+                    final type = DropdownButtonFormField<BusinessType?>(
+                      isExpanded: true,
+                      initialValue: _businessType,
+                      decoration: InputDecoration(
+                        labelText: 'Tipo',
+                        isDense: true,
+                        filled: true,
+                        fillColor: Colors.white,
+                        prefixIcon:
+                            const Icon(Icons.storefront_outlined, size: 20),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: Color(0xFFD6E3DD)),
+                        ),
+                      ),
+                      items: [
+                        const DropdownMenuItem<BusinessType?>(
+                          value: null,
+                          child: Text('Todos los tipos'),
+                        ),
+                        ...BusinessType.values.map(
+                          (type) => DropdownMenuItem<BusinessType?>(
+                            value: type,
+                            child: Text(type.label),
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _businessType = value;
+                          _offset = 0;
+                        });
+                      },
+                    );
+                    final apply = FilledButton.icon(
+                      onPressed: () => setState(() => _offset = 0),
+                      icon: const Icon(Icons.search_rounded, size: 18),
+                      label: const Text('Buscar'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: RancoColors.forest,
+                        minimumSize: const Size(0, 46),
+                      ),
+                    );
+                    if (constraints.maxWidth < 640) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          search,
+                          const SizedBox(height: 10),
+                          Row(children: [
+                            Expanded(child: type),
+                            const SizedBox(width: 10),
+                            apply,
+                          ]),
+                        ],
+                      );
+                    }
+                    return Row(children: [
+                      Expanded(flex: 3, child: search),
+                      const SizedBox(width: 10),
+                      SizedBox(width: 230, child: type),
                       const SizedBox(width: 10),
                       apply,
-                    ]),
-                  ],
-                );
-              }
-              return Row(children: [
-                Expanded(flex: 3, child: search),
-                const SizedBox(width: 10),
-                SizedBox(width: 230, child: type),
-                const SizedBox(width: 10),
-                apply,
-              ]);
-            }),
-            const SizedBox(height: 16),
+                    ]);
+                  }),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
             page.when(
               data: (page) {
                 if (page.items.isEmpty) {
-                  return _AdminEmptyState(
+                  return SliverToBoxAdapter(
+                      child: _AdminEmptyState(
                     icon: Icons.search_off_rounded,
                     title: 'Sin negocios para este filtro',
                     message:
@@ -1076,13 +850,13 @@ class _AdminBusinessesScreenState extends ConsumerState<AdminBusinessesScreen> {
                         _offset = 0;
                       });
                     },
-                  );
+                  ));
                 }
 
-                return LayoutBuilder(builder: (context, constraints) {
+                return SliverLayoutBuilder(builder: (context, constraints) {
                   // Tabla administrativa cuando hay ancho real para sus
                   // columnas; tarjetas en pantallas angostas.
-                  final table = constraints.maxWidth >= 860;
+                  final table = constraints.crossAxisExtent >= 860;
                   final rows = [
                     for (var index = 0; index < page.items.length; index++) ...[
                       if (index > 0)
@@ -1098,65 +872,79 @@ class _AdminBusinessesScreenState extends ConsumerState<AdminBusinessesScreen> {
                       ),
                     ],
                   ];
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (table)
-                        Container(
-                          clipBehavior: Clip.antiAlias,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: const Color(0xFFD6E3DD)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              const _BusinessReviewTableHeader(),
-                              ...rows,
-                            ],
-                          ),
-                        )
-                      else
-                        ...rows,
-                      AdminPaginator(
-                        offset: _offset,
-                        visibleCount: page.items.length,
-                        total: page.totalCount,
-                        pageSize: _limit,
-                        onFirst: _offset == 0
-                            ? null
-                            : () => setState(() => _offset = 0),
-                        onLast: _offset + page.items.length >= page.totalCount
-                            ? null
-                            : () => setState(() => _offset =
-                                ((page.totalCount - 1) ~/ _limit) * _limit),
-                        onPageSizeChanged: (size) => setState(() {
-                          _limit = size;
-                          _offset = 0;
-                        }),
-                        onPrevious: _offset == 0
-                            ? null
-                            : () => setState(() {
-                                  _offset = _offset - _limit < 0
-                                      ? 0
-                                      : _offset - _limit;
-                                }),
-                        onNext: _offset + page.items.length >= page.totalCount
-                            ? null
-                            : () => setState(() {
-                                  _offset += _limit;
-                                }),
-                      ),
-                    ],
+                  final paginator = AdminPaginator(
+                    offset: _offset,
+                    visibleCount: page.items.length,
+                    total: page.totalCount,
+                    pageSize: _limit,
+                    onFirst:
+                        _offset == 0 ? null : () => setState(() => _offset = 0),
+                    onLast: _offset + page.items.length >= page.totalCount
+                        ? null
+                        : () => setState(() => _offset =
+                            ((page.totalCount - 1) ~/ _limit) * _limit),
+                    onPageSizeChanged: (size) => setState(() {
+                      _limit = size;
+                      _offset = 0;
+                    }),
+                    onPrevious: _offset == 0
+                        ? null
+                        : () => setState(() {
+                              _offset =
+                                  _offset - _limit < 0 ? 0 : _offset - _limit;
+                            }),
+                    onNext: _offset + page.items.length >= page.totalCount
+                        ? null
+                        : () => setState(() {
+                              _offset += _limit;
+                            }),
                   );
+                  if (!table) {
+                    return SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [...rows, paginator],
+                      ),
+                    );
+                  }
+                  // Cabecera fija mientras la tabla está visible.
+                  return SliverMainAxisGroup(slivers: [
+                    SliverPersistentHeader(
+                      pinned: true,
+                      delegate: _TableHeaderDelegate(),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Container(
+                        clipBehavior: Clip.antiAlias,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.vertical(
+                            bottom: Radius.circular(14),
+                          ),
+                          border: Border(
+                            left: BorderSide(color: Color(0xFFD6E3DD)),
+                            right: BorderSide(color: Color(0xFFD6E3DD)),
+                            bottom: BorderSide(color: Color(0xFFD6E3DD)),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: rows,
+                        ),
+                      ),
+                    ),
+                    SliverToBoxAdapter(child: paginator),
+                    const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                  ]);
                 });
               },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, __) => AdminErrorState(
-                error: error,
-                onRetry: () =>
-                    ref.invalidate(adminBusinessReviewPageProvider(query)),
+              loading: () => const SliverToBoxAdapter(child: _TableSkeleton()),
+              error: (error, __) => SliverToBoxAdapter(
+                child: AdminErrorState(
+                  error: error,
+                  onRetry: () =>
+                      ref.invalidate(adminBusinessReviewPageProvider(query)),
+                ),
               ),
             ),
           ],
@@ -1183,7 +971,7 @@ class AdminBusinessDetailScreen extends ConsumerWidget {
         title: 'Revisión de negocio',
         child: detail.when(
           data: (detail) => _BusinessDetailContent(detail: detail),
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const _TableSkeleton(),
           error: (_, __) => AdminErrorState(
             onRetry: () =>
                 ref.invalidate(adminBusinessReviewDetailProvider(businessId)),
@@ -1199,102 +987,15 @@ class AdminAuditScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AdminGate(
+    // FASE 3.22A: resumen, filtros, tabla/línea de tiempo y paginación en
+    // `AdminAuditView` (filas reales de `audit_logs`).
+    return const AdminGate(
       child: AdminScaffold(
         title: 'Auditoría',
-        // Sin registros inventados: estado del módulo + eventos previstos +
-        // historial vacío, en un bloque compacto.
-        child: ListView(
-          children: [
-            Align(
-              alignment: Alignment.topLeft,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 860),
-                child: _DashboardPanel(
-                  title: 'Estado del módulo',
-                  subtitle: 'Registro preparado; sin eventos todavía',
-                  action: const _AuditStatusTag(),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Eventos contemplados',
-                          style: TextStyle(
-                              color: RancoColors.textPrimary,
-                              fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 8),
-                      const Wrap(spacing: 8, runSpacing: 8, children: [
-                        _AuditEventChip('Aprobaciones'),
-                        _AuditEventChip('Rechazos'),
-                        _AuditEventChip('Cambios de configuración'),
-                        _AuditEventChip('Gestión de usuarios'),
-                      ]),
-                      const Divider(height: 28),
-                      const Text('Historial',
-                          style: TextStyle(
-                              color: RancoColors.textPrimary,
-                              fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 4),
-                      Row(children: [
-                        const Icon(Icons.inbox_outlined,
-                            color: RancoColors.textSecondary, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Aún no existen eventos disponibles. El historial '
-                            'se mostrará cuando exista una consulta '
-                            'administrativa segura.',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(color: RancoColors.textSecondary),
-                          ),
-                        ),
-                      ]),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+        child: AdminAuditView(),
       ),
     );
   }
-}
-
-class _AuditStatusTag extends StatelessWidget {
-  const _AuditStatusTag();
-
-  @override
-  Widget build(BuildContext context) => const _StatusPill(
-        status: 'Preparada',
-        color: RancoColors.forest,
-      );
-}
-
-class _AuditEventChip extends StatelessWidget {
-  const _AuditEventChip(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF2F8F5),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFDCE8E0)),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.check_rounded, size: 16, color: RancoColors.forest),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(label,
-                style: const TextStyle(
-                    color: RancoColors.textPrimary, fontSize: 13)),
-          ),
-        ]),
-      );
 }
 
 class _BusinessDetailContent extends ConsumerStatefulWidget {
@@ -1350,230 +1051,299 @@ class _BusinessDetailContentState
       AdminReviewAction.restore,
     );
 
-    return ListView(
-      children: [
-        if (_message != null)
-          _AdminNotice(
+    final header = _ReviewHeader(
+      title: detail.name,
+      type: detail.businessType.label,
+      typeIcon: _typeIcon(detail.businessType),
+      status: detail.publicationStatus.label,
+      owner: detail.owner['full_name']?.toString().trim().isNotEmpty == true
+          ? detail.owner['full_name'].toString()
+          : detail.owner['email']?.toString() ?? 'Sin propietario',
+      category: detail.category['name']?.toString() ?? 'Sin categoría',
+    );
+    final actions = _ReviewActionsPanel(
+      loading: _loading,
+      status: detail.publicationStatus.label,
+      canPublish: canPublish,
+      canRequestChanges: canRequestChanges,
+      canReject: canReject,
+      canSuspend: canSuspend,
+      canRestore: canRestore,
+      onPublish: () => _publish(context),
+      onRequestChanges: () => _requestChanges(context),
+      onReject: () => _reject(context),
+      onSuspend: () => _suspend(context),
+      onRestore: () => _restore(context),
+    );
+    final sections = _reviewSections(detail, business);
+    final notice = _message == null
+        ? null
+        : _AdminNotice(
             icon: Icons.info_outline_rounded,
             title: 'Resultado',
             message: _message!,
-          ),
-        const SizedBox(height: 12),
-        _ReviewHeader(
-          title: detail.name,
-          type: detail.businessType.label,
-          status: detail.publicationStatus.label,
-          owner: detail.owner['full_name']?.toString().trim().isNotEmpty == true
-              ? detail.owner['full_name'].toString()
-              : detail.owner['email']?.toString() ?? 'Sin propietario',
-          category: detail.category['name']?.toString() ?? 'Sin categoría',
-        ),
-        const SizedBox(height: 16),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final wide = constraints.maxWidth >= 940;
-            final main = Column(
+          );
+
+    return LayoutBuilder(builder: (context, constraints) {
+      final wide = constraints.maxWidth >= 940;
+      if (!wide) {
+        // Móvil/tablet: decisión primero y secciones en acordeones (solo
+        // Resumen abierto).
+        return ListView(
+          padding: const EdgeInsets.only(bottom: 32),
+          children: [
+            if (notice != null) ...[notice, const SizedBox(height: 12)],
+            header,
+            const SizedBox(height: 12),
+            actions,
+            const SizedBox(height: 16),
+            for (var i = 0; i < sections.length; i++)
+              _Section(
+                title: sections[i].$1,
+                initiallyExpanded: i == 0,
+                children: sections[i].$2,
+              ),
+          ],
+        );
+      }
+      // Desktop: navegación por secciones (una visible a la vez) y riel de
+      // decisión fijo a la derecha. Sin scroll anidado: cada columna tiene
+      // su propio scroll y el riel es corto.
+      final selected = _section.clamp(0, sections.length - 1);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (notice != null) ...[notice, const SizedBox(height: 12)],
+          header,
+          const SizedBox(height: 16),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    _InfoCard(
-                      title: 'Información general',
-                      rows: [
-                        _InfoRow('Nombre', business['name']?.toString() ?? ''),
-                        _InfoRow('Tipo', detail.businessType.label),
-                        _InfoRow('Estado', detail.publicationStatus.label),
-                        _InfoRow(
-                          'Verificación',
-                          business['verification_status']?.toString() ?? '',
-                        ),
-                        _InfoRow(
-                          'Categoría',
-                          detail.category['name']?.toString() ??
-                              'Sin categoría',
-                        ),
-                        _InfoRow(
-                          'Descripción',
-                          business['description']?.toString() ?? '',
-                        ),
-                      ],
-                    ),
-                    _InfoCard(
-                      title: 'Propietario y contacto',
-                      rows: [
-                        _InfoRow(
-                          'Propietario',
-                          detail.owner['full_name']?.toString() ?? '',
-                        ),
-                        _InfoRow(
-                          'Email usuario',
-                          detail.owner['email']?.toString() ?? '',
-                        ),
-                        _InfoRow(
-                          'Teléfono',
-                          business['phone']?.toString() ?? '',
-                        ),
-                        _InfoRow(
-                          'WhatsApp',
-                          business['whatsapp']?.toString() ?? '',
-                        ),
-                        _InfoRow(
-                          'Email negocio',
-                          business['email']?.toString() ?? '',
-                        ),
-                        _InfoRow(
-                          'Dirección',
-                          business['address_text']?.toString() ?? '',
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _Section(
-                  title: 'Requisitos',
-                  children: detail.requirements.map((item) {
-                    final ok = item['satisfied'] == true;
-                    return ListTile(
-                      leading: Icon(
-                        ok ? Icons.check_circle_outline : Icons.error_outline,
-                        color:
-                            ok ? RancoColors.forest : const Color(0xFFB4543F),
-                      ),
-                      title: Text(item['message']?.toString() ?? ''),
-                    );
-                  }).toList(),
-                ),
-                _Section(
-                  title: 'Servicios',
-                  children: detail.services.isEmpty
-                      ? [
-                          const ListTile(
-                            title: Text('Sin servicios registrados.'),
-                          ),
-                        ]
-                      : detail.services
-                          .map(
-                            (item) => ListTile(
-                              leading: const Icon(
-                                Icons.home_repair_service_outlined,
-                              ),
-                              title: Text(
-                                item['subcategory_name']?.toString() ?? '',
-                              ),
-                              subtitle: Text(
-                                item['description']?.toString().isNotEmpty ==
-                                        true
-                                    ? item['description'].toString()
-                                    : 'Sin descripción específica.',
-                              ),
-                            ),
-                          )
-                          .toList(),
-                ),
-                _Section(
-                  title: 'Cobertura',
-                  children: detail.coverage.isEmpty
-                      ? [
-                          const ListTile(
-                            title: Text('Sin cobertura registrada.'),
-                          ),
-                        ]
-                      : detail.coverage
-                          .map(
-                            (item) => ListTile(
-                              leading: const Icon(Icons.location_on_outlined),
-                              title: Text(
-                                item['location_name']?.toString() ?? '',
-                              ),
-                              subtitle: Text(
-                                item['commune_name']?.toString() ?? '',
-                              ),
-                            ),
-                          )
-                          .toList(),
-                ),
-                if (detail.businessType == BusinessType.lodging)
-                  _Section(
-                    title: 'Alojamiento',
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      ListTile(
-                        leading: const Icon(Icons.bed_outlined),
-                        title: const Text('Detalle alojamiento'),
-                        subtitle: Text(detail.lodgingDetails.isEmpty
-                            ? 'Sin detalles.'
-                            : detail.lodgingDetails.entries
-                                .map((entry) => '${entry.key}: ${entry.value}')
-                                .join('\n')),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: RancoSegmentedControl<int>(
+                          segments: [
+                            for (var i = 0; i < sections.length; i++)
+                              RancoSegment(
+                                value: i,
+                                label: sections[i].$1,
+                                count: sections[i].$3,
+                              ),
+                          ],
+                          selected: selected,
+                          onChanged: (value) =>
+                              setState(() => _section = value),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: AnimatedSwitcher(
+                          duration: RancoDurations.quick,
+                          child: ListView(
+                            key: ValueKey(selected),
+                            padding: const EdgeInsets.only(bottom: 32),
+                            children: [
+                              _Section(
+                                title: sections[selected].$1,
+                                collapsible: false,
+                                children: sections[selected].$2,
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                _Section(
-                  title: 'Historial',
-                  children: detail.events.isEmpty
-                      ? [const ListTile(title: Text('Sin eventos.'))]
-                      : detail.events
-                          .map(
-                            (event) => ListTile(
-                              leading: const Icon(Icons.history_rounded),
-                              title: Text(
-                                _eventLabel(
-                                  event['event_type']?.toString() ?? '',
-                                ),
-                              ),
-                              subtitle: Text(
-                                event['message']?.toString().isNotEmpty == true
-                                    ? event['message'].toString()
-                                    : 'Sin comentario.',
-                              ),
-                              trailing: Text(
-                                _shortDate(event['created_at']?.toString()),
-                                textAlign: TextAlign.end,
-                              ),
-                            ),
-                          )
-                          .toList(),
+                ),
+                const SizedBox(width: 20),
+                SizedBox(
+                  width: 300,
+                  child: SingleChildScrollView(child: actions),
                 ),
               ],
-            );
-            final actions = _ReviewActionsPanel(
-              loading: _loading,
-              status: detail.publicationStatus.label,
-              canPublish: canPublish,
-              canRequestChanges: canRequestChanges,
-              canReject: canReject,
-              canSuspend: canSuspend,
-              canRestore: canRestore,
-              onPublish: () => _publish(context),
-              onRequestChanges: () => _requestChanges(context),
-              onReject: () => _reject(context),
-              onSuspend: () => _suspend(context),
-              onRestore: () => _restore(context),
-            );
+            ),
+          ),
+        ],
+      );
+    });
+  }
 
-            if (!wide) {
-              return Column(
-                children: [
-                  actions,
-                  const SizedBox(height: 16),
-                  main,
-                ],
-              );
-            }
+  int _section = 0;
 
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+  /// (título, contenido, contador opcional) de cada sección de revisión.
+  List<(String, List<Widget>, int?)> _reviewSections(
+    AdminBusinessReviewDetail detail,
+    Map<String, dynamic> business,
+  ) {
+    final pendingRequirements =
+        detail.requirements.where((item) => item['satisfied'] != true).length;
+    return [
+      (
+        'Resumen',
+        [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+            child: _InfoPair(
               children: [
-                Expanded(child: main),
-                const SizedBox(width: 16),
-                SizedBox(width: 300, child: actions),
+                _InfoCard(
+                  title: 'Información general',
+                  rows: [
+                    _InfoRow('Nombre', business['name']?.toString() ?? ''),
+                    _InfoRow('Tipo', detail.businessType.label),
+                    _InfoRow('Estado', detail.publicationStatus.label),
+                    _InfoRow(
+                      'Verificación',
+                      business['verification_status']?.toString() ?? '',
+                    ),
+                    _InfoRow(
+                      'Categoría',
+                      detail.category['name']?.toString() ?? 'Sin categoría',
+                    ),
+                    _InfoRow(
+                      'Descripción',
+                      business['description']?.toString() ?? '',
+                    ),
+                  ],
+                ),
+                _InfoCard(
+                  title: 'Propietario y contacto',
+                  rows: [
+                    _InfoRow(
+                      'Propietario',
+                      detail.owner['full_name']?.toString() ?? '',
+                    ),
+                    _InfoRow(
+                      'Email usuario',
+                      detail.owner['email']?.toString() ?? '',
+                    ),
+                    _InfoRow('Teléfono', business['phone']?.toString() ?? ''),
+                    _InfoRow(
+                        'WhatsApp', business['whatsapp']?.toString() ?? ''),
+                    _InfoRow(
+                        'Email negocio', business['email']?.toString() ?? ''),
+                    _InfoRow(
+                      'Dirección',
+                      business['address_text']?.toString() ?? '',
+                    ),
+                  ],
+                ),
               ],
-            );
-          },
-        ),
-      ],
-    );
+            ),
+          ),
+          if (detail.businessType == BusinessType.lodging)
+            ListTile(
+              leading: const Icon(Icons.bed_outlined),
+              title: const Text('Detalle alojamiento'),
+              subtitle: Text(detail.lodgingDetails.isEmpty
+                  ? 'Sin detalles.'
+                  : detail.lodgingDetails.entries
+                      .map((entry) => '${entry.key}: ${entry.value}')
+                      .join('\n')),
+            ),
+        ],
+        null,
+      ),
+      (
+        'Requisitos',
+        detail.requirements.isEmpty
+            ? [const ListTile(title: Text('Sin requisitos informados.'))]
+            : detail.requirements.map((item) {
+                final ok = item['satisfied'] == true;
+                return ListTile(
+                  leading: Icon(
+                    ok ? Icons.check_circle_outline : Icons.error_outline,
+                    color: ok ? RancoColors.forest : const Color(0xFFB4543F),
+                  ),
+                  title: Text(item['message']?.toString() ?? ''),
+                );
+              }).toList(),
+        pendingRequirements == 0 ? null : pendingRequirements,
+      ),
+      (
+        'Servicios',
+        detail.services.isEmpty
+            ? [const ListTile(title: Text('Sin servicios registrados.'))]
+            : detail.services
+                .map(
+                  (item) => ListTile(
+                    leading: const Icon(Icons.home_repair_service_outlined),
+                    title: Text(item['subcategory_name']?.toString() ?? ''),
+                    subtitle: Text(
+                      item['description']?.toString().isNotEmpty == true
+                          ? item['description'].toString()
+                          : 'Sin descripción específica.',
+                    ),
+                  ),
+                )
+                .toList(),
+        detail.services.isEmpty ? null : detail.services.length,
+      ),
+      (
+        'Cobertura',
+        detail.coverage.isEmpty
+            ? [const ListTile(title: Text('Sin cobertura registrada.'))]
+            : detail.coverage
+                .map(
+                  (item) => ListTile(
+                    leading: const Icon(Icons.location_on_outlined),
+                    title: Text(item['location_name']?.toString() ?? ''),
+                    subtitle: Text(item['commune_name']?.toString() ?? ''),
+                  ),
+                )
+                .toList(),
+        detail.coverage.isEmpty ? null : detail.coverage.length,
+      ),
+      (
+        'Archivos',
+        detail.media.isEmpty
+            ? [const ListTile(title: Text('Sin archivos cargados.'))]
+            : detail.media.map((item) {
+                final path = item['storage_path']?.toString() ?? '';
+                final name = path.split('/').last;
+                return ListTile(
+                  leading: const Icon(Icons.image_outlined),
+                  title: Text(
+                    name.isEmpty ? 'Archivo' : name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle:
+                      Text(_mediaTypeLabel(item['media_type']?.toString())),
+                );
+              }).toList(),
+        detail.media.isEmpty ? null : detail.media.length,
+      ),
+      (
+        'Historial',
+        detail.events.isEmpty
+            ? [const ListTile(title: Text('Sin eventos.'))]
+            : detail.events
+                .map(
+                  (event) => ListTile(
+                    leading: const Icon(Icons.history_rounded),
+                    title: Text(
+                      _eventLabel(event['event_type']?.toString() ?? ''),
+                    ),
+                    subtitle: Text(
+                      event['message']?.toString().isNotEmpty == true
+                          ? event['message'].toString()
+                          : 'Sin comentario.',
+                    ),
+                    trailing: Text(
+                      _shortDate(event['created_at']?.toString()),
+                      textAlign: TextAlign.end,
+                    ),
+                  ),
+                )
+                .toList(),
+        null,
+      ),
+    ];
   }
 
   bool _can(
@@ -1855,6 +1625,13 @@ class _AdminSidebar extends StatelessWidget {
     (Icons.fact_check_outlined, Icons.fact_check_rounded, 'Auditoría'),
   ];
 
+  /// Índice del primer módulo de cada grupo → etiqueta del grupo.
+  static const _groupStarts = <int, String>{
+    0: 'Operación',
+    3: 'Catálogo',
+    4: 'Plataforma',
+  };
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -1870,14 +1647,23 @@ class _AdminSidebar extends StatelessWidget {
             // Misma familia de marca que el sidebar público.
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 18, 14, 16),
-              child: RancoBrandLockup(subtitle: 'Administración'),
+              // Misma escala que el sidebar público (42 / 18).
+              child: RancoBrandLockup(
+                subtitle: 'Administración',
+                markSize: 42,
+                fontSize: 18,
+              ),
             ),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    for (var index = 0; index < items.length; index++)
+                    for (var index = 0; index < items.length; index++) ...[
+                      // Misma lógica de grupos que el sidebar público.
+                      if (_groupStarts.containsKey(index))
+                        _AdminNavGroupLabel(_groupStarts[index]!),
                       _AdminNavItem(
                         icon: items[index].$1,
                         selectedIcon: items[index].$2,
@@ -1885,6 +1671,7 @@ class _AdminSidebar extends StatelessWidget {
                         selected: selectedIndex == index,
                         onTap: () => onSelected(index),
                       ),
+                    ],
                   ],
                 ),
               ),
@@ -1904,6 +1691,26 @@ class _AdminSidebar extends StatelessWidget {
       ),
     );
   }
+}
+
+class _AdminNavGroupLabel extends StatelessWidget {
+  const _AdminNavGroupLabel(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 8, 4),
+        child: Text(
+          label.toUpperCase(),
+          style: const TextStyle(
+            color: Color(0xFF7A8B83),
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: .6,
+          ),
+        ),
+      );
 }
 
 class _AdminNavItem extends StatelessWidget {
@@ -2366,6 +2173,60 @@ class _AdminEmptyState extends StatelessWidget {
   }
 }
 
+class _TableHeaderDelegate extends SliverPersistentHeaderDelegate {
+  @override
+  double get minExtent => 42;
+
+  @override
+  double get maxExtent => 42;
+
+  @override
+  Widget build(
+          BuildContext context, double shrinkOffset, bool overlapsContent) =>
+      Container(
+        // Fondo del lienzo detrás de las esquinas para que la fila fija no
+        // muestre el contenido que pasa por debajo.
+        color: RancoColors.canvas,
+        child: Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: const BoxDecoration(
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(14),
+            ),
+            border: Border.fromBorderSide(
+              BorderSide(color: Color(0xFFD6E3DD)),
+            ),
+          ),
+          child: const _BusinessReviewTableHeader(),
+        ),
+      );
+
+  @override
+  bool shouldRebuild(covariant _TableHeaderDelegate oldDelegate) => false;
+}
+
+/// Esqueleto de tabla: filas con la altura real (sin spinner aislado).
+class _TableSkeleton extends StatelessWidget {
+  const _TableSkeleton();
+
+  @override
+  Widget build(BuildContext context) => Column(
+        children: [
+          for (var i = 0; i < 6; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Container(
+                height: 64,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF4F1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+        ],
+      );
+}
+
 class _BusinessReviewTableHeader extends StatelessWidget {
   const _BusinessReviewTableHeader();
 
@@ -2668,6 +2529,7 @@ class _ReviewHeader extends StatelessWidget {
   const _ReviewHeader({
     required this.title,
     required this.type,
+    required this.typeIcon,
     required this.status,
     required this.owner,
     required this.category,
@@ -2675,62 +2537,71 @@ class _ReviewHeader extends StatelessWidget {
 
   final String title;
   final String type;
+  final IconData typeIcon;
   final String status;
   final String owner;
   final String category;
 
   @override
   Widget build(BuildContext context) {
+    // Superficie clara: el estado (badge semántico) aporta el color, no el
+    // fondo completo.
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: RancoColors.forest,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFDDE8E2)),
       ),
       child: Row(
         children: [
           Container(
-            width: 54,
-            height: 54,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: .14),
-              borderRadius: BorderRadius.circular(16),
+              color: RancoColors.primarySoft,
+              borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(
-              Icons.storefront_outlined,
-              color: Colors.white,
-            ),
+            child: Icon(typeIcon, color: RancoColors.primaryDark),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
+                        color: RancoColors.textPrimary,
+                        fontWeight: FontWeight.w800,
                       ),
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 6),
                 Text(
                   '$type · $category · $owner',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Color(0xFFDDEFE7)),
+                  style: const TextStyle(
+                    color: RancoColors.textSecondary,
+                    fontSize: 13.5,
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 10),
-          _StatusPill(status: status, light: true),
+          const SizedBox(width: 12),
+          _StatusPill(status: status),
         ],
       ),
     );
   }
 }
 
+/// Riel de decisión: una acción primaria (Publicar), secundarias en outline
+/// y las destructivas (Rechazar, Suspender) separadas en rojo suave. Solo se
+/// muestran las acciones permitidas para el estado actual.
 class _ReviewActionsPanel extends StatelessWidget {
   const _ReviewActionsPanel({
     required this.loading,
@@ -2760,14 +2631,62 @@ class _ReviewActionsPanel extends StatelessWidget {
   final VoidCallback onSuspend;
   final VoidCallback onRestore;
 
+  static final _destructive = OutlinedButton.styleFrom(
+    foregroundColor: const Color(0xFF8E3232),
+    side: const BorderSide(color: Color(0xFFEBCFCB)),
+    minimumSize: const Size.fromHeight(44),
+  );
+
   @override
   Widget build(BuildContext context) {
+    final constructive = [
+      if (canPublish)
+        FilledButton.icon(
+          onPressed: onPublish,
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(46)),
+          icon: const Icon(Icons.public_outlined, size: 19),
+          label: const Text('Publicar'),
+        ),
+      if (canRestore)
+        FilledButton.icon(
+          onPressed: onRestore,
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(46)),
+          icon: const Icon(Icons.restore_outlined, size: 19),
+          label: const Text('Restaurar'),
+        ),
+      if (canRequestChanges)
+        OutlinedButton.icon(
+          onPressed: onRequestChanges,
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(44),
+          ),
+          icon: const Icon(Icons.rate_review_outlined, size: 19),
+          label: const Text('Solicitar cambios'),
+        ),
+    ];
+    final destructive = [
+      if (canReject)
+        OutlinedButton.icon(
+          onPressed: onReject,
+          style: _destructive,
+          icon: const Icon(Icons.block_outlined, size: 19),
+          label: const Text('Rechazar'),
+        ),
+      if (canSuspend)
+        OutlinedButton.icon(
+          onPressed: onSuspend,
+          style: _destructive,
+          icon: const Icon(Icons.gpp_bad_outlined, size: 19),
+          label: const Text('Suspender'),
+        ),
+    ];
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFD6E3DD)),
+        border: Border.all(color: const Color(0xFFDDE8E2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2775,50 +2694,52 @@ class _ReviewActionsPanel extends StatelessWidget {
           const Text(
             'Decisión',
             style: TextStyle(
-              color: Color(0xFF30443B),
-              fontWeight: FontWeight.w900,
+              color: RancoColors.textPrimary,
+              fontWeight: FontWeight.w800,
               fontSize: 16,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Estado actual: $status',
-            style: const TextStyle(color: Color(0xFF61736A)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Text(
+                'Estado actual',
+                style: TextStyle(color: RancoColors.textSecondary),
+              ),
+              const SizedBox(width: 8),
+              Flexible(child: _StatusPill(status: status)),
+            ],
           ),
           if (loading) ...[
             const SizedBox(height: 12),
             const LinearProgressIndicator(minHeight: 2),
           ],
-          const SizedBox(height: 14),
-          FilledButton.icon(
-            onPressed: canPublish ? onPublish : null,
-            icon: const Icon(Icons.public_outlined),
-            label: const Text('Publicar'),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: canRequestChanges ? onRequestChanges : null,
-            icon: const Icon(Icons.rate_review_outlined),
-            label: const Text('Solicitar cambios'),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: canReject ? onReject : null,
-            icon: const Icon(Icons.block_outlined),
-            label: const Text('Rechazar'),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: canSuspend ? onSuspend : null,
-            icon: const Icon(Icons.gpp_bad_outlined),
-            label: const Text('Suspender'),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: canRestore ? onRestore : null,
-            icon: const Icon(Icons.restore_outlined),
-            label: const Text('Restaurar'),
-          ),
+          const SizedBox(height: 16),
+          if (constructive.isEmpty && destructive.isEmpty)
+            Text(
+              loading
+                  ? 'Aplicando la decisión…'
+                  : 'No hay acciones disponibles para este estado.',
+              style: const TextStyle(
+                color: RancoColors.textSecondary,
+                fontSize: 13.5,
+              ),
+            ),
+          for (var i = 0; i < constructive.length; i++) ...[
+            if (i > 0) const SizedBox(height: 8),
+            constructive[i],
+          ],
+          if (destructive.isNotEmpty) ...[
+            if (constructive.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Divider(height: 1),
+              const SizedBox(height: 16),
+            ],
+            for (var i = 0; i < destructive.length; i++) ...[
+              if (i > 0) const SizedBox(height: 8),
+              destructive[i],
+            ],
+          ],
         ],
       ),
     );
@@ -2828,46 +2749,20 @@ class _ReviewActionsPanel extends StatelessWidget {
 class _StatusPill extends StatelessWidget {
   const _StatusPill({
     required this.status,
-    this.light = false,
     this.color,
   });
 
   final String status;
-  final bool light;
 
-  /// Color semántico del estado (ámbar pendiente, verde publicado, rojo
-  /// rechazado). Sin color se usa el tono neutro verde.
+  /// Se conserva por compatibilidad de llamadas; el tono lo decide el badge
+  /// compartido a partir de la etiqueta.
   final Color? color;
 
   @override
   Widget build(BuildContext context) {
-    // Badge compartido; la variante clara se mantiene solo sobre fondos
-    // oscuros (encabezado de revisión).
-    if (!light) {
-      return RancoStatusBadge(
-        label: status,
-        tone: rancoToneForStatusLabel(status),
-      );
-    }
-    final tone = color;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: light
-            ? Colors.white
-            : tone?.withValues(alpha: .11) ?? const Color(0xFFE4F1EB),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        status,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: light ? RancoColors.forest : tone ?? const Color(0xFF30443B),
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
+    return RancoStatusBadge(
+      label: status,
+      tone: rancoToneForStatusLabel(status),
     );
   }
 }
@@ -2883,27 +2778,96 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 420,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
-              const SizedBox(height: 10),
-              ...rows.map(
-                (row) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text('${row.label}: ${row.value}'),
-                ),
-              ),
-            ],
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFDDE8E2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: RancoColors.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
           ),
-        ),
+          const SizedBox(height: 10),
+          for (final row in rows)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 112,
+                    child: Text(
+                      row.label,
+                      style: const TextStyle(
+                        color: RancoColors.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: SelectableText(
+                      row.value.trim().isEmpty ? '—' : row.value,
+                      style: TextStyle(
+                        color: row.value.trim().isEmpty
+                            ? RancoColors.textSecondary
+                            : RancoColors.textPrimary,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w500,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
+  }
+}
+
+/// Dos tarjetas de igual ancho lado a lado (o apiladas en angosto).
+class _InfoPair extends StatelessWidget {
+  const _InfoPair({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, constraints) {
+      if (constraints.maxWidth < 680) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < children.length; i++) ...[
+              if (i > 0) const SizedBox(height: 12),
+              children[i],
+            ],
+          ],
+        );
+      }
+      return IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < children.length; i++) ...[
+              if (i > 0) const SizedBox(width: 12),
+              Expanded(child: children[i]),
+            ],
+          ],
+        ),
+      );
+    });
   }
 }
 
@@ -2918,22 +2882,71 @@ class _Section extends StatelessWidget {
   const _Section({
     required this.title,
     required this.children,
+    this.initiallyExpanded = true,
+    this.collapsible = true,
   });
 
   final String title;
   final List<Widget> children;
+  final bool initiallyExpanded;
+
+  /// Desktop (sección elegida en la navegación): sin acordeón.
+  final bool collapsible;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ExpansionTile(
-        initiallyExpanded: true,
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
-        children: children,
+    final titleText = Text(
+      title,
+      style: const TextStyle(
+        color: RancoColors.textPrimary,
+        fontSize: 15,
+        fontWeight: FontWeight.w800,
+      ),
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFFDDE8E2)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: collapsible
+            ? ExpansionTile(
+                initiallyExpanded: initiallyExpanded,
+                shape: const Border(),
+                collapsedShape: const Border(),
+                tilePadding: const EdgeInsets.symmetric(horizontal: 18),
+                childrenPadding: const EdgeInsets.only(bottom: 8),
+                title: titleText,
+                children: children,
+              )
+            : Padding(
+                padding: const EdgeInsets.only(top: 16, bottom: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
+                      child: titleText,
+                    ),
+                    ...children,
+                  ],
+                ),
+              ),
       ),
     );
   }
 }
+
+String _mediaTypeLabel(String? type) => switch (type) {
+      'logo' => 'Logo',
+      'cover' => 'Portada',
+      'gallery' => 'Galería',
+      'portfolio' => 'Trabajos realizados',
+      _ => 'Imagen',
+    };
 
 Color _statusColor(BusinessPublicationStatus status) {
   return switch (status) {

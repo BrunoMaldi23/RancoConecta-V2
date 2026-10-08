@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/layout/ranco_responsive.dart';
 import '../../../core/telemetry/telemetry.dart';
 import '../../../core/widgets/ranco_error_state.dart';
+import '../../../core/widgets/ranco_hover_surface.dart';
 
 import '../../../core/widgets/ranco_site_footer.dart';
 import '../../../core/widgets/ranco_skeleton.dart';
@@ -1180,79 +1181,70 @@ class _CategoryCard extends StatelessWidget {
 
     final emergency = _isEmergency(category);
 
-    return Material(
+    // Hover de escritorio: borde en el tono de la categoría + sombra leve.
+    return RancoHoverSurface(
+      onTap: onTap,
       color: emergency ? const Color(0xFFFFF8F5) : Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        mouseCursor: SystemMouseCursors.click,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          height: 84,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: emergency
-                  ? const Color(0xFFF0D2C7)
-                  : RancoDecoration.softBorder,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: tone.withValues(alpha: .10),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  _categoryIcon(category),
-                  size: 21,
-                  color: tone,
-                ),
+      borderColor:
+          emergency ? const Color(0xFFF0D2C7) : RancoDecoration.softBorder,
+      hoverBorderColor: tone.withValues(alpha: .45),
+      child: Container(
+        height: 84,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: tone.withValues(alpha: .10),
+                borderRadius: BorderRadius.circular(12),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      maxLines: 2,
+              child: Icon(
+                _categoryIcon(category),
+                size: 21,
+                color: tone,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: RancoColors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                      height: 1.2,
+                    ),
+                  ),
+                  if (homeServices) ...[
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Hogar y mantenimiento',
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: RancoColors.textPrimary,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 15,
-                        height: 1.2,
+                      style: TextStyle(
+                        color: RancoColors.textSecondary,
+                        fontSize: 12,
                       ),
                     ),
-                    if (homeServices) ...[
-                      const SizedBox(height: 2),
-                      const Text(
-                        'Hogar y mantenimiento',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: RancoColors.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
                   ],
-                ),
+                ],
               ),
-              Icon(
-                Icons.chevron_right_rounded,
-                size: 20,
-                color: tone.withValues(alpha: .8),
-              ),
-            ],
-          ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: tone.withValues(alpha: .8),
+            ),
+          ],
         ),
       ),
     );

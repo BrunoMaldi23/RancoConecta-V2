@@ -15,9 +15,11 @@ Future<void> bootstrap() async {
       url: config.supabaseUrl!,
       publishableKey: config.supabasePublishableKey!,
     );
-  } else {
+  } else if (const String.fromEnvironment('APP_ENVIRONMENT') != 'production') {
     AppLogger.warn(
         'Supabase is not configured. Running in local development mode.');
+  } else {
+    throw StateError('Production Supabase configuration is missing.');
   }
 
   runApp(

@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../../../core/result/result.dart';
+import '../../../core/utils/chilean_phone.dart';
+import '../../../core/widgets/ranco_states.dart';
 import '../../../core/widgets/ranco_app_bar.dart';
 import '../../../core/widgets/ranco_error_state.dart';
-import '../../auth/application/auth_controller.dart';
-import '../../auth/presentation/visitor_contact_sheet.dart';
 import '../../../features/locations/application/location_providers.dart';
 import '../../../shared/models/location.dart';
 import '../../../shared/models/service_request.dart';
 import '../../businesses/application/business_providers.dart';
+import '../../legal/application/legal_navigation.dart';
 import '../application/service_request_providers.dart';
-import '../data/request_attachment_repository.dart';
 import '../data/service_request_repository.dart';
 
 final _visitorRequestDraftProvider =
@@ -27,7 +26,6 @@ class _VisitorRequestDraft {
     required this.address,
     required this.urgency,
     required this.desiredDate,
-    required this.attachments,
   });
 
   final String? serviceId;
@@ -36,7 +34,6 @@ class _VisitorRequestDraft {
   final String address;
   final RequestUrgency urgency;
   final DateTime? desiredDate;
-  final List<PendingRequestAttachment> attachments;
 }
 
 class CreateRequestScreen extends ConsumerStatefulWidget {
@@ -53,16 +50,17 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
   final _formKey = GlobalKey<FormState>();
   final _descriptionController = TextEditingController();
   final _addressController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
   String? _selectedSubcategoryId;
   String? _selectedLocationId;
   RequestUrgency _urgency = RequestUrgency.normal;
   DateTime? _desiredDate;
   bool _saving = false;
+  bool _consent = false;
   String? _error;
-  final List<PendingRequestAttachment> _attachments = [];
 
-  String get _draftKey =>
-      '${ref.read(authStateProvider).valueOrNull?.id ?? 'unknown'}:${widget.businessId}';
+  String get _draftKey => 'visitor:${widget.businessId}';
 
   @override
   void initState() {
@@ -75,7 +73,6 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
     _addressController.text = draft.address;
     _urgency = draft.urgency;
     _desiredDate = draft.desiredDate;
-    _attachments.addAll(draft.attachments);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted &&
           identical(ref.read(_visitorRequestDraftProvider(_draftKey)), draft)) {
@@ -88,6 +85,8 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
   void dispose() {
     _descriptionController.dispose();
     _addressController.dispose();
+    _nameController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -157,6 +156,41 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
                               setState(() => _selectedSubcategoryId = value),
                           validator: (value) =>
                               value == null ? 'Selecciona un servicio.' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _nameController,
+                          textCapitalization: TextCapitalization.words,
+                          decoration:
+                              const InputDecoration(labelText: 'Tu nombre'),
+                          validator: (value) =>
+                              value == null || value.trim().length < 2
+                                  ? 'Ingresa tu nombre.'
+                                  : null,
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _phoneController,
+                          keyboardType: TextInputType.phone,
+                          decoration: const InputDecoration(
+                              labelText: 'Teléfono de contacto'),
+                          validator: (value) =>
+                              value == null || !isValidChileanPhone(value)
+                                  ? 'Ingresa un teléfono válido.'
+                                  : null,
+                        ),
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: _consent,
+                          onChanged: (value) =>
+                              setState(() => _consent = value ?? false),
+                          title: const Text(
+                              'Acepto que mis datos se compartan con el proveedor para gestionar esta solicitud.'),
+                          subtitle: TextButton(
+                            onPressed: () =>
+                                openLegalPage(context, '/politica-privacidad'),
+                            child: const Text('Leer política de privacidad'),
+                          ),
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
@@ -230,15 +264,6 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        _AttachmentPicker(
-                          attachments: _attachments,
-                          onAddImages: _pickImages,
-                          onRemove: (index) {
-                            setState(() {
-                              _attachments.removeAt(index);
-                            });
-                          },
-                        ),
                         if (_error != null) ...[
                           const SizedBox(height: 12),
                           Text(_error!,
@@ -267,7 +292,7 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
             ),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const RancoLoadingState(),
         error: (error, stackTrace) => RancoErrorState(
           message: 'No pudimos cargar los servicios de este negocio.',
           onRetry: () =>
@@ -302,9 +327,11 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
     if (business == null || service == null) {
       return;
     }
-    final consented = await ensureVisitorContactAndConsent(context, ref,
-        action: 'service_request');
-    if (!mounted || !consented) return;
+    if (!_consent) {
+      setState(() =>
+          _error = 'Debes aceptar el aviso de privacidad para continuar.');
+      return;
+    }
     setState(() {
       _saving = true;
       _error = null;
@@ -320,78 +347,38 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
                 addressText: _addressController.text,
                 urgency: _urgency,
                 desiredDate: _desiredDate,
+                customerName: _nameController.text,
+                customerPhone: _phoneController.text,
+                consentVersion: 'privacy-2026-10-01',
               ),
             );
     if (!mounted) {
       return;
     }
     switch (result) {
-      case Success(:final value):
-        final request = value;
-        var attachmentsFailed = false;
-        for (final attachment in _attachments) {
-          final upload =
-              await ref.read(requestAttachmentRepositoryProvider).upload(
-                    requestId: request.id,
-                    attachment: attachment,
-                  );
-
-          if (!mounted) {
-            return;
-          }
-
-          if (upload case Failure()) {
-            attachmentsFailed = true;
-            break;
-          }
-        }
-
+      case Success():
         ref.invalidate(myRequestsProvider);
         ref.invalidate(myCustomerActivityProvider);
         ref.invalidate(providerRequestQueueProvider);
-        ref.invalidate(requestAttachmentsProvider(request.id));
-        context.go(Uri(
-          path: '/requests/${request.id}',
-          queryParameters: {
-            'sent': '1',
-            if (attachmentsFailed) 'attachments': 'failed',
-          },
-        ).toString());
+        await showDialog<void>(
+            context: context,
+            builder: (dialogContext) => AlertDialog(
+                  title: const Text('Solicitud enviada'),
+                  content: const Text(
+                      'El proveedor podrá contactarte al número indicado.'),
+                  actions: [
+                    FilledButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        child: const Text('Listo'))
+                  ],
+                ));
+        if (mounted) context.go('/business/$businessId');
       case Failure(:final error):
         setState(() => _error = error.message);
     }
     if (mounted) {
       setState(() => _saving = false);
     }
-  }
-
-  Future<void> _pickImages() async {
-    final picker = ImagePicker();
-    final images = await picker.pickMultiImage(
-      imageQuality: 82,
-      maxWidth: 1800,
-    );
-
-    if (images.isEmpty) {
-      return;
-    }
-
-    final next = <PendingRequestAttachment>[];
-
-    for (final image in images) {
-      final bytes = await image.readAsBytes();
-      next.add(
-        PendingRequestAttachment(
-          fileName: image.name,
-          mimeType: _mimeForName(image.name),
-          bytes: bytes,
-        ),
-      );
-    }
-
-    setState(() {
-      _attachments.addAll(next);
-    });
   }
 }
 
@@ -403,20 +390,6 @@ String _locationLabel(Location location) {
   }
 
   return '${location.name} · $commune';
-}
-
-String _mimeForName(String fileName) {
-  final lower = fileName.toLowerCase();
-
-  if (lower.endsWith('.png')) {
-    return 'image/png';
-  }
-
-  if (lower.endsWith('.webp')) {
-    return 'image/webp';
-  }
-
-  return 'image/jpeg';
 }
 
 class _RequestHeader extends StatelessWidget {
@@ -493,71 +466,6 @@ class _UnavailablePanel extends StatelessWidget {
               'Este prestador todavía no tiene servicios publicados para recibir solicitudes directas.',
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AttachmentPicker extends StatelessWidget {
-  const _AttachmentPicker({
-    required this.attachments,
-    required this.onAddImages,
-    required this.onRemove,
-  });
-
-  final List<PendingRequestAttachment> attachments;
-  final VoidCallback onAddImages;
-  final ValueChanged<int> onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Adjuntos',
-                  style: TextStyle(fontWeight: FontWeight.w800),
-                ),
-              ),
-              TextButton.icon(
-                onPressed: onAddImages,
-                icon: const Icon(Icons.attach_file_rounded),
-                label: const Text('Agregar fotos'),
-              ),
-            ],
-          ),
-          if (attachments.isEmpty)
-            const Text(
-              'Puedes agregar fotos para explicar mejor la solicitud.',
-            )
-          else
-            ...attachments.asMap().entries.map(
-                  (entry) => ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.image_outlined),
-                    title: Text(
-                      entry.value.fileName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    trailing: IconButton(
-                      onPressed: () => onRemove(entry.key),
-                      icon: const Icon(Icons.close_rounded),
-                    ),
-                  ),
-                ),
         ],
       ),
     );

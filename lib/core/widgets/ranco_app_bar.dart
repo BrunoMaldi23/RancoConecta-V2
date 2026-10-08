@@ -7,6 +7,7 @@ class RancoAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.fallbackRoute,
     this.showBack = true,
     this.actions,
+    this.bottom,
     super.key,
   });
 
@@ -15,13 +16,16 @@ class RancoAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool showBack;
   final List<Widget>? actions;
 
+  /// Barra secundaria bajo el título (p. ej. pestañas del hub del negocio).
+  final PreferredSizeWidget? bottom;
+
   static const _forest = Color(
     0xFF2E7D5A,
   );
 
   @override
-  Size get preferredSize => const Size.fromHeight(
-        64,
+  Size get preferredSize => Size.fromHeight(
+        64 + (bottom?.preferredSize.height ?? 0),
       );
 
   void _back(
@@ -91,6 +95,7 @@ class RancoAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
       ),
       actions: actions,
+      bottom: bottom,
     );
   }
 }

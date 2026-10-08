@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/ranco_segmented_control.dart';
 import '../../../theme/ranco_colors.dart';
 
 /// Piezas visuales compartidas por las tablas del panel (usuarios, negocios y
@@ -53,7 +54,7 @@ class AdminPaginator extends StatelessWidget {
     const muted = TextStyle(color: RancoColors.textSecondary, fontSize: 13);
 
     final summary = Text(
-      total == null ? 'Mostrando $from–$to' : 'Mostrando $from–$to de $total',
+      total == null ? '$from–$to' : '$from–$to de $total',
       style: const TextStyle(
         color: RancoColors.textPrimary,
         fontSize: 13,
@@ -62,7 +63,7 @@ class AdminPaginator extends StatelessWidget {
     );
 
     final sizeSelector = Row(mainAxisSize: MainAxisSize.min, children: [
-      const Text('Filas por página', style: muted),
+      const Text('Filas', style: muted),
       const SizedBox(width: 8),
       Tooltip(
         message: onPageSizeChanged == null
@@ -87,12 +88,15 @@ class AdminPaginator extends StatelessWidget {
       ),
     ]);
 
+    // ‹ 1 / 3 ›: primera/última quedan como atajos solo con muchas páginas.
+    final many = (pages ?? 0) > 3;
     final pager = Row(mainAxisSize: MainAxisSize.min, children: [
-      IconButton.outlined(
-        tooltip: 'Primera página',
-        onPressed: onFirst,
-        icon: const Icon(Icons.first_page_rounded),
-      ),
+      if (many)
+        IconButton(
+          tooltip: 'Primera página',
+          onPressed: onFirst,
+          icon: const Icon(Icons.first_page_rounded),
+        ),
       IconButton.outlined(
         tooltip: 'Página anterior',
         onPressed: onPrevious,
@@ -114,11 +118,12 @@ class AdminPaginator extends StatelessWidget {
         onPressed: onNext,
         icon: const Icon(Icons.chevron_right_rounded),
       ),
-      IconButton.outlined(
-        tooltip: 'Última página',
-        onPressed: onLast,
-        icon: const Icon(Icons.last_page_rounded),
-      ),
+      if (many)
+        IconButton(
+          tooltip: 'Última página',
+          onPressed: onLast,
+          icon: const Icon(Icons.last_page_rounded),
+        ),
     ]);
 
     return Padding(
@@ -142,7 +147,8 @@ class AdminPaginator extends StatelessWidget {
   }
 }
 
-/// Filtro segmentado compacto con contador opcional por opción.
+/// Filtro segmentado compacto con contador opcional por opción. Usa el
+/// control segmentado compartido (pista suave, opción activa en blanco).
 class AdminSegmentFilter<T> extends StatelessWidget {
   const AdminSegmentFilter({
     required this.options,
@@ -158,27 +164,17 @@ class AdminSegmentFilter<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(spacing: 8, runSpacing: 8, children: [
-      for (final (value, label, count) in options)
-        ChoiceChip(
-          label: Text(count == null ? label : '$label · $count'),
-          selected: selected == value,
-          showCheckmark: false,
-          onSelected: (_) => onSelected(value),
-          selectedColor: const Color(0xFFDDEFE7),
-          side: BorderSide(
-            color: selected == value
-                ? RancoColors.forest.withValues(alpha: .4)
-                : const Color(0xFFD6E3DD),
-          ),
-          labelStyle: TextStyle(
-            color: selected == value
-                ? RancoColors.primaryDark
-                : RancoColors.textPrimary,
-            fontWeight: selected == value ? FontWeight.w800 : FontWeight.w600,
-          ),
-        ),
-    ]);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: RancoSegmentedControl<T>(
+        segments: [
+          for (final (value, label, count) in options)
+            RancoSegment(value: value, label: label, count: count),
+        ],
+        selected: selected,
+        onChanged: onSelected,
+      ),
+    );
   }
 }
 

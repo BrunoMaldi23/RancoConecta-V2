@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/layout/ranco_responsive.dart';
+import '../../../core/widgets/ranco_states.dart';
 import '../../../core/widgets/ranco_error_state.dart';
 import '../../../core/widgets/ranco_site_footer.dart';
 import '../../../router/session_actions.dart';
@@ -13,6 +14,9 @@ import '../../auth/data/supabase_auth_repository.dart';
 import '../../locations/application/location_providers.dart';
 import '../../provider_dashboard/application/provider_dashboard_providers.dart';
 import '../application/profile_providers.dart';
+import '../../../core/widgets/ranco_status_badge.dart';
+import '../../../shared/models/business.dart';
+import '../../provider_dashboard/presentation/provider_hub.dart';
 
 class AccountScreen extends ConsumerWidget {
   const AccountScreen({
@@ -80,15 +84,26 @@ class AccountScreen extends ConsumerWidget {
                   (isVisitor ? 'Correo opcional' : 'Correo no disponible');
 
               final isAdmin = profile.role.canAccessAdmin;
-              final activeBusiness = isAdmin
-                  ? null
-                  : ref.watch(activeProviderBusinessProvider).valueOrNull;
+              final businessAsync =
+                  isAdmin ? null : ref.watch(activeProviderBusinessProvider);
+              if (businessAsync != null &&
+                  businessAsync.isLoading &&
+                  !businessAsync.hasValue) {
+                return const _AccountSkeleton();
+              }
+              if (businessAsync?.hasError == true) {
+                return RancoErrorState(
+                  message: 'No pudimos cargar tu negocio.',
+                  onRetry: () => ref.invalidate(activeProviderBusinessProvider),
+                );
+              }
+              final activeBusiness = businessAsync?.valueOrNull;
               final isProvider = profile.role == ProfileRole.provider ||
                   activeBusiness != null;
 
               return SafeArea(
                 top: false,
-                child: ListView(
+                child: RancoFooterScrollView(
                   padding: const EdgeInsets.only(top: 18),
                   children: [
                     RancoContentContainer(
@@ -97,7 +112,7 @@ class AccountScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _PageHeader(visitor: isVisitor),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 22),
                           _AccountProfile(
                             initial: initial,
                             name: displayName,
@@ -132,7 +147,7 @@ class AccountScreen extends ConsumerWidget {
                                       return _MissingBusinessCard(
                                         onTap: () {
                                           context.push(
-                                            '/provider/register',
+                                            '/provider/business',
                                           );
                                         },
                                       );
@@ -143,10 +158,11 @@ class AccountScreen extends ConsumerWidget {
                                       published: business.publicationStatus ==
                                           'published',
                                       status: business.publicationStatus,
+                                      typeLabel: business.businessType.label,
                                       lodging: business.isLodging,
                                       onManage: () {
                                         context.push(
-                                          '/provider/dashboard',
+                                          '/provider/business',
                                         );
                                       },
                                       onBookings: () {
@@ -229,7 +245,6 @@ class AccountScreen extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    const RancoSiteFooter(),
                   ],
                 ),
               );
@@ -237,7 +252,7 @@ class AccountScreen extends ConsumerWidget {
             loading: () {
               return user.isAnonymous
                   ? const _VisitorAccountSkeleton()
-                  : const Center(child: CircularProgressIndicator());
+                  : const _AccountSkeleton();
             },
             error: (error, __) {
               return RancoErrorState(
@@ -248,9 +263,7 @@ class AccountScreen extends ConsumerWidget {
           );
         },
         loading: () {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
+          return const _AccountSkeleton();
         },
         error: (_, __) {
           return RancoErrorState(
@@ -316,7 +329,7 @@ class _VisitorAccountView extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SafeArea(
         top: false,
-        child: ListView(
+        child: RancoFooterScrollView(
           children: [
             Align(
               alignment: Alignment.topCenter,
@@ -441,7 +454,6 @@ class _VisitorAccountView extends StatelessWidget {
                 ),
               ),
             ),
-            const RancoSiteFooter(),
           ],
         ),
       );
@@ -490,20 +502,20 @@ class _PageHeader extends StatelessWidget {
           visitor ? 'Perfil visitante' : 'Cuenta',
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 color: RancoColors.textPrimary,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w800,
                 letterSpacing: -0.5,
-                height: 1,
+                height: 1.1,
               ),
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 8),
         Text(
           visitor
               ? 'Tus datos permiten que los prestadores respondan a tus solicitudes.'
               : 'Gestiona tu perfil y los accesos de tu cuenta.',
           style: const TextStyle(
             color: RancoColors.textSecondary,
-            fontSize: 13,
-            height: 1.35,
+            fontSize: 14.5,
+            height: 1.4,
           ),
         ),
       ],
@@ -534,20 +546,20 @@ class _AccountProfile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(18),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: const Color(0xFFD4E2DC),
+            color: const Color(0xFFE0EAE5),
           ),
         ),
         child: Row(
           children: [
             Container(
-              width: 52,
-              height: 52,
+              width: 60,
+              height: 60,
               alignment: Alignment.center,
               decoration: const BoxDecoration(
                 color: Color(0xFFE4F2EC),
@@ -557,8 +569,8 @@ class _AccountProfile extends StatelessWidget {
                   ? ClipOval(
                       child: Image.network(
                         avatarUrl!,
-                        width: 48,
-                        height: 48,
+                        width: 60,
+                        height: 60,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => Text(initial),
                       ),
@@ -567,12 +579,12 @@ class _AccountProfile extends StatelessWidget {
                       initial,
                       style: const TextStyle(
                         color: RancoColors.forest,
-                        fontSize: 21,
-                        fontWeight: FontWeight.w900,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -583,37 +595,38 @@ class _AccountProfile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: RancoColors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 3),
                   Text(
                     email,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: RancoColors.textSecondary,
-                      fontSize: 13,
+                      fontSize: 13.5,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Wrap(spacing: 6, runSpacing: 4, children: [
+                    // Rol: badge neutro y discreto.
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
+                        horizontal: 9,
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE1F4EA),
+                        color: const Color(0xFFF0F4F2),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
                         role,
                         style: const TextStyle(
-                          color: RancoColors.forest,
+                          color: Color(0xFF3F5249),
                           fontSize: 12,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
@@ -640,14 +653,12 @@ class _AccountProfile extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             OutlinedButton.icon(
               onPressed: onEdit,
-              icon: const Icon(Icons.edit_outlined, size: 18),
+              icon: const Icon(Icons.edit_outlined, size: 17),
               label: const Text('Editar'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: RancoColors.forest,
-                side: const BorderSide(color: Color(0xFFD2E0D9)),
                 visualDensity: VisualDensity.compact,
               ),
             ),
@@ -668,12 +679,16 @@ class _ProviderBusinessCard extends StatelessWidget {
     required this.onBookings,
     required this.onCalendar,
     required this.onView,
+    this.typeLabel,
   });
 
   final String name;
   final bool published;
   final String status;
   final bool lodging;
+
+  /// Tipo de negocio visible ("Servicio", "Alojamiento"...).
+  final String? typeLabel;
 
   final VoidCallback onManage;
   final VoidCallback onBookings;
@@ -682,13 +697,14 @@ class _ProviderBusinessCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final publication = BusinessPublicationStatus.parseOrDefault(status);
     return Container(
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7FBF9),
-        borderRadius: BorderRadius.circular(17),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: const Color(0xFFC7DDD3),
+          color: const Color(0xFFE0EAE5),
         ),
       ),
       child: Column(
@@ -697,22 +713,22 @@ class _ProviderBusinessCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 38,
-                height: 38,
+                width: 46,
+                height: 46,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE5F1EC),
-                  borderRadius: BorderRadius.circular(11),
+                  color: RancoColors.primarySoft,
+                  borderRadius: BorderRadius.circular(13),
                 ),
                 child: Icon(
                   lodging
                       ? Icons.holiday_village_outlined
                       : Icons.storefront_outlined,
-                  color: RancoColors.forest,
-                  size: 20,
+                  color: RancoColors.primaryDark,
+                  size: 22,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -723,32 +739,62 @@ class _ProviderBusinessCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: RancoColors.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
+                        fontSize: 16.5,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    _BusinessStatus(
-                      published: published,
-                      status: status,
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        if (typeLabel != null)
+                          Text(
+                            typeLabel!,
+                            style: const TextStyle(
+                              color: RancoColors.textSecondary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        _BusinessStatus(
+                          published: published,
+                          status: status,
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-              IconButton(
-                tooltip: 'Ver publicación',
-                onPressed: onView,
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(
-                  Icons.visibility_outlined,
-                  size: 19,
-                  color: RancoColors.forest,
+              if (published)
+                IconButton(
+                  tooltip: 'Ver perfil público',
+                  onPressed: onView,
+                  style: IconButton.styleFrom(
+                    minimumSize: const Size(44, 44),
+                  ),
+                  icon: const Icon(
+                    Icons.open_in_new_rounded,
+                    size: 19,
+                    color: RancoColors.forest,
+                  ),
                 ),
-              ),
             ],
           ),
-          if (lodging) ...[
+          if (!published) ...[
             const SizedBox(height: 12),
+            Text(
+              _businessHint(publication),
+              style: const TextStyle(
+                color: RancoColors.textSecondary,
+                fontSize: 13.5,
+                height: 1.4,
+              ),
+            ),
+          ],
+          if (lodging && published) ...[
+            const SizedBox(height: 14),
             Row(
               children: [
                 Expanded(
@@ -758,7 +804,7 @@ class _ProviderBusinessCard extends StatelessWidget {
                     onTap: onBookings,
                   ),
                 ),
-                const SizedBox(width: 7),
+                const SizedBox(width: 8),
                 Expanded(
                   child: _QuickAction(
                     icon: Icons.calendar_month_outlined,
@@ -769,28 +815,46 @@ class _ProviderBusinessCard extends StatelessWidget {
               ],
             ),
           ],
-          const SizedBox(height: 10),
-          FilledButton.icon(
-            onPressed: onManage,
-            icon: const Icon(
-              Icons.dashboard_outlined,
-              size: 18,
-            ),
-            label: Text(
-              lodging ? 'Gestionar alojamiento' : 'Gestionar negocio',
-            ),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(43),
-              backgroundColor: RancoColors.forest,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
+          const SizedBox(height: 14),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final button = FilledButton.icon(
+                onPressed: onManage,
+                icon: const Icon(
+                  Icons.dashboard_outlined,
+                  size: 18,
+                ),
+                label: const Text('Gestionar negocio'),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, 46),
+                ),
+              );
+              // Ancho natural en pantallas amplias; completo en móvil.
+              if (constraints.maxWidth < 420) {
+                return button;
+              }
+              return Align(alignment: Alignment.centerLeft, child: button);
+            },
           ),
         ],
       ),
     );
+  }
+
+  static String _businessHint(BusinessPublicationStatus status) {
+    return switch (status) {
+      BusinessPublicationStatus.draft =>
+        'Tu publicación aún no está visible. Continúa la configuración.',
+      BusinessPublicationStatus.pendingReview =>
+        'Estamos revisando tu publicación.',
+      BusinessPublicationStatus.changesRequested =>
+        'Revisa la observación del equipo y corrige la publicación.',
+      BusinessPublicationStatus.rejected =>
+        'Revisa el motivo indicado por administración.',
+      BusinessPublicationStatus.suspended =>
+        'El negocio no está visible mientras se resuelve la suspensión.',
+      _ => 'El negocio no aparece públicamente en este momento.',
+    };
   }
 }
 
@@ -805,29 +869,15 @@ class _BusinessStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = published ? const Color(0xFF2E8B62) : const Color(0xFF9A721E);
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 7,
-          height: 7,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 5),
-        Text(
-          published ? 'Publicado' : _publicationLabel(status),
-          style: TextStyle(
-            color: color,
-            fontSize: 11.5,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ],
+    final publication = published
+        ? BusinessPublicationStatus.published
+        : BusinessPublicationStatus.parseOrDefault(status);
+    return RancoStatusBadge(
+      // Etiquetas canónicas: Borrador, En revisión, Publicado, Cambios
+      // solicitados, Rechazado...
+      label: publication.label,
+      tone: providerPublicationTone(publication),
+      dot: true,
     );
   }
 }
@@ -903,59 +953,65 @@ class _MissingBusinessCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7FBF9),
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: const Color(0xFFD4E2DC),
+          color: const Color(0xFFE0EAE5),
         ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE5F1EC),
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: const Icon(
-              Icons.storefront_outlined,
-              size: 20,
-              color: RancoColors.forest,
-            ),
-          ),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Completa tu publicación',
-                  style: TextStyle(
-                    color: RancoColors.textPrimary,
-                    fontWeight: FontWeight.w800,
-                  ),
+          Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: RancoColors.primarySoft,
+                  borderRadius: BorderRadius.circular(13),
                 ),
-                SizedBox(height: 2),
-                Text(
-                  'Aún falta completar o asociar tu negocio.',
-                  style: TextStyle(
-                    color: RancoColors.textSecondary,
-                    fontSize: 11.5,
-                  ),
+                child: const Icon(
+                  Icons.add_business_outlined,
+                  size: 22,
+                  color: RancoColors.primaryDark,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Configura tu negocio',
+                      style: TextStyle(
+                        color: RancoColors.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Aún no hay un negocio asociado a tu acceso.',
+                      style: TextStyle(
+                        color: RancoColors.textSecondary,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          IconButton(
+          const SizedBox(height: 14),
+          FilledButton.icon(
             onPressed: onTap,
-            icon: const Icon(
-              Icons.arrow_forward_rounded,
-              color: RancoColors.forest,
-            ),
+            icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+            label: const Text('Comenzar configuración'),
+            style: FilledButton.styleFrom(minimumSize: const Size(0, 46)),
           ),
         ],
       ),
@@ -1037,12 +1093,16 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(
-        color: RancoColors.textSecondary,
-        fontSize: 12,
-        fontWeight: FontWeight.w800,
+    return Padding(
+      padding: const EdgeInsets.only(left: 2),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: RancoColors.textSecondary,
+          fontSize: 12.5,
+          letterSpacing: .2,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
   }
@@ -1060,11 +1120,12 @@ class _SettingsCard extends StatelessWidget {
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: const Color(0xFFD4E2DC),
+            color: const Color(0xFFE0EAE5),
           ),
         ),
         child: Column(
@@ -1092,8 +1153,8 @@ class _SettingsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final content = Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 10,
+        horizontal: 16,
+        vertical: 12,
       ),
       child: Row(
         children: [
@@ -1120,8 +1181,8 @@ class _SettingsRow extends StatelessWidget {
                   title,
                   style: const TextStyle(
                     color: RancoColors.textPrimary,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -1129,7 +1190,7 @@ class _SettingsRow extends StatelessWidget {
                   subtitle,
                   style: const TextStyle(
                     color: RancoColors.textSecondary,
-                    fontSize: 11.5,
+                    fontSize: 12.5,
                   ),
                 ),
               ],
@@ -1166,27 +1227,28 @@ class _LogoutButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 43,
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: const Icon(
-          Icons.logout_rounded,
-          size: 18,
-        ),
-        label: const Text(
-          'Cerrar sesión',
-        ),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: RancoColors.forest,
-          side: const BorderSide(
-            color: Color(0xFFA8BBB2),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 14),
+        const Divider(height: 1),
+        const SizedBox(height: 12),
+        TextButton.icon(
+          onPressed: onPressed,
+          icon: const Icon(
+            Icons.logout_rounded,
+            size: 18,
           ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+          label: const Text(
+            'Cerrar sesión',
+          ),
+          style: TextButton.styleFrom(
+            foregroundColor: const Color(0xFF8F2D3A),
+            minimumSize: const Size(0, 44),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
           ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -1196,10 +1258,93 @@ class _BusinessLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
-      height: 130,
-      child: Center(
-        child: CircularProgressIndicator(),
+    return const _BusinessCardSkeleton();
+  }
+}
+
+class _BusinessCardSkeleton extends StatelessWidget {
+  const _BusinessCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const RancoSkeletonCard(
+      children: [
+        Row(
+          children: [
+            RancoSkeletonBox(width: 46, height: 46, radius: 13),
+            SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  RancoSkeletonBox(width: 180, height: 14),
+                  SizedBox(height: 10),
+                  RancoSkeletonBox(width: 120, height: 12),
+                ],
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 16),
+        RancoSkeletonBox(width: 180, height: 44, radius: 12),
+      ],
+    );
+  }
+}
+
+/// Carga de Cuenta con la forma real: encabezado, tarjeta de perfil y
+/// tarjeta de negocio (sin spinner centrado).
+class _AccountSkeleton extends StatelessWidget {
+  const _AccountSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Cargando',
+      child: ListView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(top: 18),
+        children: const [
+          RancoContentContainer(
+            width: RancoContainerWidth.form,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                RancoSkeletonBox(width: 140, height: 26),
+                SizedBox(height: 10),
+                RancoSkeletonBox(width: 260, height: 14),
+                SizedBox(height: 22),
+                RancoSkeletonCard(
+                  padding: EdgeInsets.all(20),
+                  children: [
+                    Row(
+                      children: [
+                        RancoSkeletonBox(width: 60, height: 60, radius: 30),
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              RancoSkeletonBox(width: 180, height: 16),
+                              SizedBox(height: 8),
+                              RancoSkeletonBox(width: 200, height: 12),
+                              SizedBox(height: 10),
+                              RancoSkeletonBox(width: 80, height: 20),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                SizedBox(height: 18),
+                RancoSkeletonBox(width: 70, height: 12),
+                SizedBox(height: 9),
+                _BusinessCardSkeleton(),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1236,7 +1381,7 @@ class _GuestAccount extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
-      child: ListView(
+      child: RancoFooterScrollView(
         children: [
           Center(
             child: ConstrainedBox(
@@ -1345,7 +1490,6 @@ class _GuestAccount extends StatelessWidget {
               ),
             ),
           ),
-          const RancoSiteFooter(),
         ],
       ),
     );
@@ -1377,34 +1521,6 @@ String _accountStatusLabel(
   }
 }
 
-String _publicationLabel(
-  String status,
-) {
-  switch (status.toLowerCase()) {
-    case 'draft':
-      return 'Borrador';
-
-    case 'pending':
-    case 'pending_review':
-      return 'Pendiente';
-
-    case 'changes_requested':
-      return 'Cambios solicitados';
-
-    case 'suspended':
-      return 'Suspendido';
-
-    case 'published':
-      return 'Publicado';
-
-    case 'rejected':
-      return 'Rechazado';
-
-    default:
-      return status;
-  }
-}
-
 class _AdminPanelCard extends StatelessWidget {
   const _AdminPanelCard({required this.onOpen});
 
@@ -1413,64 +1529,77 @@ class _AdminPanelCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFDDE8E3)),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFE6F3EC), Color(0xFFF4FAF6)],
+        ),
+        borderRadius: BorderRadius.circular(18),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: RancoColors.primarySoft,
-              borderRadius: BorderRadius.circular(12),
+      child: LayoutBuilder(builder: (context, constraints) {
+        final button = FilledButton.icon(
+          onPressed: onOpen,
+          icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+          label: const Text('Abrir panel'),
+        );
+        final info = Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(
+                Icons.admin_panel_settings_outlined,
+                color: RancoColors.forest,
+              ),
             ),
-            child: const Icon(
-              Icons.admin_panel_settings_outlined,
-              color: RancoColors.forest,
-            ),
-          ),
-          const SizedBox(width: 14),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Panel administrativo',
-                  style: TextStyle(
-                    color: RancoColors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Panel administrativo',
+                    style: TextStyle(
+                      color: RancoColors.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                ),
-                SizedBox(height: 3),
-                Text(
-                  'Gestiona negocios, usuarios, revisiones y configuración '
-                  'de Ranco Conecta.',
-                  style: TextStyle(
-                    color: RancoColors.textSecondary,
-                    fontSize: 13,
-                    height: 1.35,
+                  SizedBox(height: 3),
+                  Text(
+                    'Gestiona negocios, usuarios, revisiones y configuración '
+                    'de Ranco Conecta.',
+                    style: TextStyle(
+                      color: RancoColors.textSecondary,
+                      fontSize: 13,
+                      height: 1.35,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+          ],
+        );
+        // Angosto: el botón baja bajo el texto en vez de comprimirlo.
+        if (constraints.maxWidth < 460) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [info, const SizedBox(height: 14), button],
+          );
+        }
+        return Row(children: [
+          Expanded(child: info),
           const SizedBox(width: 12),
-          FilledButton(
-            onPressed: onOpen,
-            style: FilledButton.styleFrom(
-              backgroundColor: RancoColors.forest,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Abrir panel'),
-          ),
-        ],
-      ),
+          button,
+        ]);
+      }),
     );
   }
 }

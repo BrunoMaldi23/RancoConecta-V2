@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/layout/ranco_responsive.dart';
+import '../../../core/widgets/ranco_status_badge.dart';
 import '../../../router/session_actions.dart';
 import '../../../theme/ranco_colors.dart';
 import '../../auth/data/supabase_auth_repository.dart';
@@ -59,7 +60,7 @@ class _AccountSecurityScreenState extends ConsumerState<AccountSecurityScreen> {
           padding: const EdgeInsets.symmetric(vertical: 16),
           children: [
             RancoContentContainer(
-              width: RancoContainerWidth.form,
+              width: RancoContainerWidth.narrow,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -114,7 +115,6 @@ class _AccountSecurityScreenState extends ConsumerState<AccountSecurityScreen> {
                                   ? null
                                   : _changePassword,
                               style: FilledButton.styleFrom(
-                                backgroundColor: RancoColors.forest,
                                 minimumSize: const Size(0, 46),
                               ),
                               child: Text(_saving
@@ -142,29 +142,48 @@ class _AccountSecurityScreenState extends ConsumerState<AccountSecurityScreen> {
                         _SessionRow(
                           label: 'Estado',
                           value: session == null ? 'Sin sesión' : 'Activa',
+                          badge: session == null
+                              ? RancoStatusTone.muted
+                              : RancoStatusTone.success,
                         ),
                         if (expiryText != null)
                           _SessionRow(
                             label: 'Expira',
                             value: '$expiryText (se renueva sola)',
                           ),
-                        const SizedBox(height: 12),
-                        Wrap(
-                          children: [
-                            OutlinedButton.icon(
-                              onPressed: session == null
-                                  ? null
-                                  : () => signOutAndGoToSignIn(context, ref),
-                              icon: const Icon(Icons.logout_outlined),
-                              label: const Text('Cerrar esta sesión'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFF8F2D3A),
-                                side:
-                                    const BorderSide(color: Color(0xFFE8C9D0)),
-                                minimumSize: const Size(0, 44),
-                              ),
-                            ),
-                          ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  // Acción de salida separada: diferenciada sin alarmismo
+                  // (rojo suave, no relleno).
+                  _SecurityCard(
+                    title: 'Cerrar sesión',
+                    icon: Icons.logout_rounded,
+                    child: Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 16,
+                      runSpacing: 12,
+                      children: [
+                        const Text(
+                          'Saldrás de tu cuenta en este dispositivo.',
+                          style: TextStyle(
+                            color: RancoColors.textSecondary,
+                            fontSize: 14,
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: session == null
+                              ? null
+                              : () => signOutAndGoToSignIn(context, ref),
+                          icon: const Icon(Icons.logout_outlined, size: 18),
+                          label: const Text('Cerrar esta sesión'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF8F2D3A),
+                            side: const BorderSide(color: Color(0xFFE8C9D0)),
+                            minimumSize: const Size(0, 44),
+                          ),
                         ),
                       ],
                     ),
@@ -234,18 +253,26 @@ class _SecurityCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFD6E3DD)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE0EAE5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(children: [
-            Icon(icon, color: RancoColors.forest),
-            const SizedBox(width: 10),
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: RancoColors.primarySoft,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 19, color: RancoColors.primaryDark),
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: Text(title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -253,7 +280,7 @@ class _SecurityCard extends StatelessWidget {
                       fontWeight: FontWeight.w800)),
             ),
           ]),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           child,
         ],
       ),
@@ -262,10 +289,11 @@ class _SecurityCard extends StatelessWidget {
 }
 
 class _SessionRow extends StatelessWidget {
-  const _SessionRow({required this.label, required this.value});
+  const _SessionRow({required this.label, required this.value, this.badge});
 
   final String label;
   final String value;
+  final RancoStatusTone? badge;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -278,13 +306,19 @@ class _SessionRow extends StatelessWidget {
                     color: RancoColors.textSecondary, fontSize: 13)),
           ),
           Expanded(
-            child: Text(value,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    color: RancoColors.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600)),
+            child: badge != null
+                ? Align(
+                    alignment: Alignment.centerLeft,
+                    child:
+                        RancoStatusBadge(label: value, tone: badge!, dot: true),
+                  )
+                : Text(value,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: RancoColors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600)),
           ),
         ]),
       );

@@ -109,6 +109,7 @@ RancoStatusTone rancoToneForStatusLabel(String label) =>
       'rechazado' ||
       'rechazada' ||
       'suspendido' ||
+      'bloqueado' ||
       'eliminado' =>
         RancoStatusTone.danger,
       'borrador' ||

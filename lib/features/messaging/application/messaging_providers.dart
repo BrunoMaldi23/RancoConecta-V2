@@ -2,10 +2,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../shared/models/conversation.dart';
+import '../../auth/application/auth_controller.dart';
 import '../data/messaging_repository.dart';
 
 final conversationListProvider =
     FutureProvider<List<ConversationSummary>>((ref) async {
+  final user = await ref.watch(authStateProvider.future);
+  if (user == null) return const [];
   final result =
       await ref.watch(messagingRepositoryProvider).listConversations();
   return result.when(
@@ -17,6 +20,8 @@ final conversationListProvider =
 final conversationMessagesProvider =
     FutureProvider.family<List<ChatMessage>, String>(
         (ref, conversationId) async {
+  final user = await ref.watch(authStateProvider.future);
+  if (user == null) return const [];
   final repository = ref.watch(messagingRepositoryProvider);
   final result = await repository.listMessages(conversationId);
   await repository.markRead(conversationId);
@@ -28,6 +33,8 @@ final conversationMessagesProvider =
 });
 
 final unreadMessagesCountProvider = FutureProvider<int>((ref) async {
+  final user = await ref.watch(authStateProvider.future);
+  if (user == null) return 0;
   final result = await ref.watch(messagingRepositoryProvider).unreadCount();
   return result.when(
     success: (count) => count,
@@ -36,6 +43,8 @@ final unreadMessagesCountProvider = FutureProvider<int>((ref) async {
 });
 
 final messagingRealtimeProvider = Provider<void>((ref) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  if (user == null) return;
   final repository = ref.watch(messagingRepositoryProvider);
   final client = repository.client;
 
@@ -71,6 +80,8 @@ final messagingRealtimeProvider = Provider<void>((ref) {
 
 final conversationRealtimeProvider =
     Provider.family<void, String>((ref, conversationId) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  if (user == null) return;
   final repository = ref.watch(messagingRepositoryProvider);
   final client = repository.client;
 

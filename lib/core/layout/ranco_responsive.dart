@@ -26,7 +26,7 @@ enum RancoContainerWidth {
   /// Acceso / registro: 480.
   auth,
 
-  /// Páginas legales: 960.
+  /// Páginas legales (índice + artículo): 1048.
   legal,
 
   /// Panel administrativo: hasta 1400.
@@ -85,7 +85,7 @@ class RancoContentContainer extends StatelessWidget {
       RancoContainerWidth.auth => 480,
       RancoContainerWidth.narrow => 640,
       RancoContainerWidth.form => 760,
-      RancoContainerWidth.legal => 960,
+      RancoContainerWidth.legal => 1048,
       RancoContainerWidth.booking => 1080,
       RancoContainerWidth.detail => large ? 1150 : 1120,
       RancoContainerWidth.standard => large ? 1280 : 1240,

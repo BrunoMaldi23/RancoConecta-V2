@@ -40,7 +40,7 @@ void main() {
       await tester.pumpWidget(ProviderScope(
         overrides: [
           currentAdminRoleProvider
-              .overrideWith((ref) async => ProfileRole.admin),
+              .overrideWith((ref) async => ProfileRole.superAdmin),
           adminReviewStatsProvider.overrideWith((ref) async => {
                 'pending_review': 2,
                 'changes_requested': 0,
@@ -86,7 +86,7 @@ void main() {
       }
 
       await tester.scrollUntilVisible(
-        find.text('Estado de la plataforma'),
+        find.text('Accesos rápidos'),
         400,
         scrollable: find
             .descendant(
@@ -96,7 +96,7 @@ void main() {
             .first,
       );
       await tester.pumpAndSettle();
-      expect(find.text('Estado de la plataforma'), findsOneWidget);
+      expect(find.text('Accesos rápidos'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }
@@ -129,7 +129,8 @@ void main() {
 
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        currentAdminRoleProvider.overrideWith((ref) async => ProfileRole.admin),
+        currentAdminRoleProvider
+            .overrideWith((ref) async => ProfileRole.superAdmin),
         adminReviewStatsProvider.overrideWith((ref) async => {
               'pending_review': 2,
               'changes_requested': 0,

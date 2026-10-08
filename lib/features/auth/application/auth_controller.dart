@@ -8,6 +8,8 @@ final authStateProvider = StreamProvider<AuthUser?>((ref) {
   return repository.observeAuthState();
 });
 
+final signingOutProvider = StateProvider<bool>((ref) => false);
+
 enum AuthPhase {
   initializing,
   authenticated,

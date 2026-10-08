@@ -10,6 +10,7 @@ import 'package:ranco_conecta_2/features/service_requests/application/service_re
 import 'package:ranco_conecta_2/features/service_requests/data/customer_activity_repository.dart';
 import 'package:ranco_conecta_2/features/service_requests/domain/customer_activity_item.dart';
 import 'package:ranco_conecta_2/features/service_requests/presentation/requests_screen.dart';
+import 'package:ranco_conecta_2/features/service_requests/presentation/reservation_detail_screen.dart';
 
 const _userA = AuthUser(
   id: 'user-a',
@@ -41,9 +42,14 @@ CustomerActivityItem _item(String id, CustomerActivityType type,
         CustomerActivityType.gastronomy => 'Reserva de mesa',
         CustomerActivityType.tourism => 'Turismo',
       },
-      detailRoute: type == CustomerActivityType.service
-          ? '/requests/$id'
-          : '/business/business-$id',
+      detailRoute: switch (type) {
+        CustomerActivityType.lodging => '/requests/lodging/$id',
+        CustomerActivityType.gastronomy => '/requests/gastronomy/$id',
+        _ => '/requests/$id',
+      },
+      details: type == CustomerActivityType.lodging
+          ? const {'Entrada': '2026-10-10', 'Huéspedes': '2'}
+          : const {'Fecha': '2026-10-10', 'Personas': '2'},
     );
 
 class _ActivityRepository extends CustomerActivityRepository {
@@ -100,6 +106,16 @@ void main() {
     final router = GoRouter(initialLocation: '/requests', routes: [
       GoRoute(path: '/requests', builder: (_, __) => const RequestsScreen()),
       GoRoute(
+          path: '/requests/lodging/:id',
+          builder: (_, state) => ReservationDetailScreen(
+              reservationId: state.pathParameters['id']!,
+              type: CustomerActivityType.lodging)),
+      GoRoute(
+          path: '/requests/gastronomy/:id',
+          builder: (_, state) => ReservationDetailScreen(
+              reservationId: state.pathParameters['id']!,
+              type: CustomerActivityType.gastronomy)),
+      GoRoute(
           path: '/requests/:id',
           builder: (_, state) =>
               Scaffold(body: Text('Solicitud ${state.pathParameters['id']}'))),
@@ -133,7 +149,9 @@ void main() {
 
     await tester.tap(find.text('Negocio lodging'));
     await tester.pumpAndSettle();
-    expect(find.text('Negocio business-lodging'), findsOneWidget);
+    expect(find.text('Detalle de reserva'), findsOneWidget);
+    expect(find.text('2026-10-10'), findsOneWidget);
+    expect(find.text('2'), findsOneWidget);
   });
 
   test('vertical statuses map without changing backend values', () {

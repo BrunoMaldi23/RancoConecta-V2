@@ -13,7 +13,7 @@ final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
 });
 
 abstract interface class ProfileRepository {
-  Future<Result<Profile>> getCurrentProfile();
+  Future<Result<Profile>> getCurrentProfile(String userId);
   Future<Result<Profile>> updateCurrentProfile({
     required String fullName,
     required String? phone,
@@ -26,10 +26,10 @@ class SupabaseProfileRepository implements ProfileRepository {
   final SupabaseClient? _client;
 
   @override
-  Future<Result<Profile>> getCurrentProfile() async {
+  Future<Result<Profile>> getCurrentProfile(String userId) async {
     final client = _client;
     final user = client?.auth.currentUser;
-    if (client == null || user == null) {
+    if (client == null || user == null || user.id != userId) {
       return const Failure(
         AppFailure(
             type: AppFailureType.auth,
@@ -38,7 +38,7 @@ class SupabaseProfileRepository implements ProfileRepository {
     }
     try {
       final row =
-          await client.from('profiles').select().eq('id', user.id).single();
+          await client.from('profiles').select().eq('id', userId).single();
       return Success(ProfileDto.fromJson(row).toDomain());
     } catch (error) {
       return Failure(mapSupabaseFailure(error,

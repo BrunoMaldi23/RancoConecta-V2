@@ -9,6 +9,8 @@ import '../../../theme/ranco_colors.dart';
 import '../../../core/widgets/ranco_app_bar.dart';
 import '../application/provider_dashboard_providers.dart';
 import '../data/business_media_repository.dart';
+import 'provider_hub.dart';
+import '../../../core/widgets/ranco_states.dart';
 
 class LodgingPhotosScreen extends ConsumerStatefulWidget {
   const LodgingPhotosScreen({
@@ -40,6 +42,7 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
       appBar: const RancoAppBar(
         title: 'Fotografías',
         fallbackRoute: '/provider/dashboard',
+        bottom: ProviderHubTabBar(current: '/provider/photos'),
       ),
       body: business.when(
         data: (business) {
@@ -344,9 +347,7 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
                 ],
               );
             },
-            loading: () => const Center(
-              child: CircularProgressIndicator(),
-            ),
+            loading: () => const RancoLoadingState(),
             error: (
               error,
               stackTrace,
@@ -358,9 +359,7 @@ class _LodgingPhotosScreenState extends ConsumerState<LodgingPhotosScreen> {
             ),
           );
         },
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
-        ),
+        loading: () => const RancoLoadingState(),
         error: (
           error,
           stackTrace,

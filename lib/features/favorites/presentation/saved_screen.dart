@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/widgets/ranco_states.dart';
 import '../../../core/widgets/ranco_app_bar.dart';
 import '../../../core/layout/ranco_responsive.dart';
 import '../../../core/widgets/ranco_error_state.dart';
@@ -63,8 +64,8 @@ class SavedScreen extends ConsumerWidget {
                       child: RancoContentContainer(
                         child: Padding(
                           padding: const EdgeInsets.only(
-                            top: RancoSpacing.sm,
-                            bottom: RancoSpacing.md,
+                            top: RancoSpacing.md,
+                            bottom: RancoSpacing.lg,
                           ),
                           child: _SavedToolbar(
                             count: items.length,
@@ -100,11 +101,7 @@ class SavedScreen extends ConsumerWidget {
                 ],
               );
             },
-            loading: () {
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
-            },
+            loading: () => const _SavedSkeleton(),
             error: (error, stackTrace) {
               return RancoErrorState(
                 message: favoritesFailureMessage(
@@ -119,11 +116,7 @@ class SavedScreen extends ConsumerWidget {
             },
           );
         },
-        loading: () {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        },
+        loading: () => const _SavedSkeleton(),
         error: (error, stackTrace) {
           return const RancoErrorState(
             message: 'No pudimos leer la sesión.',
@@ -370,29 +363,64 @@ class _SavedToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    // Contador a la izquierda, acción secundaria a la derecha y un divisor
+    // que separa la barra de la grilla.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(
-          child: Text(
-            '$count ${count == 1 ? 'guardado' : 'guardados'}',
-            style: const TextStyle(
-              color: RancoColors.forest,
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '$count ${count == 1 ? 'guardado' : 'guardados'}',
+                style: const TextStyle(
+                  color: RancoColors.textSecondary,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
-          ),
+            OutlinedButton.icon(
+              onPressed: onExplore,
+              icon: const Icon(
+                Icons.add_rounded,
+                size: 17,
+              ),
+              label: const Text(
+                'Explorar más',
+              ),
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+          ],
         ),
-        TextButton.icon(
-          onPressed: onExplore,
-          icon: const Icon(
-            Icons.add_rounded,
-            size: 17,
-          ),
-          label: const Text(
-            'Explorar más',
-          ),
-          style: TextButton.styleFrom(
-            foregroundColor: RancoColors.forest,
+        const SizedBox(height: RancoSpacing.md),
+        const Divider(height: 1),
+      ],
+    );
+  }
+}
+
+/// Carga: grilla de tarjetas esqueleto con la misma estructura del
+/// resultado (sin spinner ni salto de layout).
+class _SavedSkeleton extends StatelessWidget {
+  const _SavedSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(top: 88),
+      children: [
+        RancoContentContainer(
+          child: RancoResponsiveGrid(
+            minItemWidth: 260,
+            spacing: RancoSpacing.lg,
+            runSpacing: RancoSpacing.lg,
+            children: [
+              for (var i = 0; i < 4; i++) const RancoCardSkeleton(),
+            ],
           ),
         ),
       ],

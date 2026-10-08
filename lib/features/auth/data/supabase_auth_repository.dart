@@ -30,13 +30,17 @@ abstract interface class AuthRepository {
     required String email,
     required String password,
     bool consentAccepted = false,
+    bool providerRegistration = false,
+    String? emailRedirectPath,
   });
   Future<Result<AuthUser>> signIn({
     required String email,
     required String password,
   });
   Future<Result<AuthUser>> signInAnonymously();
+  Future<Result<void>> registerProviderIdentity();
   Future<Result<void>> sendPasswordResetEmail(String email);
+  Future<Result<void>> updateRecoveredPassword(String password);
   Future<Result<void>> signOut();
 }
 
@@ -86,6 +90,8 @@ class SupabaseAuthRepository implements AuthRepository {
     required String email,
     required String password,
     bool consentAccepted = false,
+    bool providerRegistration = false,
+    String? emailRedirectPath,
   }) async {
     final client = _client;
     if (client == null) {
@@ -103,13 +109,14 @@ class SupabaseAuthRepository implements AuthRepository {
         password: password,
         data: {
           'full_name': fullName.trim(),
+          if (providerRegistration) 'provider_registration': true,
           if (consentAccepted) ...{
             'consent_terms_version': termsVersion,
             'consent_privacy_version': privacyVersion,
             'consent_data_processing': true,
           },
         },
-        emailRedirectTo: _webRedirect('/'),
+        emailRedirectTo: _webRedirect(emailRedirectPath ?? '/'),
       );
       final user = response.user;
       return Success(user == null ? null : _mapUser(user));
@@ -189,6 +196,24 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<Result<void>> registerProviderIdentity() async {
+    final client = _client;
+    if (client == null) {
+      return const Failure(AppFailure(
+        type: AppFailureType.offline,
+        message: 'No pudimos registrar tu acceso proveedor.',
+      ));
+    }
+    try {
+      await client.rpc<void>('register_provider_identity');
+      return const Success(null);
+    } catch (error) {
+      return Failure(mapSupabaseFailure(error,
+          fallbackMessage: 'No pudimos registrar tu acceso proveedor.'));
+    }
+  }
+
+  @override
   Future<Result<void>> sendPasswordResetEmail(String email) async {
     final client = _client;
     if (client == null) {
@@ -213,6 +238,24 @@ class SupabaseAuthRepository implements AuthRepository {
           fallbackMessage: 'No pudimos enviar el email de recuperación.',
         ),
       );
+    }
+  }
+
+  @override
+  Future<Result<void>> updateRecoveredPassword(String password) async {
+    final client = _client;
+    if (client?.auth.currentSession == null) {
+      return const Failure(AppFailure(
+        type: AppFailureType.auth,
+        message: 'El enlace caducó. Solicita uno nuevo.',
+      ));
+    }
+    try {
+      await client!.auth.updateUser(UserAttributes(password: password));
+      return const Success(null);
+    } catch (error) {
+      return Failure(mapSupabaseFailure(error,
+          fallbackMessage: 'No pudimos actualizar la contraseña.'));
     }
   }
 

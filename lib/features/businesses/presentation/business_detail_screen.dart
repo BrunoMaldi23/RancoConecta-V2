@@ -338,6 +338,7 @@ class _BusinessPublicProfileState extends ConsumerState<BusinessPublicProfile> {
               .track(business.id, 'SAVE_BUSINESS'));
         }
         ref.invalidate(isFavoriteProvider(business.id));
+        ref.invalidate(favoriteIdsProvider);
         ref.invalidate(favoriteBusinessesProvider);
         _showSnack(
           isFavorite ? 'Quitado de Guardados' : 'Guardado en favoritos',
@@ -1976,7 +1977,8 @@ class _LodgingDetailsSection extends ConsumerWidget {
               children: [
                 _FactChip(
                   icon: Icons.groups_outlined,
-                  label: '${lodging.maxGuests} huéspedes',
+                  label: '${lodging.maxGuests} '
+                      '${lodging.maxGuests == 1 ? 'huésped' : 'huéspedes'}',
                 ),
                 _FactChip(
                   icon: Icons.king_bed_outlined,

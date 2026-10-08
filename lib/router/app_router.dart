@@ -68,11 +68,18 @@ import '../features/service_requests/presentation/create_request_screen.dart';
 import '../features/service_requests/presentation/provider_requests_screen.dart';
 
 import '../features/service_requests/presentation/requests_screen.dart';
+import '../features/service_requests/presentation/reservation_detail_screen.dart';
+import '../features/service_requests/domain/customer_activity_item.dart';
 
 import '../router/app_shell.dart';
 
 import '../shared/models/business.dart';
 import '../shared/models/profile.dart';
+import '../core/widgets/ranco_brand.dart';
+import '../core/widgets/ranco_app_bar.dart';
+import '../core/widgets/ranco_error_state.dart';
+import '../core/widgets/ranco_states.dart';
+import '../theme/ranco_colors.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final refreshListenable = GoRouterRefreshNotifier(ref);
@@ -90,13 +97,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     refreshListenable: refreshListenable,
     redirect: (context, state) {
       final path = state.uri.path;
+      if (ref.read(signingOutProvider)) {
+        return path == '/sign-in' ? null : '/sign-in';
+      }
       final auth = ref.read(authStateProvider);
       final user = auth.valueOrNull;
 
       final providerManagementRoute = _isProviderManagementRoute(path);
-      final providerRoute =
-          path == '/provider' || path.startsWith('/provider/');
-
       final adminRoute = path.startsWith('/admin');
 
       final protected = path.startsWith(
@@ -108,6 +115,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           path.startsWith(
             '/notifications',
           ) ||
+          path.startsWith('/requests/lodging/') ||
+          path.startsWith('/requests/gastronomy/') ||
           path == '/account/edit' ||
           path == '/account/security' ||
           providerManagementRoute ||
@@ -137,9 +146,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return _nextOrHome(state);
       }
 
-      if (recoveryReturnPending && user != null) {
+      if (recoveryReturnPending) {
         recoveryReturnPending = false;
-        if (path != '/account/security') return '/account/security';
+        if (path != '/reset-password') return '/reset-password';
       }
 
       if (path == '/sign-in' && user != null) {
@@ -176,7 +185,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return loginUri.toString();
       }
 
-      if (providerRoute && user != null && !user.isAnonymous) {
+      if (adminRoute && user != null) {
+        final profile = ref.read(currentProfileProvider);
+        if (profile.isLoading && !profile.hasValue) {
+          return _bootstrapRoute(state);
+        }
+        if (profile.hasError) {
+          return _bootstrapRoute(state);
+        }
+        if (profile.valueOrNull?.role.canAccessAdmin != true) {
+          return '/explore';
+        }
+      }
+
+      if (path == '/provider/status' || path == '/provider/dashboard') {
+        return '/provider/business';
+      }
+
+      if (providerManagementRoute && user != null && !user.isAnonymous) {
         final profile = ref.read(currentProfileProvider);
         if (profile.isLoading && !profile.hasValue) {
           return _bootstrapRoute(state);
@@ -196,7 +222,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       if (path == '/provider') {
         return user == null || user.isAnonymous
             ? '/provider/join'
-            : '/provider/dashboard';
+            : '/provider/business';
       }
 
       if (providerManagementRoute && user != null) {
@@ -223,7 +249,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           );
 
-          return path == '/provider/status' ? null : '/provider/status';
+          return path == '/provider/business' ? null : '/provider/business';
         }
 
         final contextState = providerContext.valueOrNull;
@@ -344,9 +370,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/visitor/profile',
-        builder: (context, state) => VisitorProfileScreen(
-          nextRoute: state.uri.queryParameters['next'],
-        ),
+        redirect: (context, state) => '/explore',
+        builder: (context, state) => const SizedBox.shrink(),
       ),
       GoRoute(
         path: '/provider/sign-in',
@@ -357,6 +382,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/sign-up',
+        redirect: (context, state) =>
+            state.uri.queryParameters['next'] == '/account'
+                ? null
+                : '/provider/join',
         builder: (context, state) => SignUpScreen(
           nextRoute: state.uri.queryParameters['next'],
         ),
@@ -368,6 +397,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/provider/register',
         builder: (context, state) => const ProviderRegistrationScreen(),
+      ),
+      GoRoute(
+        path: '/provider/business',
+        builder: (context, state) => const _ProviderBusinessHub(),
       ),
       GoRoute(
         path: '/provider/status',
@@ -449,6 +482,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           nextRoute: state.uri.queryParameters['next'],
         ),
       ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (context, state) => const ResetPasswordScreen(),
+      ),
       ShellRoute(
         builder: (context, state, child) => AdminWorkspaceShell(
           path: state.uri.path,
@@ -512,6 +549,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AccountSecurityScreen(),
       ),
       GoRoute(
+        path: '/requests/lodging/:id',
+        builder: (context, state) => ReservationDetailScreen(
+          reservationId: state.pathParameters['id']!,
+          type: CustomerActivityType.lodging,
+        ),
+      ),
+      GoRoute(
+        path: '/requests/gastronomy/:id',
+        builder: (context, state) => ReservationDetailScreen(
+          reservationId: state.pathParameters['id']!,
+          type: CustomerActivityType.gastronomy,
+        ),
+      ),
+      GoRoute(
         path: '/business/:id/availability',
         builder: (context, state) {
           final businessId = state.pathParameters['id']!;
@@ -562,7 +613,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 });
 
 bool _isProviderManagementRoute(String path) {
-  return path == '/provider/dashboard' ||
+  return path == '/provider/business' ||
+      path == '/provider/dashboard' ||
       path == '/provider/profile' ||
       path == '/provider/services' ||
       path == '/provider/coverage' ||
@@ -614,7 +666,7 @@ String? _providerRedirectDecision({
   }
 
   if (status == ProviderContextStatus.noBusiness) {
-    return _isProviderOnboardingRoute(path) ? null : '/provider/status';
+    return _isProviderOnboardingRoute(path) ? null : '/provider/business';
   }
 
   if (status == ProviderContextStatus.published) {
@@ -625,11 +677,12 @@ String? _providerRedirectDecision({
     return null;
   }
 
-  return '/provider/status';
+  return '/provider/business';
 }
 
 bool _isProviderOnboardingRoute(String path) {
-  return path == '/provider/status' ||
+  return path == '/provider/business' ||
+      path == '/provider/status' ||
       path == '/provider/register' ||
       path == '/provider/join';
 }
@@ -640,6 +693,11 @@ class GoRouterRefreshNotifier extends ChangeNotifier {
 
     _authSubscription = ref.listen<AsyncValue<Object?>>(
       authStateProvider,
+      (_, __) => notifyListeners(),
+    );
+
+    _signingOutSubscription = ref.listen<bool>(
+      signingOutProvider,
       (_, __) => notifyListeners(),
     );
 
@@ -655,12 +713,14 @@ class GoRouterRefreshNotifier extends ChangeNotifier {
 
   final Ref ref;
   late final ProviderSubscription<AsyncValue<Object?>> _authSubscription;
+  late final ProviderSubscription<bool> _signingOutSubscription;
   late final ProviderSubscription<AsyncValue<Object?>> _providerSubscription;
   late final ProviderSubscription<AsyncValue<Object?>> _profileSubscription;
 
   @override
   void dispose() {
     _authSubscription.close();
+    _signingOutSubscription.close();
     _providerSubscription.close();
     _profileSubscription.close();
 
@@ -674,57 +734,118 @@ class BootstrapScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authStateProvider);
-    final providerContext = ref.watch(providerContextProvider);
-    final hasError = auth.hasError || providerContext.hasError;
+    final providerContext =
+        auth.valueOrNull == null ? null : ref.watch(providerContextProvider);
+    final hasError = auth.hasError || providerContext?.hasError == true;
 
+    // FASE 3.23: solo presentación (mismas condiciones). Marca, frase breve
+    // e indicador discreto que aparece con un fundido corto: si el arranque
+    // es rápido no hay destello de spinner.
     return Scaffold(
-      backgroundColor: const Color(0xFFEAF4F0),
+      backgroundColor: RancoColors.canvas,
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (hasError)
-                const Icon(
-                  Icons.error_outline_rounded,
-                  color: Color(0xFF2F6F4E),
-                  size: 34,
-                )
-              else
-                const CircularProgressIndicator(),
-              const SizedBox(height: 16),
-              Text(
-                hasError
-                    ? 'No pudimos preparar tu sesión.'
-                    : 'Preparando Ranco Conecta...',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: const Color(0xFF1B3D2F),
-                      fontWeight: FontWeight.w700,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const RancoBrandMark(size: 56),
+                const SizedBox(height: 18),
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    hasError
+                        ? 'No pudimos preparar tu sesión.'
+                        : 'Preparando tu cuenta…',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: RancoColors.textPrimary,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
                     ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                hasError
-                    ? 'Reintenta iniciar sesión para continuar.'
-                    : 'Estamos sincronizando tu acceso.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF557065),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  hasError
+                      ? 'Reintenta iniciar sesión para continuar.'
+                      : 'Esto toma solo un momento.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: RancoColors.textSecondary,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                if (!hasError)
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0, end: 1),
+                    duration: const Duration(milliseconds: 500),
+                    // Invisible los primeros ~300 ms, luego fundido.
+                    curve: const Interval(.6, 1, curve: Curves.easeOut),
+                    builder: (context, opacity, child) =>
+                        Opacity(opacity: opacity, child: child),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: const SizedBox(
+                        width: 120,
+                        child: LinearProgressIndicator(
+                          minHeight: 3,
+                          backgroundColor: Color(0xFFE1ECE6),
+                          color: RancoColors.forest,
+                        ),
+                      ),
                     ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'build ${AppBuildInfo.version} · ${AppBuildInfo.gitSha} · ${AppBuildInfo.buildTime}',
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: const Color(0xFF6F8178),
+                  ),
+                // Datos de build solo en desarrollo, nunca al usuario final.
+                if (kDebugMode) ...[
+                  const SizedBox(height: 16),
+                  const Text(
+                    'build ${AppBuildInfo.version} · ${AppBuildInfo.gitSha}',
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Color(0xFF8A9A92),
+                      fontSize: 11,
                     ),
-              ),
-            ],
+                  ),
+                ],
+              ],
+            ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProviderBusinessHub extends ConsumerWidget {
+  const _ProviderBusinessHub();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final providerContext = ref.watch(providerContextProvider);
+    return providerContext.when(
+      data: (state) => state.status == ProviderContextStatus.published
+          ? const ProviderDashboardScreen()
+          : const ProviderBusinessStatusScreen(),
+      // FASE 3.23: misma lógica; carga con esqueleto y error compartido.
+      loading: () => const Scaffold(
+        backgroundColor: RancoColors.canvas,
+        appBar: RancoAppBar(title: 'Mi negocio', fallbackRoute: '/account'),
+        body: RancoLoadingState(rows: 3, rowHeight: 96),
+      ),
+      error: (_, __) => Scaffold(
+        backgroundColor: RancoColors.canvas,
+        appBar: const RancoAppBar(
+          title: 'Mi negocio',
+          fallbackRoute: '/account',
+        ),
+        body: RancoErrorState(
+          message: 'No pudimos cargar tu negocio.',
+          onRetry: () => ref.invalidate(providerContextProvider),
         ),
       ),
     );

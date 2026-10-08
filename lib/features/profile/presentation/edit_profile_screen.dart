@@ -7,6 +7,7 @@ import '../../../theme/ranco_colors.dart';
 import '../../auth/application/auth_controller.dart';
 import '../application/profile_providers.dart';
 import '../data/profile_repository.dart';
+import '../../../core/widgets/ranco_states.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({
@@ -291,9 +292,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 ),
               );
             },
-            loading: () => const Center(
-              child: CircularProgressIndicator(),
-            ),
+            loading: () => const RancoLoadingState(),
             error: (
               error,
               stackTrace,
@@ -313,9 +312,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             ),
           );
         },
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
-        ),
+        loading: () => const RancoLoadingState(),
         error: (
           error,
           stackTrace,

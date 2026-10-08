@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -31,6 +33,15 @@ class ExploreScreen extends ConsumerStatefulWidget {
 class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   late final TextEditingController _searchController;
   final FocusNode _searchFocusNode = FocusNode();
+  Timer? _searchDebounce;
+
+  void _scheduleSearch(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      ref.read(businessSearchQueryProvider.notifier).state = value;
+    });
+  }
 
   @override
   void initState() {
@@ -43,6 +54,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
@@ -132,8 +144,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                     selectedCategoryName: activeCategoryName,
                     advancedFilterCount: advancedFilterCount,
                     onSearchChanged: (value) {
-                      ref.read(businessSearchQueryProvider.notifier).state =
-                          value.trimLeft();
+                      _scheduleSearch(value.trimLeft());
                       setState(() {});
                     },
                     onSearch: _submitSearch,
@@ -308,8 +319,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                     orElse: () => const SizedBox.shrink(),
                   ),
                   onSearchChanged: (value) {
-                    ref.read(businessSearchQueryProvider.notifier).state =
-                        value.trimLeft();
+                    _scheduleSearch(value.trimLeft());
 
                     setState(() {});
                   },
@@ -474,6 +484,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   }
 
   void _submitSearch() {
+    _searchDebounce?.cancel();
     final query = _searchController.text.trim();
     Telemetry.capture('search_business');
 
@@ -485,6 +496,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   }
 
   void _clearSearch() {
+    _searchDebounce?.cancel();
     _searchController.clear();
 
     ref.read(businessSearchQueryProvider.notifier).state = '';
@@ -511,6 +523,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   }
 
   void _clearAll() {
+    _searchDebounce?.cancel();
     _searchController.clear();
 
     ref.read(businessSearchQueryProvider.notifier).state = '';

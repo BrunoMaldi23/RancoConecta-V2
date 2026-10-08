@@ -6,7 +6,7 @@ import 'package:ranco_conecta_2/features/admin/presentation/admin_screens.dart';
 import 'package:ranco_conecta_2/shared/models/profile.dart';
 
 void main() {
-  for (final role in [ProfileRole.admin, ProfileRole.superAdmin]) {
+  for (final role in [ProfileRole.admin]) {
     testWidgets('$role opens admin content', (tester) async {
       await _pumpGate(tester, role);
       expect(find.text('Contenido administrativo'), findsOneWidget);
@@ -14,7 +14,7 @@ void main() {
     });
   }
 
-  for (final role in [ProfileRole.provider, null]) {
+  for (final role in [ProfileRole.provider, ProfileRole.legacyCustomer, null]) {
     testWidgets('$role cannot open admin content', (tester) async {
       await _pumpGate(tester, role);
       expect(find.text('Contenido administrativo'), findsNothing);

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ranco_conecta_2/core/widgets/ranco_states.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ranco_conecta_2/config/app_config.dart';
 import 'package:ranco_conecta_2/core/result/result.dart';
@@ -39,7 +40,7 @@ const _adminUser = AuthUser(
 );
 
 void main() {
-  testWidgets('account waits for auth, then loads the valid admin session',
+  testWidgets('account waits for auth, then loads the active admin profile',
       (tester) async {
     final authEvents = StreamController<AuthUser?>();
     addTearDown(authEvents.close);
@@ -61,7 +62,8 @@ void main() {
       child: MaterialApp.router(routerConfig: router),
     ));
 
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    // FASE 3.21: esqueleto con la forma de Cuenta (perfil + negocio).
+    expect(find.byType(RancoSkeletonCard), findsWidgets);
     expect(find.text('Debes ingresar para ver tu perfil.'), findsNothing);
     expect(find.text('Inicia sesión en tu cuenta'), findsNothing);
 
@@ -217,7 +219,7 @@ class _FakeProfileRepository implements ProfileRepository {
   int calls = 0;
 
   @override
-  Future<Result<Profile>> getCurrentProfile() async {
+  Future<Result<Profile>> getCurrentProfile(String userId) async {
     calls++;
     return Success(calls == 1 ? _admin : _provider);
   }

@@ -3,17 +3,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/telemetry/telemetry.dart';
 
+import '../../../core/layout/ranco_responsive.dart';
+import '../../../core/widgets/ranco_states.dart';
 import '../../../features/auth/data/supabase_auth_repository.dart';
 import '../../../features/categories/application/category_providers.dart';
+import '../../../features/categories/presentation/categories_screen.dart'
+    show categoryIconFor;
 import '../../../features/locations/application/location_providers.dart';
 import '../../../features/provider_dashboard/application/provider_dashboard_providers.dart';
+import '../../../features/provider_dashboard/presentation/provider_hub.dart';
 import '../../../shared/models/business.dart';
 import '../../../shared/models/category.dart';
 import '../../../shared/models/location.dart';
 import '../../../theme/ranco_colors.dart';
+import '../../../theme/ranco_tokens.dart';
 import '../application/business_onboarding_requirements.dart';
 import '../data/business_onboarding_repository.dart';
 
+/// Asistente de publicación en 5 pasos (FASE 3.21: solo UI). Tipo →
+/// Información → Categoría → Cobertura → Revisión. La lógica de guardado,
+/// validación y envío a revisión es la misma de antes.
 class ProviderRegistrationScreen extends ConsumerStatefulWidget {
   const ProviderRegistrationScreen({
     super.key,
@@ -26,8 +35,6 @@ class ProviderRegistrationScreen extends ConsumerStatefulWidget {
 
 class _ProviderRegistrationScreenState
     extends ConsumerState<ProviderRegistrationScreen> {
-  final _pageController = PageController();
-
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -55,7 +62,7 @@ class _ProviderRegistrationScreenState
   static const _steps = [
     'Tipo',
     'Información',
-    'Actividad',
+    'Categoría',
     'Cobertura',
     'Revisión',
   ];
@@ -71,8 +78,6 @@ class _ProviderRegistrationScreenState
 
   @override
   void dispose() {
-    _pageController.dispose();
-
     _nameController.dispose();
     _descriptionController.dispose();
     _phoneController.dispose();
@@ -113,7 +118,7 @@ class _ProviderRegistrationScreenState
                     height: 52,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE5F2EC),
+                      color: RancoColors.primarySoft,
                       borderRadius: BorderRadius.circular(15),
                     ),
                     child: const Icon(
@@ -129,7 +134,7 @@ class _ProviderRegistrationScreenState
                     style: TextStyle(
                       color: RancoColors.textPrimary,
                       fontSize: 20,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(height: 7),
@@ -138,27 +143,22 @@ class _ProviderRegistrationScreenState
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: RancoColors.textSecondary,
-                      fontSize: 13,
+                      fontSize: 14,
                       height: 1.4,
                     ),
                   ),
                   const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: FilledButton(
-                      onPressed: () {
-                        context.go(
-                          '/provider/sign-in?next=/provider/register',
-                        );
-                      },
-                      style: FilledButton.styleFrom(
-                        backgroundColor: RancoColors.forest,
-                        foregroundColor: Colors.white,
-                      ),
-                      child: const Text(
-                        'Iniciar sesión',
-                      ),
+                  FilledButton(
+                    onPressed: () {
+                      context.go(
+                        '/provider/sign-in?next=/provider/register',
+                      );
+                    },
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(200, 48),
+                    ),
+                    child: const Text(
+                      'Iniciar sesión',
                     ),
                   ),
                 ],
@@ -176,67 +176,93 @@ class _ProviderRegistrationScreenState
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
+          tooltip: _step == 0 ? 'Salir' : 'Paso anterior',
           onPressed: _back,
           icon: const Icon(
             Icons.arrow_back_rounded,
           ),
         ),
         title: const Text(
-          'Crear negocio',
+          'Publicar negocio',
         ),
         actions: [
-          TextButton(
-            onPressed: _saving ? null : _saveProgress,
-            child: const Text(
+          TextButton.icon(
+            onPressed: _saving || _loading ? null : _saveProgress,
+            icon: const Icon(Icons.save_outlined, size: 18),
+            label: const Text(
               'Guardar',
             ),
+            style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
         ],
       ),
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 680,
-            ),
-            child: _loading
-                ? const Center(
-                    child: CircularProgressIndicator(),
-                  )
-                : Column(
-                    children: [
-                      _ProgressHeader(
-                        step: _step,
-                        steps: _steps,
-                      ),
-                      if (_error != null)
-                        _InlineMessage(
-                          message: _error!,
-                          error: true,
-                        ),
-                      if (_statusMessage != null)
-                        _InlineMessage(
-                          message: _statusMessage!,
-                        ),
-                      Expanded(
-                        child: PageView(
-                          controller: _pageController,
-                          physics: const NeverScrollableScrollPhysics(),
-                          children: [
-                            _typeStep(),
-                            _profileStep(),
-                            _classificationStep(),
-                            _coverageStep(),
-                            _reviewStep(),
-                          ],
-                        ),
-                      ),
-                    ],
+        top: false,
+        child: _loading
+            ? const RancoLoadingState(rows: 3, rowHeight: 96)
+            : Column(
+                children: [
+                  _ProgressHeader(
+                    step: _step,
+                    steps: _steps,
                   ),
-          ),
-        ),
+                  Expanded(
+                    child: AnimatedSwitcher(
+                      duration: RancoDurations.normal,
+                      switchInCurve: Curves.easeOut,
+                      switchOutCurve: Curves.easeIn,
+                      transitionBuilder: (child, animation) => FadeTransition(
+                        opacity: animation,
+                        child: child,
+                      ),
+                      child: KeyedSubtree(
+                        key: ValueKey(_step),
+                        child: switch (_step) {
+                          0 => _typeStep(),
+                          1 => _profileStep(),
+                          2 => _classificationStep(),
+                          3 => _coverageStep(),
+                          _ => _reviewStep(),
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
       ),
+    );
+  }
+
+  /// Mensajes del paso (error o "Borrador guardado.") junto a las acciones
+  /// que los producen, no lejos en la parte superior.
+  Widget _footer({
+    required String primaryLabel,
+    required VoidCallback? onPrimary,
+    IconData primaryIcon = Icons.arrow_forward_rounded,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (_error != null)
+          _InlineMessage(
+            message: _error!,
+            error: true,
+          ),
+        if (_statusMessage != null)
+          _InlineMessage(
+            message: _statusMessage!,
+          ),
+        const SizedBox(height: 20),
+        _StepActions(
+          showBack: _step > 0,
+          onBack: _saving ? null : _back,
+          primaryLabel: primaryLabel,
+          primaryIcon: primaryIcon,
+          onPrimary: _saving ? null : onPrimary,
+          loading: _saving,
+        ),
+      ],
     );
   }
 
@@ -245,100 +271,74 @@ class _ProviderRegistrationScreenState
   // ---------------------------------------------------------------------------
 
   Widget _typeStep() {
+    Widget card(
+      BusinessType type,
+      IconData icon,
+      String title,
+      String subtitle,
+    ) {
+      return _TypeCard(
+        selected: _businessType == type,
+        icon: icon,
+        title: title,
+        subtitle: subtitle,
+        onTap: () {
+          _setBusinessType(type);
+        },
+      );
+    }
+
     return _RegistrationPage(
       title: 'Elige el tipo de negocio',
       subtitle:
-          'Esto define las herramientas y opciones iniciales de tu publicación.',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+          'Define las herramientas y opciones iniciales de tu publicación.',
+      footer: _footer(
+        primaryLabel: 'Continuar',
+        onPrimary: _next,
+      ),
+      child: RancoResponsiveGrid(
+        minItemWidth: 190,
+        maxColumns: 3,
+        minColumns: 2,
+        spacing: 10,
+        runSpacing: 10,
+        equalHeightRows: true,
         children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final columns = constraints.maxWidth >= 620 ? 3 : 2;
-
-              return GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: columns,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: constraints.maxWidth >= 620 ? 1.75 : 1.42,
-                children: [
-                  _TypeCard(
-                    selected: _businessType == BusinessType.service,
-                    icon: Icons.handyman_outlined,
-                    title: 'Servicio',
-                    subtitle: 'Oficios y atención local.',
-                    onTap: () {
-                      _setBusinessType(
-                        BusinessType.service,
-                      );
-                    },
-                  ),
-                  _TypeCard(
-                    selected: _businessType == BusinessType.commerce,
-                    icon: Icons.storefront_outlined,
-                    title: 'Comercio',
-                    subtitle: 'Tiendas y negocios locales.',
-                    onTap: () {
-                      _setBusinessType(
-                        BusinessType.commerce,
-                      );
-                    },
-                  ),
-                  _TypeCard(
-                    selected: _businessType == BusinessType.gastronomy,
-                    icon: Icons.restaurant_outlined,
-                    title: 'Gastronomía',
-                    subtitle: 'Restaurantes y comida.',
-                    onTap: () {
-                      _setBusinessType(
-                        BusinessType.gastronomy,
-                      );
-                    },
-                  ),
-                  _TypeCard(
-                    selected: _businessType == BusinessType.lodging,
-                    icon: Icons.bed_outlined,
-                    title: 'Alojamiento',
-                    subtitle: 'Cabañas y hospedajes.',
-                    onTap: () {
-                      _setBusinessType(
-                        BusinessType.lodging,
-                      );
-                    },
-                  ),
-                  _TypeCard(
-                    selected: _businessType == BusinessType.tourism,
-                    icon: Icons.terrain_outlined,
-                    title: 'Turismo',
-                    subtitle: 'Experiencias y actividades.',
-                    onTap: () {
-                      _setBusinessType(
-                        BusinessType.tourism,
-                      );
-                    },
-                  ),
-                  _TypeCard(
-                    selected: _businessType == BusinessType.emergency,
-                    icon: Icons.emergency_outlined,
-                    title: 'Emergencia',
-                    subtitle: 'Atención urgente.',
-                    onTap: () {
-                      _setBusinessType(
-                        BusinessType.emergency,
-                      );
-                    },
-                  ),
-                ],
-              );
-            },
+          card(
+            BusinessType.service,
+            Icons.handyman_outlined,
+            'Servicio',
+            'Oficios y atención local.',
           ),
-          const SizedBox(height: 20),
-          _NextButton(
-            text: 'Continuar',
-            loading: _saving,
-            onPressed: _next,
+          card(
+            BusinessType.commerce,
+            Icons.storefront_outlined,
+            'Comercio',
+            'Tiendas y negocios locales.',
+          ),
+          card(
+            BusinessType.gastronomy,
+            Icons.restaurant_outlined,
+            'Gastronomía',
+            'Restaurantes y comida.',
+          ),
+          card(
+            BusinessType.lodging,
+            Icons.bed_outlined,
+            'Alojamiento',
+            'Cabañas y hospedajes.',
+          ),
+          card(
+            BusinessType.tourism,
+            Icons.terrain_outlined,
+            'Turismo',
+            'Experiencias y actividades.',
+          ),
+          card(
+            BusinessType.emergency,
+            Icons.emergency_outlined,
+            'Emergencia',
+            'Atención urgente.',
           ),
         ],
       ),
@@ -352,19 +352,19 @@ class _ProviderRegistrationScreenState
   Widget _profileStep() {
     return _RegistrationPage(
       title: 'Información del negocio',
-      subtitle:
-          'Completa los datos principales que verán las personas al encontrar tu publicación.',
+      subtitle: 'Los datos principales que verán las personas al encontrarte.',
+      footer: _footer(
+        primaryLabel: 'Continuar',
+        onPrimary: _next,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const _Label(
-            'Nombre comercial',
-          ),
-          const SizedBox(height: 7),
           TextField(
             controller: _nameController,
             textCapitalization: TextCapitalization.words,
             decoration: const InputDecoration(
+              labelText: 'Nombre comercial',
               hintText: 'Ej. Servicios del Ranco',
               prefixIcon: Icon(
                 Icons.store_outlined,
@@ -372,89 +372,81 @@ class _ProviderRegistrationScreenState
             ),
           ),
           const SizedBox(height: 14),
-          const _Label(
-            'Descripción',
-          ),
-          const SizedBox(height: 7),
           TextField(
             controller: _descriptionController,
             minLines: 3,
             maxLines: 5,
             decoration: const InputDecoration(
-              hintText:
-                  'Cuenta brevemente qué ofrece tu negocio y qué lo diferencia.',
+              labelText: 'Descripción',
+              hintText: 'Qué ofreces y qué te diferencia.',
+              helperText: 'Mínimo 20 caracteres.',
+              alignLabelWithHint: true,
             ),
           ),
-          const SizedBox(height: 18),
-          const _SectionHint(
-            icon: Icons.call_outlined,
+          const SizedBox(height: 22),
+          const _GroupTitle(
             title: 'Contacto',
-            message:
-                'Debes ingresar al menos teléfono, WhatsApp o correo comercial.',
+            caption: 'Ingresa al menos teléfono, WhatsApp o correo.',
           ),
           const SizedBox(height: 12),
-          TextField(
-            controller: _phoneController,
-            keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(
-              hintText: 'Teléfono',
-              prefixIcon: Icon(
-                Icons.phone_outlined,
+          _FieldPair(
+            first: TextField(
+              controller: _phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'Teléfono',
+                prefixIcon: Icon(
+                  Icons.phone_outlined,
+                ),
+              ),
+            ),
+            second: TextField(
+              controller: _whatsappController,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'WhatsApp',
+                prefixIcon: Icon(
+                  Icons.chat_outlined,
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 9),
-          TextField(
-            controller: _whatsappController,
-            keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(
-              hintText: 'WhatsApp',
-              prefixIcon: Icon(
-                Icons.chat_outlined,
+          const SizedBox(height: 12),
+          _FieldPair(
+            first: TextField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Correo comercial',
+                prefixIcon: Icon(
+                  Icons.mail_outline_rounded,
+                ),
+              ),
+            ),
+            second: TextField(
+              controller: _websiteController,
+              keyboardType: TextInputType.url,
+              decoration: const InputDecoration(
+                labelText: 'Sitio web o red social',
+                helperText: 'Opcional',
+                prefixIcon: Icon(
+                  Icons.language_outlined,
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 9),
-          TextField(
-            controller: _emailController,
-            keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(
-              hintText: 'Email comercial',
-              prefixIcon: Icon(
-                Icons.mail_outline_rounded,
-              ),
-            ),
-          ),
-          const SizedBox(height: 9),
-          TextField(
-            controller: _websiteController,
-            keyboardType: TextInputType.url,
-            decoration: const InputDecoration(
-              hintText: 'Sitio web o red social (opcional)',
-              prefixIcon: Icon(
-                Icons.language_outlined,
-              ),
-            ),
-          ),
-          const SizedBox(height: 18),
-          const _Label(
-            'Dirección o referencia',
-          ),
-          const SizedBox(height: 7),
+          const SizedBox(height: 22),
+          const _GroupTitle(title: 'Ubicación'),
+          const SizedBox(height: 12),
           TextField(
             controller: _addressController,
             decoration: const InputDecoration(
+              labelText: 'Dirección o referencia',
               hintText: 'Sector, calle o referencia',
               prefixIcon: Icon(
                 Icons.location_on_outlined,
               ),
             ),
-          ),
-          const SizedBox(height: 22),
-          _NextButton(
-            text: 'Guardar y continuar',
-            loading: _saving,
-            onPressed: _next,
           ),
         ],
       ),
@@ -477,37 +469,40 @@ class _ProviderRegistrationScreenState
     return _RegistrationPage(
       title: 'Categoría y actividad',
       subtitle: _businessType == BusinessType.service
-          ? 'Elige el rubro principal y, cuando corresponda, los servicios específicos.'
-          : 'Elige la categoría principal que mejor representa tu negocio.',
+          ? 'Elige el rubro principal y los servicios específicos que ofreces.'
+          : 'Elige la categoría que mejor representa tu negocio.',
+      footer: _footer(
+        primaryLabel: 'Continuar',
+        onPrimary: _next,
+      ),
       child: categories.when(
         data: (items) {
+          Category? selected;
+          for (final category in items) {
+            if (category.id == _categoryId) {
+              selected = category;
+              break;
+            }
+          }
+
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              DropdownButtonFormField<String>(
-                initialValue: _categoryId,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Categoría',
-                  prefixIcon: Icon(
-                    Icons.category_outlined,
-                  ),
-                ),
-                items: items
-                    .map(
-                      (category) => DropdownMenuItem<String>(
-                        value: category.id,
-                        child: Text(
-                          category.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {
+              _CategoryField(
+                selected: selected,
+                onTap: () async {
+                  final picked = await showRancoAdaptiveModal<Category>(
+                    context: context,
+                    maxWidth: 560,
+                    builder: (sheetContext) => _CategoryPickerSheet(
+                      categories: items,
+                      selectedId: _categoryId,
+                    ),
+                  );
+                  if (picked == null || !mounted) return;
+                  if (picked.id == _categoryId) return;
                   setState(() {
-                    _categoryId = value;
+                    _categoryId = picked.id;
 
                     _subcategoryIds.clear();
 
@@ -516,25 +511,17 @@ class _ProviderRegistrationScreenState
                   });
                 },
               ),
-              if (_businessType == BusinessType.service) ...[
-                const SizedBox(height: 16),
+              if (_businessType == BusinessType.service &&
+                  _categoryId != null) ...[
+                const SizedBox(height: 22),
                 subcategories.when(
                   data: (services) {
-                    if (_categoryId == null) {
-                      return const _InfoCard(
-                        icon: Icons.category_outlined,
-                        title: 'Selecciona una categoría',
-                        message:
-                            'Después podrás definir la actividad específica de tu negocio.',
-                      );
-                    }
-
                     if (services.isEmpty) {
                       return const _InfoCard(
                         icon: Icons.info_outline_rounded,
                         title: 'Categoría sin actividad configurada',
                         message:
-                            'Esta categoría todavía no tiene una actividad asociada en la base de datos.',
+                            'Esta categoría todavía no tiene servicios asociados. Elige otra o contáctanos.',
                         warning: true,
                       );
                     }
@@ -555,21 +542,18 @@ class _ProviderRegistrationScreenState
                       );
                     }
 
+                    final count = _subcategoryIds.length;
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const _Label(
-                          'Servicios que ofreces',
+                        _GroupTitle(
+                          title: 'Servicios que ofreces',
+                          caption: 'Selecciona uno o varios.',
+                          trailing: count == 0
+                              ? null
+                              : '$count ${count == 1 ? 'seleccionado' : 'seleccionados'}',
                         ),
-                        const SizedBox(height: 5),
-                        const Text(
-                          'Selecciona uno o varios.',
-                          style: TextStyle(
-                            color: RancoColors.textSecondary,
-                            fontSize: 11.5,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 12),
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
@@ -582,45 +566,46 @@ class _ProviderRegistrationScreenState
                       ],
                     );
                   },
-                  loading: () => const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(12),
-                      child: CircularProgressIndicator(),
-                    ),
+                  loading: () => const Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      RancoSkeletonBox(width: 150, height: 36, radius: 18),
+                      RancoSkeletonBox(width: 110, height: 36, radius: 18),
+                      RancoSkeletonBox(width: 130, height: 36, radius: 18),
+                    ],
                   ),
                   error: (
                     error,
                     stackTrace,
                   ) =>
-                      Text(
-                    failureMessage(
+                      _InfoCard(
+                    icon: Icons.cloud_off_outlined,
+                    title: 'No pudimos cargar los servicios',
+                    message: failureMessage(
                       error,
-                      'No pudimos cargar los servicios.',
+                      'Inténtalo nuevamente en unos segundos.',
                     ),
+                    warning: true,
                   ),
                 ),
               ],
-              const SizedBox(height: 22),
-              _NextButton(
-                text: 'Guardar y continuar',
-                loading: _saving,
-                onPressed: _next,
-              ),
             ],
           );
         },
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
-        ),
+        loading: () => const RancoSkeletonBox(height: 60, radius: 14),
         error: (
           error,
           stackTrace,
         ) =>
-            Text(
-          failureMessage(
+            _InfoCard(
+          icon: Icons.cloud_off_outlined,
+          title: 'No pudimos cargar las categorías',
+          message: failureMessage(
             error,
-            'No pudimos cargar las categorías.',
+            'Inténtalo nuevamente en unos segundos.',
           ),
+          warning: true,
         ),
       ),
     );
@@ -632,21 +617,26 @@ class _ProviderRegistrationScreenState
 
   Widget _coverageStep() {
     final locations = ref.watch(locationsProvider);
+    final count = _coverageLocationIds.length;
 
     return _RegistrationPage(
-      title: 'Ubicación y cobertura',
-      subtitle:
-          'Selecciona dónde se ubica o en qué localidades atiende tu negocio.',
+      title: 'Cobertura',
+      subtitle: 'Selecciona dónde se ubica o en qué localidades atiendes.',
+      footer: _footer(
+        primaryLabel: 'Revisar',
+        onPrimary: _next,
+      ),
       child: locations.when(
         data: (items) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const _SectionHint(
-                icon: Icons.location_on_outlined,
-                title: 'Localidades',
-                message:
-                    'Puedes seleccionar una o varias según dónde atiendas.',
+              _GroupTitle(
+                title: 'Selecciona dónde atiendes',
+                caption: 'Puedes elegir una o varias localidades.',
+                trailing: count == 0
+                    ? null
+                    : '$count ${count == 1 ? 'localidad seleccionada' : 'localidades seleccionadas'}',
               ),
               const SizedBox(height: 14),
               Wrap(
@@ -689,26 +679,29 @@ class _ProviderRegistrationScreenState
                   },
                 ).toList(),
               ),
-              const SizedBox(height: 22),
-              _NextButton(
-                text: 'Guardar y revisar',
-                loading: _saving,
-                onPressed: _next,
-              ),
             ],
           );
         },
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
+        loading: () => const Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            RancoSkeletonBox(width: 120, height: 36, radius: 18),
+            RancoSkeletonBox(width: 96, height: 36, radius: 18),
+            RancoSkeletonBox(width: 140, height: 36, radius: 18),
+          ],
         ),
         error: (
           error,
           stackTrace,
         ) =>
-            Text(
-          locationFailureMessage(
+            _InfoCard(
+          icon: Icons.cloud_off_outlined,
+          title: 'No pudimos cargar las localidades',
+          message: locationFailureMessage(
             error,
           ),
+          warning: true,
         ),
       ),
     );
@@ -787,57 +780,92 @@ class _ProviderRegistrationScreenState
           (item) => item.satisfied,
         );
 
-    String servicesSummary = 'Pendiente';
+    String? servicesSummary;
 
-    if (_businessType != BusinessType.service) {
-      servicesSummary = 'No aplica';
-    } else if (serviceNames.isNotEmpty) {
+    if (serviceNames.isNotEmpty) {
       servicesSummary = serviceNames.join(', ');
     } else if (hasGeneralService) {
       servicesSummary = 'Actividad general';
     }
 
+    String? text(TextEditingController controller) {
+      final value = controller.text.trim();
+      return value.isEmpty ? null : value;
+    }
+
+    final contactRows = [
+      if (text(_phoneController) case final value?) ('Teléfono', value),
+      if (text(_whatsappController) case final value?) ('WhatsApp', value),
+      if (text(_emailController) case final value?) ('Correo', value),
+      if (text(_websiteController) case final value?) ('Sitio web', value),
+      if (text(_addressController) case final value?) ('Dirección', value),
+    ];
+    final ready = requirements.where((item) => item.satisfied).length;
+
+    void edit(int step) {
+      setState(() {
+        _step = step;
+        _error = null;
+        _statusMessage = null;
+      });
+    }
+
     return _RegistrationPage(
       title: 'Revisa tu publicación',
-      subtitle:
-          'Confirma que la información esté completa antes de enviarla a revisión.',
+      subtitle: 'Confirma que todo esté correcto antes de enviarla a revisión.',
+      footer: _footer(
+        primaryLabel: 'Enviar a revisión',
+        primaryIcon: Icons.send_outlined,
+        onPrimary: canSubmit ? _submit : null,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _SummaryCard(
+          _ReviewSection(
+            title: 'Negocio',
+            onEdit: () => edit(1),
             rows: [
-              _SummaryRow(
-                'Tipo',
-                _businessType.label,
-              ),
-              _SummaryRow(
-                'Nombre',
-                _nameController.text.trim(),
-              ),
-              _SummaryRow(
-                'Categoría',
-                categoryName ?? 'Pendiente',
-              ),
+              ('Nombre', text(_nameController)),
+              ('Tipo', _businessType.label),
+              ('Descripción', text(_descriptionController)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _ReviewSection(
+            title: 'Actividad',
+            onEdit: () => edit(2),
+            rows: [
+              ('Categoría', categoryName),
               if (_businessType == BusinessType.service)
-                _SummaryRow(
-                  'Servicios',
-                  servicesSummary,
-                ),
-              _SummaryRow(
-                'Localidades',
-                locationNames.isEmpty
-                    ? 'Pendiente'
-                    : locationNames.join(
-                        ', ',
-                      ),
+                ('Servicios', servicesSummary),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _ReviewSection(
+            title: 'Cobertura',
+            onEdit: () => edit(3),
+            rows: [
+              (
+                locationNames.length == 1 ? 'Localidad' : 'Localidades',
+                locationNames.isEmpty ? null : locationNames.join(' · '),
               ),
             ],
           ),
-          const SizedBox(height: 18),
-          const _Label(
-            'Requisitos',
+          const SizedBox(height: 12),
+          _ReviewSection(
+            title: 'Contacto',
+            onEdit: () => edit(1),
+            rows:
+                contactRows.isEmpty ? const [('Contacto', null)] : contactRows,
           ),
-          const SizedBox(height: 9),
+          const SizedBox(height: 22),
+          _GroupTitle(
+            title: 'Requisitos',
+            trailing: requirements.isEmpty
+                ? null
+                : '$ready de ${requirements.length} listos',
+          ),
+          const SizedBox(height: 8),
           ...requirements.map(
             (requirement) => _RequirementRow(
               satisfied: requirement.satisfied,
@@ -845,113 +873,13 @@ class _ProviderRegistrationScreenState
             ),
           ),
           const SizedBox(height: 16),
-          Material(
-            color: const Color(0xFFF7FAF8),
-            borderRadius: BorderRadius.circular(14),
-            child: InkWell(
-              onTap: () {
-                setState(() {
-                  _termsAccepted = !_termsAccepted;
-                });
-              },
-              borderRadius: BorderRadius.circular(14),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(
-                  10,
-                  10,
-                  12,
-                  10,
-                ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(
-                    14,
-                  ),
-                  border: Border.all(
-                    color: _termsAccepted
-                        ? RancoColors.forest
-                        : const Color(
-                            0xFFD3E1DA,
-                          ),
-                  ),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Checkbox(
-                      value: _termsAccepted,
-                      onChanged: (value) {
-                        setState(() {
-                          _termsAccepted = value ?? false;
-                        });
-                      },
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    const SizedBox(width: 5),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Confirmo que la información es correcta',
-                            style: TextStyle(
-                              color: RancoColors.textPrimary,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 13,
-                            ),
-                          ),
-                          SizedBox(height: 3),
-                          Text(
-                            'Quiero enviar este negocio a revisión para su publicación inicial.',
-                            style: TextStyle(
-                              color: RancoColors.textSecondary,
-                              fontSize: 11.5,
-                              height: 1.35,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 18),
-          SizedBox(
-            height: 48,
-            child: FilledButton.icon(
-              onPressed: canSubmit && !_saving ? _submit : null,
-              icon: _saving
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(
-                      Icons.send_outlined,
-                      size: 18,
-                    ),
-              label: const Text(
-                'Enviar a revisión',
-              ),
-              style: FilledButton.styleFrom(
-                backgroundColor: RancoColors.forest,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: const Color(
-                  0xFFD9E7E0,
-                ),
-                disabledForegroundColor: const Color(
-                  0xFF728078,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(
-                    13,
-                  ),
-                ),
-              ),
-            ),
+          _ConfirmTile(
+            value: _termsAccepted,
+            onChanged: (value) {
+              setState(() {
+                _termsAccepted = value;
+              });
+            },
           ),
         ],
       ),
@@ -1141,16 +1069,6 @@ class _ProviderRegistrationScreenState
     _step = _step.clamp(
       0,
       _steps.length - 1,
-    );
-
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) {
-        if (_pageController.hasClients) {
-          _pageController.jumpToPage(
-            _step,
-          );
-        }
-      },
     );
   }
 
@@ -1416,14 +1334,6 @@ class _ProviderRegistrationScreenState
     setState(() {
       _step = target;
     });
-
-    await _pageController.animateToPage(
-      _step,
-      duration: const Duration(
-        milliseconds: 250,
-      ),
-      curve: Curves.easeOut,
-    );
   }
 
   // ---------------------------------------------------------------------------
@@ -1433,7 +1343,7 @@ class _ProviderRegistrationScreenState
   void _back() {
     if (_step == 0) {
       context.go(
-        '/provider/join',
+        '/account',
       );
 
       return;
@@ -1444,14 +1354,6 @@ class _ProviderRegistrationScreenState
       _error = null;
       _statusMessage = null;
     });
-
-    _pageController.animateToPage(
-      _step,
-      duration: const Duration(
-        milliseconds: 250,
-      ),
-      curve: Curves.easeOut,
-    );
   }
 
   // ---------------------------------------------------------------------------
@@ -1531,7 +1433,7 @@ class _ProviderRegistrationScreenState
         );
 
         context.go(
-          '/provider/status',
+          providerHubHomeRoute,
         );
       },
       failure: (failure) {
@@ -1549,6 +1451,9 @@ class _ProviderRegistrationScreenState
 // PROGRESO
 // =============================================================================
 
+/// Ancho del contenido del asistente: formulario legible sin zonas muertas.
+const _wizardMaxWidth = 760.0;
+
 class _ProgressHeader extends StatelessWidget {
   const _ProgressHeader({
     required this.step,
@@ -1560,53 +1465,160 @@ class _ProgressHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        18,
-        8,
-        18,
-        6,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: List.generate(
-              steps.length,
-              (index) {
-                return Expanded(
-                  child: Container(
-                    height: 4,
-                    margin: EdgeInsets.only(
-                      right: index == steps.length - 1 ? 0 : 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: index <= step
-                          ? RancoColors.forest
-                          : const Color(
-                              0xFFD5E3DD,
-                            ),
-                      borderRadius: BorderRadius.circular(
-                        20,
-                      ),
-                    ),
-                  ),
-                );
+    return Semantics(
+      label: 'Paso ${step + 1} de ${steps.length}: ${steps[step]}',
+      excludeSemantics: true,
+      child: Container(
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: Color(0xFFE1EAE5))),
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: _wizardMaxWidth),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth >= 560) {
+                  return _WideStepper(step: step, steps: steps);
+                }
+                return _CompactStepper(step: step, steps: steps);
               },
             ),
           ),
-          const SizedBox(height: 7),
+        ),
+      ),
+    );
+  }
+}
+
+class _WideStepper extends StatelessWidget {
+  const _WideStepper({required this.step, required this.steps});
+
+  final int step;
+  final List<String> steps;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (var index = 0; index < steps.length; index++) ...[
+          if (index > 0)
+            Expanded(
+              child: AnimatedContainer(
+                duration: RancoDurations.quick,
+                height: 2,
+                margin: const EdgeInsets.symmetric(horizontal: 8),
+                color: index <= step
+                    ? RancoColors.forest
+                    : const Color(0xFFD9E5DF),
+              ),
+            ),
+          _StepDot(index: index, step: step),
+          const SizedBox(width: 8),
           Text(
-            'Paso ${step + 1} de ${steps.length} · ${steps[step]}',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: const Color(
-                    0xFF6B7D75,
-                  ),
-                  fontWeight: FontWeight.w600,
-                ),
+            steps[index],
+            style: TextStyle(
+              color: index == step
+                  ? RancoColors.textPrimary
+                  : RancoColors.textSecondary,
+              fontSize: 13,
+              fontWeight: index == step ? FontWeight.w800 : FontWeight.w600,
+            ),
           ),
         ],
+      ],
+    );
+  }
+}
+
+class _StepDot extends StatelessWidget {
+  const _StepDot({required this.index, required this.step});
+
+  final int index;
+  final int step;
+
+  @override
+  Widget build(BuildContext context) {
+    final done = index < step;
+    final current = index == step;
+    return AnimatedContainer(
+      duration: RancoDurations.quick,
+      width: 26,
+      height: 26,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: done || current ? RancoColors.forest : Colors.white,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: done || current ? RancoColors.forest : const Color(0xFFCAD8D1),
+          width: 1.5,
+        ),
       ),
+      child: done
+          ? const Icon(Icons.check_rounded, size: 15, color: Colors.white)
+          : Text(
+              '${index + 1}',
+              style: TextStyle(
+                color: current ? Colors.white : RancoColors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+    );
+  }
+}
+
+class _CompactStepper extends StatelessWidget {
+  const _CompactStepper({required this.step, required this.steps});
+
+  final int step;
+  final List<String> steps;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: 'Paso ${step + 1} de ${steps.length} · ',
+                style: const TextStyle(color: RancoColors.textSecondary),
+              ),
+              TextSpan(
+                text: steps[step],
+                style: const TextStyle(
+                  color: RancoColors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            for (var index = 0; index < steps.length; index++)
+              Expanded(
+                child: AnimatedContainer(
+                  duration: RancoDurations.quick,
+                  height: 4,
+                  margin: EdgeInsets.only(
+                    right: index == steps.length - 1 ? 0 : 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: index <= step
+                        ? RancoColors.forest
+                        : const Color(0xFFD5E3DD),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -1620,51 +1632,60 @@ class _RegistrationPage extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.child,
+    required this.footer,
   });
 
   final String title;
   final String subtitle;
   final Widget child;
 
+  /// Mensajes + acciones, pegados al final del formulario (no al borde
+  /// inferior de la ventana).
+  final Widget footer;
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.fromLTRB(
-        18,
-        12,
-        18,
-        32,
+        16,
+        22,
+        16,
+        40,
       ),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(
-            maxWidth: 620,
+            maxWidth: _wizardMaxWidth,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                title,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: RancoColors.forest,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.35,
-                      height: 1.05,
-                    ),
+              Semantics(
+                header: true,
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: RancoColors.textPrimary,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                    height: 1.2,
+                  ),
+                ),
               ),
               const SizedBox(height: 6),
               Text(
                 subtitle,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: const Color(
-                        0xFF6B7D75,
-                      ),
-                      height: 1.35,
-                    ),
+                style: const TextStyle(
+                  color: RancoColors.textSecondary,
+                  fontSize: 14.5,
+                  height: 1.4,
+                ),
               ),
               const SizedBox(height: 20),
               child,
+              footer,
             ],
           ),
         ),
@@ -1674,81 +1695,166 @@ class _RegistrationPage extends StatelessWidget {
 }
 
 // =============================================================================
-// LABEL
+// ACCIONES
 // =============================================================================
 
-class _Label extends StatelessWidget {
-  const _Label(
-    this.text,
-  );
+class _StepActions extends StatelessWidget {
+  const _StepActions({
+    required this.showBack,
+    required this.onBack,
+    required this.primaryLabel,
+    required this.primaryIcon,
+    required this.onPrimary,
+    required this.loading,
+  });
 
-  final String text;
+  final bool showBack;
+  final VoidCallback? onBack;
+  final String primaryLabel;
+  final IconData primaryIcon;
+  final VoidCallback? onPrimary;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text.toUpperCase(),
-      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: const Color(
-              0xFF50665D,
-            ),
-            fontWeight: FontWeight.w800,
-            letterSpacing: .85,
-          ),
+    final primary = FilledButton.icon(
+      onPressed: loading ? null : onPrimary,
+      icon: loading
+          ? const SizedBox.square(
+              dimension: 17,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            )
+          : Icon(primaryIcon, size: 18),
+      label: Text(primaryLabel),
+      style: FilledButton.styleFrom(
+        minimumSize: const Size(160, 48),
+        disabledBackgroundColor: const Color(0xFFD9E7E0),
+        disabledForegroundColor: const Color(0xFF66766E),
+      ),
+    );
+    final back = OutlinedButton(
+      onPressed: onBack,
+      style: OutlinedButton.styleFrom(minimumSize: const Size(110, 48)),
+      child: const Text('Atrás'),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 440) {
+          return Row(
+            children: [
+              if (showBack) ...[
+                Expanded(flex: 2, child: back),
+                const SizedBox(width: 10),
+              ],
+              Expanded(flex: 3, child: primary),
+            ],
+          );
+        }
+        return Row(
+          children: [
+            if (showBack) back,
+            const Spacer(),
+            primary,
+          ],
+        );
+      },
     );
   }
 }
 
 // =============================================================================
-// BOTÓN SIGUIENTE
+// CAMPOS
 // =============================================================================
 
-class _NextButton extends StatelessWidget {
-  const _NextButton({
-    required this.text,
-    required this.onPressed,
-    required this.loading,
+class _GroupTitle extends StatelessWidget {
+  const _GroupTitle({
+    required this.title,
+    this.caption,
+    this.trailing,
   });
 
-  final String text;
-  final VoidCallback? onPressed;
-  final bool loading;
+  final String title;
+  final String? caption;
+
+  /// Contador a la derecha (p. ej. "2 localidades seleccionadas").
+  final String? trailing;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 48,
-      child: FilledButton.icon(
-        onPressed: loading ? null : onPressed,
-        icon: loading
-            ? const SizedBox.square(
-                dimension: 17,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: RancoColors.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
                 ),
-              )
-            : const Icon(
-                Icons.arrow_forward_rounded,
-                size: 18,
               ),
-        label: Text(
-          text,
-        ),
-        style: FilledButton.styleFrom(
-          backgroundColor: RancoColors.forest,
-          foregroundColor: Colors.white,
-          textStyle: const TextStyle(
-            fontWeight: FontWeight.w800,
-            fontSize: 13,
+              if (caption != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  caption!,
+                  style: const TextStyle(
+                    color: RancoColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ],
           ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(
-              13,
+        ),
+        if (trailing != null) ...[
+          const SizedBox(width: 12),
+          Text(
+            trailing!,
+            style: const TextStyle(
+              color: RancoColors.primaryDark,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
             ),
           ),
-        ),
-      ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Dos campos lado a lado en pantallas amplias; apilados en móvil.
+class _FieldPair extends StatelessWidget {
+  const _FieldPair({required this.first, required this.second});
+
+  final Widget first;
+  final Widget second;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 520) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [first, const SizedBox(height: 12), second],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: first),
+            const SizedBox(width: 12),
+            Expanded(child: second),
+          ],
+        );
+      },
     );
   }
 }
@@ -1774,97 +1880,80 @@ class _TypeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: selected
-          ? const Color(
-              0xFFF0F8F4,
-            )
-          : Colors.white,
-      borderRadius: BorderRadius.circular(15),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(
-          15,
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(
-            11,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(
-              15,
-            ),
-            border: Border.all(
-              color: selected
-                  ? RancoColors.forest
-                  : const Color(
-                      0xFFD5E2DC,
-                    ),
-              width: selected ? 1.4 : 1,
-            ),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 35,
-                height: 35,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: selected
-                      ? const Color(
-                          0xFFDDEFE7,
-                        )
-                      : const Color(
-                          0xFFF1F6F3,
-                        ),
-                  borderRadius: BorderRadius.circular(
-                    10,
-                  ),
-                ),
-                child: Icon(
-                  icon,
-                  color: RancoColors.forest,
-                  size: 19,
-                ),
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: selected ? const Color(0xFFF0F8F4) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: AnimatedContainer(
+            duration: RancoDurations.quick,
+            constraints: const BoxConstraints(minHeight: 108),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: selected ? RancoColors.forest : const Color(0xFFDCE6E1),
+                width: selected ? 1.6 : 1,
               ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        color: Color(
-                          0xFF31443B,
-                        ),
-                        fontSize: 12.5,
+                    Container(
+                      width: 38,
+                      height: 38,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? RancoColors.primaryMuted
+                            : const Color(0xFFF1F6F3),
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: Icon(
+                        icon,
+                        color: RancoColors.forest,
+                        size: 20,
                       ),
                     ),
-                    const SizedBox(
-                      height: 2,
-                    ),
-                    Text(
-                      subtitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 10.5,
-                        height: 1.2,
-                        color: Color(
-                          0xFF708179,
-                        ),
+                    const Spacer(),
+                    if (selected)
+                      const Icon(
+                        Icons.check_circle_rounded,
+                        color: RancoColors.forest,
+                        size: 20,
                       ),
-                    ),
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 10),
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: RancoColors.textPrimary,
+                    fontSize: 14.5,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    height: 1.3,
+                    color: RancoColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1873,133 +1962,484 @@ class _TypeCard extends StatelessWidget {
 }
 
 // =============================================================================
-// RESUMEN
+// CATEGORÍA
 // =============================================================================
 
-class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({
-    required this.rows,
+/// Grupos editoriales del selector. Solo presentación: las categorías y sus
+/// datos no cambian.
+const categoryPickerGroups = [
+  'Turismo',
+  'Alojamiento',
+  'Gastronomía',
+  'Servicios',
+  'Emergencias',
+  'Otros',
+];
+
+/// Grupo editorial de una categoría según su slug, nombre e ícono.
+String categoryPickerGroup(Category category) {
+  final key =
+      '${category.slug} ${category.name} ${category.iconKey}'.toLowerCase();
+  if (key.contains('emerg')) return 'Emergencias';
+  if (key.contains('turis') || key.contains('aventura')) return 'Turismo';
+  if (key.contains('aloj') ||
+      key.contains('lodging') ||
+      key.contains('caba') ||
+      key.contains('hosped')) {
+    return 'Alojamiento';
+  }
+  if (key.contains('gastr') ||
+      key.contains('restaur') ||
+      key.contains('comida')) {
+    return 'Gastronomía';
+  }
+  if (key.contains('otros') ||
+      key.contains('comerc') ||
+      key.contains('commerce')) {
+    return 'Otros';
+  }
+  return 'Servicios';
+}
+
+class _CategoryField extends StatelessWidget {
+  const _CategoryField({required this.selected, required this.onTap});
+
+  final Category? selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final category = selected;
+    return Semantics(
+      button: true,
+      label: category == null
+          ? 'Elegir categoría'
+          : 'Categoría: ${category.name}. Cambiar',
+      excludeSemantics: true,
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 64),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: category == null
+                    ? const Color(0xFFCFDCD5)
+                    : RancoColors.forest.withValues(alpha: .55),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: RancoColors.primarySoft,
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: Icon(
+                    category == null
+                        ? Icons.category_outlined
+                        : categoryIconFor(category),
+                    color: RancoColors.forest,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        category == null ? 'Categoría' : category.name,
+                        style: TextStyle(
+                          color: category == null
+                              ? RancoColors.textSecondary
+                              : RancoColors.textPrimary,
+                          fontSize: 15,
+                          fontWeight: category == null
+                              ? FontWeight.w600
+                              : FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        category == null
+                            ? 'Busca y elige la categoría principal'
+                            : categoryPickerGroup(category),
+                        style: const TextStyle(
+                          color: RancoColors.textSecondary,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  category == null ? 'Elegir' : 'Cambiar',
+                  style: const TextStyle(
+                    color: RancoColors.primaryDark,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(width: 2),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: RancoColors.primaryDark,
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Selector con búsqueda y grupos editoriales. Devuelve la categoría elegida
+/// con `Navigator.pop`.
+class _CategoryPickerSheet extends StatefulWidget {
+  const _CategoryPickerSheet({
+    required this.categories,
+    required this.selectedId,
   });
 
-  final List<_SummaryRow> rows;
+  final List<Category> categories;
+  final String? selectedId;
+
+  @override
+  State<_CategoryPickerSheet> createState() => _CategoryPickerSheetState();
+}
+
+class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
+  final _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final query = _query.trim().toLowerCase();
+    final filtered = [
+      for (final category in widget.categories)
+        if (query.isEmpty || category.name.toLowerCase().contains(query))
+          category,
+    ];
+    final grouped = <String, List<Category>>{
+      for (final group in categoryPickerGroups) group: [],
+    };
+    for (final category in filtered) {
+      grouped[categoryPickerGroup(category)]!.add(category);
+    }
+
+    final dialog =
+        MediaQuery.sizeOf(context).width >= RancoBreakpoints.expanded;
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (!dialog)
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(top: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFD7E2DE),
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 10, 10),
+          child: Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Elige una categoría',
+                  style: TextStyle(
+                    color: RancoColors.textPrimary,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Cerrar',
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: TextField(
+            controller: _searchController,
+            autofocus: dialog,
+            onChanged: (value) => setState(() => _query = value),
+            decoration: InputDecoration(
+              hintText: 'Buscar categoría',
+              prefixIcon: const Icon(Icons.search_rounded),
+              suffixIcon: _query.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: 'Limpiar búsqueda',
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _query = '');
+                      },
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Flexible(
+          child: filtered.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 24, 20, 32),
+                  child: Text(
+                    'No encontramos categorías con ese nombre.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: RancoColors.textSecondary),
+                  ),
+                )
+              : ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
+                  children: [
+                    for (final entry in grouped.entries)
+                      if (entry.value.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 14, 8, 6),
+                          child: Semantics(
+                            header: true,
+                            child: Text(
+                              entry.key.toUpperCase(),
+                              style: const TextStyle(
+                                color: RancoColors.textSecondary,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: .8,
+                              ),
+                            ),
+                          ),
+                        ),
+                        for (final category in entry.value)
+                          _CategoryOption(
+                            category: category,
+                            selected: category.id == widget.selectedId,
+                            onTap: () => Navigator.of(context).pop(category),
+                          ),
+                      ],
+                  ],
+                ),
+        ),
+      ],
+    );
+
+    if (dialog) return content;
+
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Container(
+        constraints: BoxConstraints(
+          maxWidth: 560,
+          maxHeight: MediaQuery.sizeOf(context).height * .85,
+        ),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(context).bottom,
+          ),
+          child: content,
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryOption extends StatelessWidget {
+  const _CategoryOption({
+    required this.category,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final Category category;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      selected: selected,
+      button: true,
+      child: Material(
+        color: selected ? RancoColors.primarySoft : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Row(
+                children: [
+                  Icon(
+                    categoryIconFor(category),
+                    size: 20,
+                    color: RancoColors.forest,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      category.name,
+                      style: TextStyle(
+                        color: RancoColors.textPrimary,
+                        fontSize: 14.5,
+                        fontWeight:
+                            selected ? FontWeight.w800 : FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  if (selected)
+                    const Icon(
+                      Icons.check_rounded,
+                      size: 20,
+                      color: RancoColors.forest,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// REVISIÓN
+// =============================================================================
+
+class _ReviewSection extends StatelessWidget {
+  const _ReviewSection({
+    required this.title,
+    required this.rows,
+    required this.onEdit,
+  });
+
+  final String title;
+
+  /// Etiqueta y valor; un valor nulo se muestra como "Pendiente".
+  final List<(String, String?)> rows;
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(
-        14,
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 10, 8, 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(
-          16,
-        ),
-        border: Border.all(
-          color: const Color(
-            0xFFD7E4DE,
-          ),
-        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE0EAE5)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (var index = 0; index < rows.length; index++) ...[
-            _SummaryLine(
-              row: rows[index],
-            ),
-            if (index != rows.length - 1)
-              const Divider(
-                height: 15,
-                color: Color(
-                  0xFFE7EEEA,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title.toUpperCase(),
+                  style: const TextStyle(
+                    color: RancoColors.textSecondary,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: .8,
+                  ),
                 ),
               ),
-          ],
+              TextButton(
+                onPressed: onEdit,
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(0, 40),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                ),
+                child: Text('Editar', semanticsLabel: 'Editar $title'),
+              ),
+            ],
+          ),
+          for (final (label, value) in rows)
+            Padding(
+              padding: const EdgeInsets.only(top: 8, right: 8),
+              child: _ReviewLine(label: label, value: value),
+            ),
         ],
       ),
     );
   }
 }
 
-class _SummaryLine extends StatelessWidget {
-  const _SummaryLine({
-    required this.row,
-  });
+class _ReviewLine extends StatelessWidget {
+  const _ReviewLine({required this.label, required this.value});
 
-  final _SummaryRow row;
+  final String label;
+  final String? value;
 
   @override
   Widget build(BuildContext context) {
+    final pending = value == null || value!.trim().isEmpty;
+    final valueText = Text(
+      pending ? 'Pendiente' : value!,
+      maxLines: 3,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: pending ? const Color(0xFF9A3B33) : RancoColors.textPrimary,
+        fontSize: 14,
+        fontWeight: pending ? FontWeight.w600 : FontWeight.w700,
+        height: 1.35,
+      ),
+    );
+    final labelText = Text(
+      label,
+      style: const TextStyle(
+        color: RancoColors.textSecondary,
+        fontSize: 13,
+      ),
+    );
     return LayoutBuilder(
-      builder: (
-        context,
-        constraints,
-      ) {
-        final narrow = constraints.maxWidth < 330;
-
-        if (narrow) {
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 380) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                row.label,
-                style: const TextStyle(
-                  color: Color(
-                    0xFF708179,
-                  ),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(
-                height: 3,
-              ),
-              Text(
-                row.value.isEmpty ? 'Pendiente' : row.value,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: RancoColors.textPrimary,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 12.5,
-                  height: 1.25,
-                ),
-              ),
-            ],
+            children: [labelText, const SizedBox(height: 2), valueText],
           );
         }
-
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              width: 92,
-              child: Text(
-                row.label,
-                style: const TextStyle(
-                  color: Color(
-                    0xFF708179,
-                  ),
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            const SizedBox(
-              width: 8,
-            ),
-            Expanded(
-              child: Text(
-                row.value.isEmpty ? 'Pendiente' : row.value,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: RancoColors.textPrimary,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 12.5,
-                  height: 1.25,
-                ),
-              ),
-            ),
+            SizedBox(width: 120, child: labelText),
+            const SizedBox(width: 12),
+            Expanded(child: valueText),
           ],
         );
       },
@@ -2007,82 +2447,68 @@ class _SummaryLine extends StatelessWidget {
   }
 }
 
-class _SummaryRow {
-  const _SummaryRow(
-    this.label,
-    this.value,
-  );
+class _ConfirmTile extends StatelessWidget {
+  const _ConfirmTile({required this.value, required this.onChanged});
 
-  final String label;
-  final String value;
-}
-
-// =============================================================================
-// AYUDA DE SECCIÓN
-// =============================================================================
-
-class _SectionHint extends StatelessWidget {
-  const _SectionHint({
-    required this.icon,
-    required this.title,
-    required this.message,
-  });
-
-  final IconData icon;
-  final String title;
-  final String message;
+  final bool value;
+  final ValueChanged<bool> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 34,
-          height: 34,
-          alignment: Alignment.center,
+    return Material(
+      color: value ? const Color(0xFFF0F8F4) : Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: () => onChanged(!value),
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: RancoDurations.quick,
+          padding: const EdgeInsets.fromLTRB(6, 8, 14, 10),
           decoration: BoxDecoration(
-            color: const Color(
-              0xFFE7F2ED,
-            ),
-            borderRadius: BorderRadius.circular(
-              10,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: value ? RancoColors.forest : const Color(0xFFD3E1DA),
             ),
           ),
-          child: Icon(
-            icon,
-            size: 17,
-            color: RancoColors.forest,
-          ),
-        ),
-        const SizedBox(width: 9),
-        Expanded(
-          child: Column(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: RancoColors.textPrimary,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 12.5,
-                ),
+              Checkbox(
+                value: value,
+                onChanged: (next) => onChanged(next ?? false),
               ),
-              const SizedBox(
-                height: 2,
-              ),
-              Text(
-                message,
-                style: const TextStyle(
-                  color: RancoColors.textSecondary,
-                  fontSize: 11.5,
-                  height: 1.3,
+              const SizedBox(width: 4),
+              const Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(top: 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Confirmo que la información es correcta',
+                        style: TextStyle(
+                          color: RancoColors.textPrimary,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                        ),
+                      ),
+                      SizedBox(height: 3),
+                      Text(
+                        'Quiero enviar este negocio a revisión para su publicación inicial.',
+                        style: TextStyle(
+                          color: RancoColors.textSecondary,
+                          fontSize: 13,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
         ),
-      ],
+      ),
     );
   }
 }
@@ -2106,44 +2532,21 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = warning
-        ? const Color(
-            0xFF9A6421,
-          )
-        : RancoColors.forest;
-
-    final background = warning
-        ? const Color(
-            0xFFFFF7E9,
-          )
-        : const Color(
-            0xFFF1F8F5,
-          );
+    final tone = warning ? const Color(0xFF8A5B12) : RancoColors.primaryDark;
+    final background =
+        warning ? const Color(0xFFFFF7E9) : const Color(0xFFF1F8F5);
 
     return Container(
-      padding: const EdgeInsets.all(
-        12,
-      ),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(
-          13,
-        ),
-        border: Border.all(
-          color: tone.withValues(
-            alpha: .24,
-          ),
-        ),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            size: 19,
-            color: tone,
-          ),
-          const SizedBox(width: 9),
+          Icon(icon, size: 20, color: tone),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2152,19 +2555,17 @@ class _InfoCard extends StatelessWidget {
                   title,
                   style: TextStyle(
                     color: tone,
-                    fontSize: 12.5,
+                    fontSize: 14,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(
-                  height: 3,
-                ),
+                const SizedBox(height: 3),
                 Text(
                   message,
                   style: const TextStyle(
                     color: RancoColors.textSecondary,
-                    fontSize: 11.5,
-                    height: 1.35,
+                    fontSize: 13,
+                    height: 1.4,
                   ),
                 ),
               ],
@@ -2191,38 +2592,37 @@ class _RequirementRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = satisfied
-        ? RancoColors.forest
-        : const Color(
-            0xFFB4543F,
-          );
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: 5,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            satisfied
-                ? Icons.check_circle_outline_rounded
-                : Icons.error_outline_rounded,
-            color: tone,
-            size: 20,
-          ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(
-                color: RancoColors.textPrimary,
-                fontSize: 12.5,
-                height: 1.35,
+    return Semantics(
+      label: '${satisfied ? 'Listo' : 'Pendiente'}: $text',
+      excludeSemantics: true,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              satisfied
+                  ? Icons.check_circle_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              color: satisfied ? RancoColors.forest : const Color(0xFFB4543F),
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                satisfied ? text.replaceFirst(RegExp(r'\.$'), '') : text,
+                style: TextStyle(
+                  color: satisfied
+                      ? RancoColors.textSecondary
+                      : RancoColors.textPrimary,
+                  fontSize: 14,
+                  height: 1.35,
+                  fontWeight: satisfied ? FontWeight.w500 : FontWeight.w600,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -2243,29 +2643,18 @@ class _InlineMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        18,
-        7,
-        18,
-        0,
-      ),
+    final tone = error ? const Color(0xFF8C2F28) : RancoColors.primaryDark;
+    return Semantics(
+      liveRegion: true,
       child: Container(
+        margin: const EdgeInsets.only(top: 18),
         padding: const EdgeInsets.symmetric(
           horizontal: 12,
           vertical: 10,
         ),
         decoration: BoxDecoration(
-          color: error
-              ? const Color(
-                  0xFFFFE8E5,
-                )
-              : const Color(
-                  0xFFE1F0EA,
-                ),
-          borderRadius: BorderRadius.circular(
-            12,
-          ),
+          color: error ? const Color(0xFFFFEDEA) : const Color(0xFFE6F3ED),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2274,25 +2663,17 @@ class _InlineMessage extends StatelessWidget {
               error
                   ? Icons.error_outline_rounded
                   : Icons.check_circle_outline_rounded,
-              size: 17,
-              color: error
-                  ? const Color(
-                      0xFF8C2F28,
-                    )
-                  : RancoColors.forest,
+              size: 18,
+              color: tone,
             ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 message,
                 style: TextStyle(
-                  color: error
-                      ? const Color(
-                          0xFF8C2F28,
-                        )
-                      : RancoColors.forest,
-                  fontSize: 12,
-                  height: 1.3,
+                  color: tone,
+                  fontSize: 13.5,
+                  height: 1.35,
                 ),
               ),
             ),

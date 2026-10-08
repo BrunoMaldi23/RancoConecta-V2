@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/utils/idempotency_key.dart';
 
 import '../../auth/data/supabase_auth_repository.dart';
 
@@ -17,6 +18,7 @@ class LodgingBooking {
     required this.guestUserId,
     required this.guestName,
     required this.guestEmail,
+    required this.guestPhone,
     required this.checkIn,
     required this.checkOut,
     required this.guests,
@@ -35,9 +37,10 @@ class LodgingBooking {
     return LodgingBooking(
       id: json['id'] as String,
       businessId: json['business_id'] as String,
-      guestUserId: json['guest_user_id'] as String,
+      guestUserId: json['guest_user_id'] as String?,
       guestName: json['guest_name'] as String? ?? 'Huésped',
       guestEmail: json['guest_email'] as String?,
+      guestPhone: json['guest_phone'] as String?,
       checkIn: DateTime.parse(
         json['check_in'] as String,
       ),
@@ -59,9 +62,10 @@ class LodgingBooking {
 
   final String id;
   final String businessId;
-  final String guestUserId;
+  final String? guestUserId;
   final String guestName;
   final String? guestEmail;
+  final String? guestPhone;
 
   final DateTime checkIn;
   final DateTime checkOut;
@@ -106,20 +110,28 @@ class LodgingBookingRepository {
     required DateTime checkIn,
     required DateTime checkOut,
     required int guests,
+    required String customerName,
+    required String customerPhone,
+    required String consentVersion,
     String? message,
   }) async {
-    final result = await _requireClient.rpc(
-      'create_lodging_booking',
-      params: {
-        'p_business_id': businessId,
-        'p_check_in': _date(checkIn),
-        'p_check_out': _date(checkOut),
-        'p_guests': guests,
-        'p_message': message,
+    await _requireClient.functions.invoke(
+      'submit-request',
+      headers: {'Idempotency-Key': newIdempotencyKey()},
+      body: {
+        'kind': 'lodging_booking',
+        'business_id': businessId,
+        'check_in': _date(checkIn),
+        'check_out': _date(checkOut),
+        'guests': guests,
+        'message': message,
+        'customer_name': customerName,
+        'customer_phone': customerPhone,
+        'consent_version': consentVersion,
+        'consent_accepted': true,
       },
     );
-
-    return result.toString();
+    return 'created';
   }
 
   Future<List<LodgingBooking>> listForBusiness(

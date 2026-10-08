@@ -4,7 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../shared/models/business.dart';
+import '../../../core/result/result.dart';
+import '../../../core/widgets/ranco_hover_surface.dart';
 import '../../../theme/ranco_colors.dart';
+import '../../../theme/ranco_tokens.dart';
 import '../../discovery/application/business_card_data.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../favorites/application/favorite_providers.dart';
@@ -54,7 +57,9 @@ class BusinessCard extends ConsumerWidget {
     );
   }
 
-  Future<void> _toggleFavorite(
+  /// Devuelve `true` si el cambio quedó confirmado; la tarjeta revierte el
+  /// estado optimista en caso contrario.
+  Future<bool> _toggleFavorite(
     BuildContext context,
     WidgetRef ref,
     bool isFavorite,
@@ -63,7 +68,7 @@ class BusinessCard extends ConsumerWidget {
 
     if (user == null) {
       context.go('/sign-in');
-      return;
+      return false;
     }
 
     final repository = ref.read(
@@ -79,11 +84,12 @@ class BusinessCard extends ConsumerWidget {
           );
 
     if (!context.mounted) {
-      return;
+      return result is Success;
     }
 
-    result.when(
+    return result.when(
       success: (_) {
+        ref.invalidate(favoriteIdsProvider);
         ref.invalidate(
           isFavoriteProvider(
             business.id,
@@ -110,6 +116,7 @@ class BusinessCard extends ConsumerWidget {
             ),
           ),
         );
+        return true;
       },
       failure: (failure) {
         ScaffoldMessenger.of(
@@ -121,6 +128,7 @@ class BusinessCard extends ConsumerWidget {
             ),
           ),
         );
+        return false;
       },
     );
   }
@@ -145,7 +153,7 @@ class _BusinessCardContent extends StatelessWidget {
   final String? imageUrl;
   final String? avatarUrl;
   final AsyncValue<bool> favorite;
-  final ValueChanged<bool> onFavoriteTap;
+  final Future<bool> Function(bool isFavorite) onFavoriteTap;
 
   static final _money =
       NumberFormat.currency(locale: 'es_CL', symbol: r'$', decimalDigits: 0);
@@ -209,130 +217,123 @@ class _BusinessCardContent extends StatelessWidget {
           logoUrl: avatarUrl,
         );
 
-    return Material(
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: Color(0xFFD8E4DC)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.go('/business/${data.id}'),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Stack(
-              children: [
-                AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: imageUrl == null
-                      ? fallback()
-                      : Image.network(
-                          imageUrl!,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (context, child, progress) =>
-                              progress == null ? child : fallback(),
-                          errorBuilder: (context, error, stackTrace) =>
-                              fallback(),
-                        ),
-                ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: _FavoriteButton(
-                    favorite: favorite,
-                    onTap: onFavoriteTap,
-                  ),
-                ),
-              ],
-            ),
-            _expandIf(
-              fillHeight,
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ConstrainedBox(
-                      // Dos líneas reservadas en Explorar para alinear títulos.
-                      constraints:
-                          BoxConstraints(minHeight: reserveHeights ? 40 : 0),
-                      child: Text(
-                        data.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: RancoColors.textPrimary,
-                          fontSize: 16,
-                          height: 1.2,
-                          fontWeight: FontWeight.w800,
-                        ),
+    return RancoHoverSurface(
+      radius: 18,
+      onTap: () => context.go('/business/${data.id}'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Stack(
+            children: [
+              AspectRatio(
+                aspectRatio: 16 / 9,
+                child: imageUrl == null
+                    ? fallback()
+                    : Image.network(
+                        imageUrl!,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, progress) =>
+                            progress == null ? child : fallback(),
+                        errorBuilder: (context, error, stackTrace) =>
+                            fallback(),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      data.serviceName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: RancoColors.primary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    ConstrainedBox(
-                      constraints: BoxConstraints(
-                          minHeight: reserveHeights && !fillHeight ? 66 : 0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          for (final detail in details)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 6),
-                              child: _ExploreCardDetail(
-                                icon: detail.icon,
-                                text: detail.text,
-                              ),
-                            ),
-                          if (showRating)
-                            _ExploreCardDetail(
-                              icon: Icons.star_rounded,
-                              iconColor: const Color(0xFFC88A12),
-                              text:
-                                  '${data.rating.toStringAsFixed(1)} · ${data.reviewsCount} ${data.reviewsCount == 1 ? 'reseña' : 'reseñas'}',
-                            ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    if (fillHeight) const Spacer(),
-                    SizedBox(
-                      height: 40,
-                      child: FilledButton.tonal(
-                        onPressed: () => context.go('/business/${data.id}'),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: RancoColors.primarySoft,
-                          foregroundColor: RancoColors.primaryDark,
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          'Ver detalle',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                      ),
-                    ),
-                  ],
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: _FavoriteButton(
+                  favorite: favorite,
+                  onTap: onFavoriteTap,
                 ),
               ),
+            ],
+          ),
+          _expandIf(
+            fillHeight,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ConstrainedBox(
+                    // Dos líneas reservadas en Explorar para alinear títulos.
+                    constraints:
+                        BoxConstraints(minHeight: reserveHeights ? 40 : 0),
+                    child: Text(
+                      data.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: RancoColors.textPrimary,
+                        fontSize: 16,
+                        height: 1.2,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    data.serviceName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: RancoColors.primary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                        minHeight: reserveHeights && !fillHeight ? 66 : 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final detail in details)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: _ExploreCardDetail(
+                              icon: detail.icon,
+                              text: detail.text,
+                            ),
+                          ),
+                        if (showRating)
+                          _ExploreCardDetail(
+                            icon: Icons.star_rounded,
+                            iconColor: const Color(0xFFC88A12),
+                            text:
+                                '${data.rating.toStringAsFixed(1)} · ${data.reviewsCount} ${data.reviewsCount == 1 ? 'reseña' : 'reseñas'}',
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (fillHeight) const Spacer(),
+                  SizedBox(
+                    height: 40,
+                    child: FilledButton.tonal(
+                      onPressed: () => context.go('/business/${data.id}'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: RancoColors.primarySoft,
+                        foregroundColor: RancoColors.primaryDark,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Ver detalle',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -348,15 +349,50 @@ class _CardDetail {
   final String text;
 }
 
-class _FavoriteButton extends StatelessWidget {
+/// Corazón optimista: cambia al instante, bloquea toques repetidos mientras
+/// se confirma y revierte si la operación falla.
+class _FavoriteButton extends StatefulWidget {
   const _FavoriteButton({required this.favorite, required this.onTap});
 
   final AsyncValue<bool> favorite;
-  final ValueChanged<bool> onTap;
+  final Future<bool> Function(bool isFavorite) onTap;
+
+  @override
+  State<_FavoriteButton> createState() => _FavoriteButtonState();
+}
+
+class _FavoriteButtonState extends State<_FavoriteButton> {
+  bool? _optimistic;
+  bool _pending = false;
+
+  Future<void> _toggle(bool current) async {
+    if (_pending) return;
+    setState(() {
+      _pending = true;
+      _optimistic = !current;
+    });
+    final confirmed = await widget.onTap(current);
+    if (!mounted) return;
+    setState(() {
+      _pending = false;
+      // Confirmado: el provider ya refleja el cambio. Fallo: se revierte.
+      _optimistic = confirmed ? _optimistic : null;
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _FavoriteButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final server = widget.favorite.valueOrNull;
+    if (!_pending && server != null && server == _optimistic) {
+      _optimistic = null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final isFavorite = favorite.valueOrNull ?? false;
+    final loading = widget.favorite.isLoading && _optimistic == null;
+    final isFavorite = _optimistic ?? widget.favorite.valueOrNull ?? false;
     return Material(
       color: Colors.white.withValues(alpha: .94),
       shape: const CircleBorder(),
@@ -365,26 +401,31 @@ class _FavoriteButton extends StatelessWidget {
       child: SizedBox(
         width: 40,
         height: 40,
-        child: favorite.isLoading
-            ? const Center(
-                child: SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              )
-            : IconButton(
-                tooltip:
-                    isFavorite ? 'Quitar de guardados' : 'Guardar prestador',
-                onPressed: () => onTap(isFavorite),
-                iconSize: 20,
-                color: isFavorite ? const Color(0xFFB63C49) : RancoColors.pine,
-                icon: Icon(
-                  isFavorite
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                ),
+        child: IconButton(
+          tooltip: isFavorite ? 'Quitar de guardados' : 'Guardar prestador',
+          // Mientras carga el estado inicial se muestra el contorno atenuado
+          // (sin spinner ni salto de layout).
+          onPressed: loading ? null : () => _toggle(isFavorite),
+          iconSize: 20,
+          color: isFavorite ? const Color(0xFFB63C49) : RancoColors.pine,
+          disabledColor: RancoColors.pine.withValues(alpha: .35),
+          hoverColor: const Color(0xFFB63C49).withValues(alpha: .08),
+          icon: AnimatedSwitcher(
+            duration: RancoDurations.quick,
+            transitionBuilder: (child, animation) => ScaleTransition(
+              scale: Tween<double>(begin: .7, end: 1).animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
               ),
+              child: FadeTransition(opacity: animation, child: child),
+            ),
+            child: Icon(
+              isFavorite
+                  ? Icons.favorite_rounded
+                  : Icons.favorite_border_rounded,
+              key: ValueKey(isFavorite),
+            ),
+          ),
+        ),
       ),
     );
   }

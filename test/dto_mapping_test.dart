@@ -37,8 +37,8 @@ void main() {
       'account_status': 'active',
     }).toDomain();
 
-    expect(profile.role, ProfileRole.superAdmin);
-    expect(profile.role.label, 'Super admin');
+    expect(profile.role, ProfileRole.admin);
+    expect(profile.role.label, 'Administrador');
   });
 
   test('maps business with nested services and coverage', () {

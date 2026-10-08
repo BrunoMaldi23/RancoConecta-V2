@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/layout/ranco_responsive.dart';
 import '../../../core/errors/app_failure.dart';
+import '../../../core/widgets/ranco_states.dart';
 import '../../../core/widgets/ranco_app_bar.dart';
 import '../../../core/widgets/ranco_error_state.dart';
 import '../../../shared/models/conversation.dart';
@@ -49,7 +50,7 @@ class MessagesScreen extends ConsumerWidget {
             ),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const RancoLoadingState(),
         error: (error, stackTrace) => RancoErrorState(
           message: _failureMessage(error),
           onRetry: () => ref.invalidate(conversationListProvider),
@@ -116,7 +117,7 @@ class _MessageDetailScreenState extends ConsumerState<MessageDetailScreen> {
                     },
                   );
                 },
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => const RancoLoadingState(),
                 error: (error, stackTrace) => RancoErrorState(
                   message: _failureMessage(error),
                   onRetry: () => ref.invalidate(

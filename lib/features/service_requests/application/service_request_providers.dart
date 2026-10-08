@@ -22,6 +22,8 @@ final myCustomerActivityProvider = FutureProvider<List<CustomerActivityItem>>(
 );
 
 final myRequestsProvider = FutureProvider<List<ServiceRequest>>((ref) async {
+  final user = await ref.watch(authStateProvider.future);
+  if (user == null) return const [];
   final result =
       await ref.watch(serviceRequestRepositoryProvider).listMyRequests();
   return result.when(
@@ -32,6 +34,7 @@ final myRequestsProvider = FutureProvider<List<ServiceRequest>>((ref) async {
 
 final requestDetailProvider =
     FutureProvider.family<ServiceRequest, String>((ref, id) async {
+  await ref.watch(authStateProvider.future);
   final result =
       await ref.watch(serviceRequestRepositoryProvider).getRequestById(id);
   return result.when(

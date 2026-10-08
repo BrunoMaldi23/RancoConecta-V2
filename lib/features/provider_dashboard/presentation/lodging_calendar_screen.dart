@@ -5,6 +5,8 @@ import '../../../theme/ranco_colors.dart';
 import '../application/provider_dashboard_providers.dart';
 import '../data/lodging_calendar_repository.dart';
 import '../../../core/widgets/ranco_app_bar.dart';
+import 'provider_hub.dart';
+import '../../../core/widgets/ranco_states.dart';
 
 class LodgingCalendarScreen extends ConsumerStatefulWidget {
   const LodgingCalendarScreen({
@@ -37,6 +39,7 @@ class _LodgingCalendarScreenState extends ConsumerState<LodgingCalendarScreen> {
       appBar: const RancoAppBar(
         title: 'Calendario',
         fallbackRoute: '/provider/dashboard',
+        bottom: ProviderHubTabBar(current: '/provider/calendar'),
       ),
       body: business.when(
         data: (business) {
@@ -211,9 +214,7 @@ class _LodgingCalendarScreenState extends ConsumerState<LodgingCalendarScreen> {
                 ],
               );
             },
-            loading: () => const Center(
-              child: CircularProgressIndicator(),
-            ),
+            loading: () => const RancoLoadingState(),
             error: (
               error,
               stackTrace,
@@ -225,9 +226,7 @@ class _LodgingCalendarScreenState extends ConsumerState<LodgingCalendarScreen> {
             ),
           );
         },
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
-        ),
+        loading: () => const RancoLoadingState(),
         error: (
           error,
           stackTrace,

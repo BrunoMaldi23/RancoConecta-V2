@@ -90,6 +90,50 @@ class AdminSettingsRepository {
 
   final SupabaseClient? _client;
 
+  Future<Map<String, String>> getContactChannels() async {
+    final client = _client;
+    if (client == null) throw StateError('Supabase no está configurado.');
+    final value =
+        await client.rpc<Map<String, dynamic>>('public_contact_channels');
+    return {
+      'email': value['email']?.toString() ?? '',
+      'whatsapp': value['whatsapp']?.toString() ?? '',
+    };
+  }
+
+  Future<void> saveContactChannels(String email, String whatsapp) async {
+    final client = _client;
+    if (client == null) throw StateError('Supabase no está configurado.');
+    await client.rpc('admin_update_contact_channels', params: {
+      'p_email': email,
+      'p_whatsapp': whatsapp,
+    });
+  }
+
+  Future<Map<String, bool>> getNotificationSettings() async {
+    final client = _client;
+    if (client == null) throw StateError('Supabase no está configurado.');
+    final rows = await client
+        .from('system_settings')
+        .select('key,value')
+        .inFilter('key', [
+      'notify_new_business',
+      'notify_business_changes',
+      'notify_contact_message'
+    ]);
+    return {for (final row in rows) row['key'] as String: row['value'] == true};
+  }
+
+  Future<void> saveNotificationSettings(Map<String, bool> values) async {
+    final client = _client;
+    if (client == null) throw StateError('Supabase no está configurado.');
+    await client.rpc('admin_update_notification_settings', params: {
+      'p_new_business': values['notify_new_business'] ?? true,
+      'p_business_changes': values['notify_business_changes'] ?? true,
+      'p_contact_message': values['notify_contact_message'] ?? true,
+    });
+  }
+
   Future<List<Category>> listCategories() async {
     final client = _client;
     if (client == null) throw StateError('Supabase no está configurado.');
@@ -175,6 +219,7 @@ class AdminSettingsRepository {
     int pageSize = 50,
     String? search,
     String? role,
+    String? status,
   }) async {
     final client = _client;
     if (client == null) throw StateError('Supabase no está configurado.');
@@ -184,6 +229,7 @@ class AdminSettingsRepository {
       'p_page_size': pageSize,
       'p_search': search?.trim().isEmpty == true ? null : search?.trim(),
       'p_role': role,
+      if (status != null) 'p_status': status,
     });
     return AdminUsersPage(
       rows: (result['rows'] as List<dynamic>)
@@ -191,6 +237,74 @@ class AdminSettingsRepository {
           .toList(),
       total: (result['total_count'] as num).toInt(),
     );
+  }
+
+  Future<void> changeUserRole({
+    required String userId,
+    required String role,
+  }) async {
+    final client = _client;
+    if (client == null) throw StateError('Supabase no está configurado.');
+    await client.rpc<void>('admin_change_user_role', params: {
+      'p_user_id': userId,
+      'p_role': role,
+    });
+  }
+
+  Future<void> setAccountSuspension({
+    required String userId,
+    required bool suspended,
+  }) async {
+    final client = _client;
+    if (client == null) throw StateError('Supabase no está configurado.');
+    await client.rpc<void>('admin_set_account_suspension', params: {
+      'p_user_id': userId,
+      'p_suspended': suspended,
+    });
+  }
+
+  Future<void> inviteAdministrator({
+    required String name,
+    required String email,
+  }) async {
+    final client = _client;
+    if (client == null) throw StateError('Supabase no está configurado.');
+    await client.functions.invoke('admin-user', body: {
+      'action': 'invite',
+      'name': name.trim(),
+      'email': email.trim(),
+    });
+  }
+
+  Future<void> deleteUser(String userId) async {
+    final client = _client;
+    if (client == null) throw StateError('Supabase no está configurado.');
+    await client.functions.invoke('admin-user', body: {
+      'action': 'delete',
+      'user_id': userId,
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> listAuditEvents() async {
+    final client = _client;
+    if (client == null) throw StateError('Supabase no está configurado.');
+    final rows = await client
+        .from('audit_logs')
+        .select('id,actor_id,action,entity_type,entity_id,created_at')
+        .order('created_at', ascending: false)
+        .limit(50);
+    return rows.map((row) => Map<String, dynamic>.from(row)).toList();
+  }
+
+  Future<bool> userMutationsReady() async {
+    final client = _client;
+    if (client == null) return false;
+    try {
+      return await client.rpc<bool>('admin_user_mutations_ready');
+    } on PostgrestException catch (error) {
+      if (error.code == 'PGRST202') return false;
+      rethrow;
+    }
   }
 }
 

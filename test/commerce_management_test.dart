@@ -4,14 +4,15 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('commerce dashboard exposes only real commerce management modules', () {
+    // FASE 3.21: las secciones del negocio viven en el hub compartido.
     final source = File(
-      'lib/features/provider_dashboard/presentation/provider_dashboard_screen.dart',
+      'lib/features/provider_dashboard/presentation/provider_hub.dart',
     ).readAsStringSync();
 
-    expect(source, contains('type == BusinessType.commerce'));
-    expect(source, contains('Perfil comercial'));
+    expect(source, contains('BusinessType.commerce =>'));
+    expect(source, contains('Perfil y contacto'));
     expect(source, contains("route: '/provider/location'"));
-    expect(source, contains('Contacto'));
+    expect(source, contains("route: '/provider/hours'"));
     expect(source, isNot(contains("title: 'Catálogo'")));
     expect(source, isNot(contains("title: 'Operaciones'")));
   });

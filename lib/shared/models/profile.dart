@@ -1,20 +1,22 @@
 enum ProfileRole {
-  customer,
   provider,
   admin,
-  superAdmin;
+  legacyCustomer;
+
+  // Compatibility aliases for serialized historical profiles and old fixtures.
+  static const ProfileRole customer = ProfileRole.legacyCustomer;
+  static const ProfileRole superAdmin = ProfileRole.admin;
 
   String get label {
     return switch (this) {
-      ProfileRole.customer => 'Usuario',
       ProfileRole.provider => 'Prestador',
       ProfileRole.admin => 'Administrador',
-      ProfileRole.superAdmin => 'Super admin',
+      ProfileRole.legacyCustomer => 'Cuenta histórica',
     };
   }
 
   bool get canAccessAdmin {
-    return this == ProfileRole.admin || this == ProfileRole.superAdmin;
+    return this == ProfileRole.admin;
   }
 
   bool get canReviewBusinesses {
@@ -25,8 +27,9 @@ enum ProfileRole {
     return switch (value) {
       'provider' => ProfileRole.provider,
       'admin' => ProfileRole.admin,
-      'super_admin' => ProfileRole.superAdmin,
-      _ => ProfileRole.customer,
+      'super_admin' => ProfileRole.admin,
+      'legacy_customer' || 'customer' => ProfileRole.legacyCustomer,
+      _ => ProfileRole.legacyCustomer,
     };
   }
 }
