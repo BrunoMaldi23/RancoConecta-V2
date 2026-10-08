@@ -1,4 +1,4 @@
--- Run against local Supabase with psql -v ON_ERROR_STOP=1 -f this file.
+﻿-- Run against local Supabase with psql -v ON_ERROR_STOP=1 -f this file.
 -- Every fixture and mutation is rolled back.
 begin;
 
@@ -12,13 +12,15 @@ values
 
 insert into public.profiles (id, full_name, role, account_status)
 values
-  ('00000000-0000-4000-8000-000000031701', 'Phase Admin', 'admin', 'active'),
+  ('00000000-0000-4000-8000-000000031701', 'Phase Admin', 'super_admin', 'active'),
   ('00000000-0000-4000-8000-000000031702', 'Phase Provider', 'provider', 'active'),
   ('00000000-0000-4000-8000-000000031703', 'Phase Customer', 'customer', 'active'),
   ('00000000-0000-4000-8000-000000031704', 'Phase Visitor', 'customer', 'active'),
   ('00000000-0000-4000-8000-000000031705', 'Phase No Email', 'customer', 'active')
 on conflict (id) do update set full_name = excluded.full_name,
   role = excluded.role, account_status = excluded.account_status;
+insert into public.super_admin_sessions(user_id,purpose,expires_at) values
+ ('00000000-0000-4000-8000-000000031701','Phase 3.17 contract admin session',now()+interval '50 minutes');
 
 insert into auth.users (id, email, is_anonymous)
 select gen_random_uuid(), 'phase317-row-' || g || '@example.test', false
@@ -102,7 +104,7 @@ begin
   result := public.admin_search_users(1, 10, 'Phase Customer', 'CUSTOMER');
   if (result->>'total_count')::int <> 1 then raise exception 'customer role failed'; end if;
   result := public.admin_search_users(1, 10, 'Phase Admin', 'ADMIN');
-  if (result->>'total_count')::int <> 1 then raise exception 'admin role failed'; end if;
+  if (result->>'total_count')::int <> 1 then raise exception 'super_admin role failed'; end if;
   begin
     perform public.admin_search_users(null, 10, null, null);
     raise exception 'null page accepted';

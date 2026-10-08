@@ -46,7 +46,7 @@ Deno.serve(async (request) => {
     { data: authUser, error: authError },
   ] = await Promise.all([
     admin.from('profiles').select('full_name,phone').eq('id', business.owner_id).single(),
-    admin.from('profiles').select('id').in('role', ['admin', 'super_admin']).eq('account_status', 'active'),
+    admin.from('profiles').select('id').eq('role', 'admin').eq('account_status', 'active'),
     admin.auth.admin.getUserById(business.owner_id),
   ]);
   if (ownerError || adminsError || authError) {

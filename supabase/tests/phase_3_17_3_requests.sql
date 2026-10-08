@@ -58,11 +58,12 @@ select '00000000-0000-4000-8000-000000031753',
 from public.subcategories limit 1;
 
 insert into public.lodging_bookings
-  (id, business_id, guest_user_id, guest_name, check_in, check_out, guests, nights)
+  (id, business_id, guest_user_id, guest_name, check_in, check_out, guests, nights,
+   base_amount, total_amount)
 values ('00000000-0000-4000-8000-000000031761',
   '00000000-0000-4000-8000-000000031742',
   '00000000-0000-4000-8000-000000031731', 'Fixture',
-  '2026-11-01', '2026-11-03', 2, 2);
+  '2026-11-01', '2026-11-03', 2, 2, 10000, 10000);
 
 insert into public.gastronomy_table_reservations
   (id, business_id, user_id, reservation_date, reservation_time, guests)
@@ -145,9 +146,14 @@ set local role anon;
 select set_config('request.jwt.claim.sub', '', true);
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 do $$ begin
-  if (select count(*) from public.service_requests where id = '00000000-0000-4000-8000-000000031753') <> 0 then
-    raise exception 'unauthenticated user can read anonymous request';
-  end if;
+  begin
+    if (select count(*) from public.service_requests
+        where id = '00000000-0000-4000-8000-000000031753') <> 0 then
+      raise exception 'unauthenticated user can read anonymous request';
+    end if;
+  exception when insufficient_privilege then
+    null;
+  end;
 end $$;
 reset role;
 

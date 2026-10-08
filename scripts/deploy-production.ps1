@@ -19,6 +19,24 @@ $DefinesFile = Join-Path $Root ".dart_tool\production_public_defines.env"
 $BuildDir = Join-Path $Root "build\web"
 $OutputDir = Join-Path $Root "vercel_output"
 
+function Assert-ProductionBundle([string]$Directory) {
+  $Bundle = Join-Path $Directory "main.dart.js"
+  if (-not (Test-Path -LiteralPath $Bundle)) {
+    throw "Production bundle is missing in $Directory."
+  }
+  $Content = [IO.File]::ReadAllText($Bundle)
+  if (-not $Content.Contains($PublicValues["SUPABASE_URL"])) {
+    throw "Production bundle does not contain the configured Supabase URL."
+  }
+  if ($Content.Contains("Supabase is not configured") -or
+      $Content.Contains("Running in local development mode")) {
+    throw "Production bundle still contains the development fallback."
+  }
+  if ($Content -match 'https?://(localhost|127\.0\.0\.1)(:|/|["\x27])') {
+    throw "Production bundle contains a localhost URL."
+  }
+}
+
 if (-not (Test-Path -LiteralPath $EnvFile)) {
   throw "Missing .env.production.local. Create it locally with APP_ENVIRONMENT, SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY."
 }
@@ -106,8 +124,13 @@ git diff --check
 if ($LASTEXITCODE -ne 0) { throw "Git diff check failed." }
 
 Write-Step "Building Flutter web production bundle"
+$SourceHash = (node scripts/verify-vercel-output.mjs --hash).Trim()
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($SourceHash)) {
+  throw "Could not calculate the source fingerprint."
+}
 flutter build web --release --dart-define-from-file=$DefinesFile
 if ($LASTEXITCODE -ne 0) { throw "Flutter web build failed." }
+Assert-ProductionBundle $BuildDir
 
 Write-Step "Syncing build/web to vercel_output"
 if (-not (Test-Path -LiteralPath $BuildDir)) {
@@ -127,6 +150,11 @@ if (-not $ResolvedOutput.StartsWith($RootPrefix, [System.StringComparison]::Ordi
 
 Get-ChildItem -LiteralPath $ResolvedOutput -Force | Remove-Item -Recurse -Force
 Copy-Item -Path (Join-Path $BuildDir "*") -Destination $ResolvedOutput -Recurse -Force
+Assert-ProductionBundle $ResolvedOutput
+node scripts/verify-vercel-output.mjs --write $SourceHash
+if ($LASTEXITCODE -ne 0) { throw "Sources changed during the build." }
+node scripts/verify-vercel-output.mjs
+if ($LASTEXITCODE -ne 0) { throw "Production output verification failed." }
 
 # Flutter's generated license notice can contain trailing spaces. Normalize it
 # after copying so the tracked deploy output passes the final Git whitespace gate.
