@@ -105,7 +105,8 @@ git push
 
 Vercel project environment variables must include `APP_ENVIRONMENT=production`,
 `SUPABASE_URL`, and `SUPABASE_PUBLISHABLE_KEY` (the public Supabase anon key is
-also supported). Never configure a service role key in the frontend. Flutter
+also supported). These three client values must be available to the build as
+Vercel project configuration variables. Never configure a service role key in the frontend. Flutter
 version `3.44.0` is pinned in `scripts/vercel-build.sh` and is used by the
 automatic Vercel build.
 

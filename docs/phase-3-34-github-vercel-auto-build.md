@@ -37,8 +37,11 @@ prebuilt `vercel_output` is needed for normal production deploys.
 - Vercel preview `Eh4jiBMhkBNeejjJv4qqV4R5x6uk`: READY. Remote logs confirm
   the Linux script installed Flutter 3.44.0, built release web, and published
   `build/web`. The CLI preview required explicit `--build-env` values; the
-  GitHub-triggered production deploy remains to verify project environment
-  injection.
+  first GitHub-triggered deployment cloned `main` automatically, but failed
+  because the project's existing public frontend values were stored as
+  `Secret` and were absent from the build process. Re-saved the same local
+  public values to Vercel Production and Preview as Config variables; a follow-
+  up GitHub-triggered deployment is needed to verify injection.
 - Preview browser smoke was blocked by Vercel's deployment protection login;
   production domain smoke remains pending the GitHub-triggered deployment.
 

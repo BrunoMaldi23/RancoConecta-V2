@@ -35,8 +35,13 @@ fi
 APP_ENVIRONMENT="${APP_ENVIRONMENT:-production}"
 SUPABASE_URL="${SUPABASE_URL:-}"
 SUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY:-}}"
-if [[ "$APP_ENVIRONMENT" != "production" || -z "$SUPABASE_URL" || -z "$SUPABASE_PUBLISHABLE_KEY" ]]; then
-  echo "Set APP_ENVIRONMENT=production, SUPABASE_URL, and SUPABASE_PUBLISHABLE_KEY (or SUPABASE_ANON_KEY)." >&2
+missing_variables=()
+if [[ "$APP_ENVIRONMENT" != "production" ]]; then missing_variables+=(APP_ENVIRONMENT=production); fi
+if [[ -z "$SUPABASE_URL" ]]; then missing_variables+=(SUPABASE_URL); fi
+if [[ -z "$SUPABASE_PUBLISHABLE_KEY" ]]; then missing_variables+=(SUPABASE_PUBLISHABLE_KEY/SUPABASE_ANON_KEY); fi
+if (( ${#missing_variables[@]} > 0 )); then
+  echo "Missing or invalid public frontend build variables: ${missing_variables[*]}" >&2
+  echo "Vercel environment: ${VERCEL_ENV:-local/unknown}. Configure these as project build environment variables." >&2
   exit 1
 fi
 
