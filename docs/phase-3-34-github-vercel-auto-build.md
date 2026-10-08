@@ -38,12 +38,22 @@ prebuilt `vercel_output` is needed for normal production deploys.
   the Linux script installed Flutter 3.44.0, built release web, and published
   `build/web`. The CLI preview required explicit `--build-env` values; the
   first GitHub-triggered deployment cloned `main` automatically, but failed
-  because the project's existing public frontend values were stored as
-  `Secret` and were absent from the build process. Re-saved the same local
-  public values to Vercel Production and Preview as Config variables; a follow-
-  up GitHub-triggered deployment is needed to verify injection.
-- Preview browser smoke was blocked by Vercel's deployment protection login;
-  production domain smoke remains pending the GitHub-triggered deployment.
+  because its existing environment values were absent from the build process.
+  The public frontend values were re-saved from `.env.production.local` to
+  Vercel Production and Preview as Config variables. A follow-up GitHub push
+  triggered a successful build with those variables.
+- GitHub push to `main` at commit `9af6013` automatically created production
+  deployment `dpl_71nTwxfkbVJPSrdFcZV9xJiW69Hy`: **READY**. Logs show Vercel
+  cloned GitHub branch `main`, installed Flutter 3.44.0, ran `flutter pub get`,
+  compiled Flutter web, and published `build/web`. Vercel assigned both
+  `rancoconecta.cl` and `www.rancoconecta.cl` to the deployment.
+- Domain smoke: both HTTPS domains returned HTTP 200; `rancoconecta.cl`
+  redirects to canonical `www.rancoconecta.cl`.
+- Browser smoke on production: Home, Explore/search, Categories, business
+  detail, anonymous request, table reservation, Contact, sign-in, Provider
+  Join, Terms, and Privacy routes loaded. Home and Explore rendered content and
+  public listings. Observed Supabase REST/Storage requests returned 200; no
+  console errors or warnings were observed. No forms were submitted.
 
 ## Legacy handling
 
@@ -52,3 +62,8 @@ and Vercel source bundles. The tracked generated files are removed from Git
 after validating `build/web`. `scripts/verify-vercel-output.mjs` remains only
 as a historical local utility and is not included in Vercel's uploaded source
 or invoked by the build.
+
+The remaining build inputs are `lib/`, `web/`, `assets/`, `pubspec.yaml`,
+`pubspec.lock`, `vercel.json`, and `scripts/vercel-build.sh`. `.vercelignore`
+excludes `supabase/`, tests, docs, local build outputs, private environment
+files, backups, and all scripts other than the build entrypoint.
